@@ -14,6 +14,7 @@ import {
 } from "@/lib/services/alertRulesService";
 import {
   fetchAllAlertEvents,
+  updateAlertRuleDetails,
   type AllAlertEventsFilters,
 } from "@/lib/services/alertEventsService";
 import { effectiveUnseenCount } from "@/lib/alertUnseen";
@@ -23,7 +24,9 @@ export function useAlertRules(filters: AlertRuleFilters = {}) {
   return useQuery({
     queryKey: ["alert-rules", filters],
     queryFn: () => fetchAlertRules(filters),
-    refetchInterval: 10_000,
+    refetchInterval: 3000,
+    refetchIntervalInBackground: false,
+    staleTime: 2000,
   });
 }
 
@@ -31,7 +34,9 @@ export function useAlertStats() {
   return useQuery({
     queryKey: ["alert-rules", "stats"],
     queryFn: fetchAlertStats,
-    refetchInterval: 10_000,
+    refetchInterval: 3000,
+    refetchIntervalInBackground: false,
+    staleTime: 2000,
   });
 }
 
@@ -80,7 +85,9 @@ export function useAllAlertEvents(filters: AllAlertEventsFilters = {}) {
   return useQuery({
     queryKey: ["alert-events", "all", filters],
     queryFn: () => fetchAllAlertEvents(filters),
-    refetchInterval: 10_000,
+    refetchInterval: 1500,
+    refetchIntervalInBackground: false,
+    staleTime: 1000,
   });
 }
 
@@ -138,5 +145,23 @@ export function useMarkAlertSeen() {
       else setBaseline(variables.alertId, updatedRule.unseenCount);
       invalidate();
     },
+  });
+}
+
+export function useUpdateAlertRuleDetails() {
+  const invalidate = useInvalidateAlertRules();
+  return useMutation({
+    mutationFn: ({
+      alertId,
+      name,
+      status,
+      category,
+    }: {
+      alertId: string;
+      name?: string;
+      status?: string;
+      category?: import("@/lib/types").AlertCategory;
+    }) => updateAlertRuleDetails(alertId, { name, status, category }),
+    onSuccess: invalidate,
   });
 }

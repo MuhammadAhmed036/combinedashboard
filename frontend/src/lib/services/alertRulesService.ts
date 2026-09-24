@@ -7,6 +7,8 @@ import type {
   AlertStatsSummary,
 } from "@/lib/types";
 
+export * from "./alertEventsService";
+
 const ALERT_CATEGORIES: AlertCategory[] = ["critical", "medium", "low"];
 
 function asCategory(value: unknown): AlertCategory {
