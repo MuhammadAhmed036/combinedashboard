@@ -9,7 +9,7 @@ import { useLiveCameraOccupancy } from "@/lib/hooks/useLiveCameraOccupancy";
 
 export function CommandWallDashboard() {
   const { data: cameras, isLoading: camerasLoading } = useCameras();
-  const { data: rules, isLoading: alertsLoading, error: alertsError } = useAlertRules();
+  const { data: rules } = useAlertRules();
   const liveOccupancy = useLiveCameraOccupancy();
 
   return (
@@ -22,7 +22,7 @@ export function CommandWallDashboard() {
           liveOccupancy={liveOccupancy}
           isLoading={camerasLoading}
         />
-        <AlertRail rules={rules} isLoading={alertsLoading} error={alertsError} />
+        <AlertRail />
       </div>
     </div>
   );

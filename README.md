@@ -177,9 +177,9 @@ Use this section when you want your local dashboard DB to sync from the team `yo
 ### What Runs Where
 
 - Team DB: source of truth for `detection_events` and baseline `camera_locations`.
-- Local DB container `safecity-db`: this dashboard's own Postgres. Alerts are created here.
-- Sync worker `safecity-sync`: pulls team `detection_events` / `camera_locations` into local DB and evaluates active alert rules.
-- WebSocket `safecity-person-count-ws`: reads local `detection_events` and broadcasts live people counts.
+- Local DB service `db`: this dashboard's own Postgres. Alerts are created here.
+- Sync worker service `sync`: pulls team `detection_events` / `camera_locations` into local DB and evaluates active alert rules.
+- WebSocket service `person-count-ws`: reads local `detection_events` and broadcasts live people counts.
 - Dashboard app: reads local DB and stream/camera APIs.
 
 ### Required `.env` Shape
@@ -269,7 +269,7 @@ If you are running host Next.js on port 3002, replace `3000` with `3002`.
 Open local Postgres:
 
 ```powershell
-docker exec -it safecity-db psql -U dashboard -d dashboard
+docker compose --env-file .env -f docker\docker-compose.yml exec db psql -U dashboard -d dashboard
 ```
 
 Useful checks:

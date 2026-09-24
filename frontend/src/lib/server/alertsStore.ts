@@ -172,6 +172,48 @@ export async function listAlertEvents(alertId: string, limit = 100): Promise<Row
   return rows;
 }
 
+export interface ListAllAlertEventsFilters {
+  cameraId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  limit?: number;
+}
+
+export async function listAllAlertEvents(filters: ListAllAlertEventsFilters): Promise<Row[]> {
+  const pool = getPool();
+  let query = `
+    SELECT e.*,
+           a.name AS rule_name,
+           a.label AS rule_label,
+           a.metadata->>'category' AS category,
+           a.conditions->'class_names' AS class_names
+    FROM alert_events e
+    JOIN alerts a ON a.alert_id = e.alert_id
+    WHERE 1=1
+  `;
+  const params: unknown[] = [];
+  let paramIdx = 1;
+
+  if (filters.cameraId) {
+    query += ` AND e.camera_id = $${paramIdx++}`;
+    params.push(filters.cameraId);
+  }
+  if (filters.dateFrom) {
+    query += ` AND COALESCE(e.detection_ts::timestamptz, e.created_at) >= $${paramIdx++}`;
+    params.push(filters.dateFrom);
+  }
+  if (filters.dateTo) {
+    query += ` AND COALESCE(e.detection_ts::timestamptz, e.created_at) <= $${paramIdx++}`;
+    params.push(filters.dateTo);
+  }
+
+  query += ` ORDER BY COALESCE(e.detection_ts::timestamptz, e.created_at) DESC LIMIT $${paramIdx++}`;
+  params.push(filters.limit ?? 50);
+
+  const { rows } = await pool.query(query, params);
+  return rows;
+}
+
 export async function listAbsenceEvents(alertId: string, limit = 100): Promise<Row[]> {
   const pool = getPool();
   const { rows } = await pool.query(

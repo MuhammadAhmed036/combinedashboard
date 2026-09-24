@@ -4,14 +4,18 @@ import {
   type CreateAlertRulePayload,
   createAlertRule,
   deleteAlertRule,
-  fetchAlertHistory,
   fetchAbsenceEvents,
+  fetchAlertHistory,
   fetchAlertRule,
   fetchAlertRules,
   fetchAlertStats,
   markAlertSeen,
   updateAlertRuleStatus,
 } from "@/lib/services/alertRulesService";
+import {
+  fetchAllAlertEvents,
+  type AllAlertEventsFilters,
+} from "@/lib/services/alertEventsService";
 import { effectiveUnseenCount } from "@/lib/alertUnseen";
 import { useAlertSeenBaselineStore } from "@/lib/store/useAlertSeenBaselineStore";
 
@@ -67,6 +71,15 @@ export function useAlertHistory(alertId: string | null) {
     queryKey: ["alert-rules", "history", alertId],
     queryFn: () => fetchAlertHistory(alertId as string),
     enabled: Boolean(alertId),
+    refetchInterval: 10_000,
+  });
+}
+
+/** Fetch all alert events across all rules, with optional camera/date filters. */
+export function useAllAlertEvents(filters: AllAlertEventsFilters = {}) {
+  return useQuery({
+    queryKey: ["alert-events", "all", filters],
+    queryFn: () => fetchAllAlertEvents(filters),
     refetchInterval: 10_000,
   });
 }

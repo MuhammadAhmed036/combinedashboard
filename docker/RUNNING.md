@@ -50,7 +50,7 @@ Check status:
 
 ```powershell
 docker compose ps
-docker logs -f safecity-sync
+docker compose logs -f sync
 ```
 
 Open:
@@ -93,7 +93,7 @@ Keep backend services running, then close all browser tabs.
 Watch the backend evaluator:
 
 ```powershell
-docker logs -f safecity-sync
+docker compose logs -f sync
 ```
 
 If the service was stopped for a while, it catches up from the Team DB in
@@ -103,7 +103,7 @@ multiple batches per poll. Tune this with `SYNC_BATCH_LIMIT` and
 Check alert events in local DB:
 
 ```powershell
-docker exec -it safecity-db psql -U dashboard -d dashboard
+docker compose exec db psql -U dashboard -d dashboard
 ```
 
 Inside `psql`:
@@ -182,16 +182,16 @@ The browser is display-only for alert generation.
 Alerts continue while the browser is closed if these are running:
 
 ```text
-safecity-db
-safecity-sync
-safecity-dashboard
-safecity-person-count-ws
+db
+sync
+app
+person-count-ws
 ```
 
 The main service for 24/7 alert generation is:
 
 ```text
-safecity-sync
+sync
 ```
 
 If Docker or the machine is shut down, alert generation stops until services start again.

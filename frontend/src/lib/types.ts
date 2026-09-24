@@ -263,6 +263,11 @@ export interface AlertMatchEvent {
   seen: boolean;
   isLatest: boolean;
   createdAt: string | null;
+  // Extended fields populated when fetching across all rules (alert history feed)
+  ruleName?: string;
+  ruleLabel?: string;
+  category?: AlertCategory;
+  classNames?: string[];
 }
 
 export interface AlertStatsSummary {
