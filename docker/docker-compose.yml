@@ -1,0 +1,76 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: safecity-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${LOCAL_DB_USER:-dashboard}
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD}
+      POSTGRES_DB: ${LOCAL_DB_NAME:-dashboard}
+    ports:
+      - "127.0.0.1:${LOCAL_DB_PORT:-5370}:5432"
+    volumes:
+      - safecity-db-data:/var/lib/postgresql/data
+      - ./docker/init-db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LOCAL_DB_USER:-dashboard} -d ${LOCAL_DB_NAME:-dashboard}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    image: safecity-ai-dashboard:${APP_IMAGE_TAG:-0.1.0}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: safecity-dashboard
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      DATABASE_URL: postgres://${LOCAL_DB_USER:-dashboard}:${LOCAL_DB_PASSWORD}@db:5432/${LOCAL_DB_NAME:-dashboard}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - safecity-data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  person-count-ws:
+    image: safecity-person-count-ws:${WS_IMAGE_TAG:-0.1.0}
+    build:
+      context: ../websocket/person-count-ws
+    container_name: safecity-person-count-ws
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      WS_PORT: "8090"
+      DATABASE_URL: postgres://${LOCAL_DB_USER:-dashboard}:${LOCAL_DB_PASSWORD}@db:5432/${LOCAL_DB_NAME:-dashboard}
+    ports:
+      - "${PERSON_COUNT_WS_PORT:-8090}:8090"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  sync:
+    image: safecity-sync:${SYNC_IMAGE_TAG:-0.1.0}
+    build:
+      context: ../workers/sync-service
+    container_name: safecity-sync
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      DATABASE_URL: postgres://${LOCAL_DB_USER:-dashboard}:${LOCAL_DB_PASSWORD}@db:5432/${LOCAL_DB_NAME:-dashboard}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  safecity-data:
+  safecity-db-data:
+

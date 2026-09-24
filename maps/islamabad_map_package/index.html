@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Islamabad Map</title>
+  <link rel="stylesheet" href="maplibre-gl.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: sans-serif; background: #111; color: #fff; }
+    #map { width: 100vw; height: 100vh; }
+    #controls {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    button {
+      padding: 8px 14px;
+      border: none;
+      border-radius: 6px;
+      background: #1e293b;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      border: 1px solid #334155;
+    }
+    button.active { background: #3b82f6; border-color: #3b82f6; }
+    #theme-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    #error-box {
+      position: absolute;
+      bottom: 40px;
+      left: 12px;
+      z-index: 99;
+      background: #7f1d1d;
+      color: #fecaca;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      max-width: 500px;
+      display: none;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="controls">
+    <button id="btn-vector" class="active" onclick="showVector()">Vector Map</button>
+    <button id="btn-satellite" onclick="showSatellite()">Satellite View</button>
+    <button id="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
+  </div>
+  <div id="error-box"></div>
+
+  <script src="maplibre-gl.js"></script>
+  <script src="pmtiles.js"></script>
+  <script>
+    function showError(msg) {
+      var box = document.getElementById("error-box");
+      box.style.display = "block";
+      box.textContent = msg;
+      console.error(msg);
+    }
+
+    if (typeof maplibregl === "undefined") {
+      showError("ERROR: maplibre-gl.js failed to load");
+    }
+    if (typeof pmtiles === "undefined") {
+      showError("ERROR: pmtiles.js failed to load");
+    }
+
+    // Register PMTiles protocol - exact same way as original project
+    try {
+      maplibregl.removeProtocol("pmtiles");
+    } catch(e) {}
+
+    var protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile.bind(protocol));
+
+    var ISLAMABAD_CENTER = [73.0479, 33.7295];
+    var ISLAMABAD_ZOOM   = 11;
+    var ISLAMABAD_BOUNDS = [[72.70, 33.45], [73.40, 33.95]];
+
+    // ─── Theme State ────────────────────────────────────────────────────────
+    var isDark = true;
+    var currentView = "vector"; // "vector" | "satellite"
+
+    // OpenMapTiles "place" layer has a "class" field (city, town, village,
+    // suburb, quarter, neighbourhood...) and a "rank" field (1 = most
+    // important). Without tiering, every place renders at the same size and
+    // MapLibre's collision detection silently drops whichever loses — that's
+    // why some Islamabad sector/neighbourhood names looked "missing". Splitting
+    // into major/minor layers with a sort-key by rank keeps important names
+    // always visible and only reveals minor ones once there's room (higher zoom).
+    // Must be defined before the first buildVectorStyle() call below.
+    var MAJOR_PLACE_CLASSES = ["city", "town"];
+    var MINOR_PLACE_CLASSES = ["village", "suburb", "quarter", "neighbourhood", "hamlet", "isolated_dwelling"];
+
+    var map = new maplibregl.Map({
+      container: "map",
+      style: buildVectorStyle(isDark),
+      center: ISLAMABAD_CENTER,
+      zoom: ISLAMABAD_ZOOM,
+      maxBounds: ISLAMABAD_BOUNDS,
+      minZoom: 9,
+      maxZoom: 18,
+    });
+
+    map.on("error", function(e) {
+      showError("Map error: " + (e.error ? e.error.message : JSON.stringify(e)));
+    });
+
+    map.addControl(new maplibregl.NavigationControl(), "bottom-right");
+    map.addControl(new maplibregl.ScaleControl(), "bottom-left");
+
+    function showVector() {
+      currentView = "vector";
+      map.setStyle(buildVectorStyle(isDark));
+      document.getElementById("btn-vector").classList.add("active");
+      document.getElementById("btn-satellite").classList.remove("active");
+    }
+
+    function showSatellite() {
+      currentView = "satellite";
+      map.setStyle(buildSatelliteStyle(isDark));
+      document.getElementById("btn-satellite").classList.add("active");
+      document.getElementById("btn-vector").classList.remove("active");
+    }
+
+    function toggleTheme() {
+      isDark = !isDark;
+      var btn = document.getElementById("theme-toggle");
+      btn.textContent = isDark ? "🌙 Dark Mode" : "☀️ Light Mode";
+      document.body.style.background = isDark ? "#111" : "#f4f4f4";
+      document.body.style.color = isDark ? "#fff" : "#111";
+      if (currentView === "vector") {
+        map.setStyle(buildVectorStyle(isDark));
+      } else {
+        map.setStyle(buildSatelliteStyle(isDark));
+      }
+    }
+
+    // ─── Place-label tiering ──────────────────────────────────────────────────
+    function placeLabelLayers(textColor, haloColor) {
+      return [
+        {
+          id: "place-label-major",
+          type: "symbol",
+          source: "openmaptiles",
+          "source-layer": "place",
+          filter: ["in", ["get", "class"], ["literal", MAJOR_PLACE_CLASSES]],
+          layout: {
+            "text-field": ["coalesce", ["get", "name:en"], ["get", "name"]],
+            "text-font": ["Noto Sans Bold"],
+            "text-size": ["interpolate", ["linear"], ["zoom"], 9, 13, 14, 20],
+            "text-max-width": 10,
+            "symbol-sort-key": ["coalesce", ["get", "rank"], 0],
+            "text-allow-overlap": false,
+            "text-optional": true,
+          },
+          paint: {
+            "text-color": textColor,
+            "text-halo-color": haloColor,
+            "text-halo-width": 2,
+          },
+        },
+        {
+          id: "place-label-minor",
+          type: "symbol",
+          source: "openmaptiles",
+          "source-layer": "place",
+          filter: ["in", ["get", "class"], ["literal", MINOR_PLACE_CLASSES]],
+          minzoom: 11,
+          layout: {
+            "text-field": ["coalesce", ["get", "name:en"], ["get", "name"]],
+            "text-font": ["Noto Sans Regular"],
+            "text-size": ["interpolate", ["linear"], ["zoom"], 11, 11, 16, 16],
+            "text-max-width": 9,
+            "symbol-sort-key": ["coalesce", ["get", "rank"], 10],
+            "text-allow-overlap": false,
+            "text-optional": true,
+          },
+          paint: {
+            "text-color": textColor,
+            "text-halo-color": haloColor,
+            "text-halo-width": 1.5,
+          },
+        },
+      ];
+    }
+
+    // ─── Vector Style ─────────────────────────────────────────────────────────
+    function buildVectorStyle(dark) {
+      var bg          = dark ? "#1a1a1a" : "#f4f4f2";
+      var water       = dark ? "#1e3a5f" : "#a9d6e5";
+      var landuse     = dark ? "#2a2a2a" : "#e9e6df";
+      var park        = dark ? "#1e4620" : "#c8e6c9";
+      var building    = dark ? "#2c2c2c" : "#d8d4cc";
+      var roadCasing  = dark ? "#0a0a0a" : "#ffffff";
+      var boundary    = dark ? "#6b7280" : "#9ca3af";
+      var labelText   = dark ? "#f3f4f6" : "#1f2937";
+      var labelHalo   = dark ? "#1a1a1a" : "#ffffff";
+      var roadLabel   = dark ? "#e5e7eb" : "#374151";
+
+      return {
+        version: 8,
+        name: "Islamabad Vector",
+        glyphs: "fonts/{fontstack}/{range}.pbf",
+        transition: { duration: 0, delay: 0 },
+        sources: {
+          openmaptiles: {
+            type: "vector",
+            url: "pmtiles://maps/islamabad.pmtiles",
+            maxzoom: 14,
+          },
+          islamabad_boundary: {
+            type: "geojson",
+            data: "maps/islamabad.geojson",
+          },
+        },
+        layers: [
+          { id: "background", type: "background", paint: { "background-color": bg } },
+          {
+            id: "water",
+            type: "fill",
+            source: "openmaptiles",
+            "source-layer": "water",
+            paint: { "fill-color": water, "fill-opacity": 0.7 },
+          },
+          {
+            id: "landuse",
+            type: "fill",
+            source: "openmaptiles",
+            "source-layer": "landuse",
+            paint: { "fill-color": landuse, "fill-opacity": dark ? 0.3 : 0.5 },
+          },
+          {
+            id: "park",
+            type: "fill",
+            source: "openmaptiles",
+            "source-layer": "landuse",
+            filter: ["in", ["get", "class"], ["literal", ["park", "recreation_ground", "grass"]]],
+            paint: { "fill-color": park, "fill-opacity": 0.5 },
+          },
+          {
+            id: "building",
+            type: "fill",
+            source: "openmaptiles",
+            "source-layer": "building",
+            paint: { "fill-color": building, "fill-opacity": dark ? 0.5 : 0.7 },
+          },
+          {
+            id: "road-casing",
+            type: "line",
+            source: "openmaptiles",
+            "source-layer": "transportation",
+            paint: {
+              "line-color": roadCasing,
+              "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.5, 14, 5],
+            },
+            layout: { "line-cap": "round", "line-join": "round" },
+          },
+          {
+            id: "road-fill",
+            type: "line",
+            source: "openmaptiles",
+            "source-layer": "transportation",
+            paint: {
+              "line-color": [
+                "match", ["get", "class"],
+                "motorway", "#dc2626",
+                "trunk", "#ea580c",
+                "primary", "#d97706",
+                "secondary", "#ca8a04",
+                "residential", dark ? "#4b5563" : "#9ca3af",
+                dark ? "#374151" : "#b0b0b0"
+              ],
+              "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.3, 14, 4],
+            },
+            layout: { "line-cap": "round", "line-join": "round" },
+          },
+          {
+            id: "boundary",
+            type: "line",
+            source: "openmaptiles",
+            "source-layer": "boundary",
+            paint: { "line-color": boundary, "line-width": 1 },
+          },
+          {
+            id: "islamabad-outline",
+            type: "line",
+            source: "islamabad_boundary",
+            paint: { "line-color": "#3b82f6", "line-width": 2, "line-dasharray": [4, 2] },
+          },
+          {
+            id: "road-label",
+            type: "symbol",
+            source: "openmaptiles",
+            "source-layer": "transportation_name",
+            minzoom: 12,
+            layout: {
+              "symbol-placement": "line",
+              "text-field": ["coalesce", ["get", "name:en"], ["get", "name"]],
+              "text-font": ["Noto Sans Regular"],
+              "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10, 16, 13],
+            },
+            paint: {
+              "text-color": roadLabel,
+              "text-halo-color": labelHalo,
+              "text-halo-width": 1.5,
+            },
+          },
+        ].concat(placeLabelLayers(labelText, labelHalo)),
+      };
+    }
+
+    // ─── Satellite Style ──────────────────────────────────────────────────────
+    function buildSatelliteStyle(dark) {
+      var labelText = "#ffffff";
+      var labelHalo = "#000000";
+
+      return {
+        version: 8,
+        name: "Islamabad Satellite",
+        glyphs: "fonts/{fontstack}/{range}.pbf",
+        transition: { duration: 0, delay: 0 },
+        sources: {
+          satellite: {
+            type: "raster",
+            url: "pmtiles://maps/islamabad-satellite.pmtiles",
+            tileSize: 256,
+            minzoom: 0,
+            maxzoom: 14,
+          },
+          openmaptiles: {
+            type: "vector",
+            url: "pmtiles://maps/islamabad.pmtiles",
+            maxzoom: 14,
+          },
+          islamabad_boundary: {
+            type: "geojson",
+            data: "maps/islamabad.geojson",
+          },
+        },
+        layers: [
+          { id: "background", type: "background", paint: { "background-color": "#000" } },
+          {
+            id: "satellite",
+            type: "raster",
+            source: "satellite",
+            paint: { "raster-opacity": 1, "raster-brightness-min": dark ? 0 : 0.15 },
+          },
+          {
+            id: "road-satellite",
+            type: "line",
+            source: "openmaptiles",
+            "source-layer": "transportation",
+            paint: {
+              "line-color": [
+                "match", ["get", "class"],
+                "motorway", "#f59e0b",
+                "trunk", "#f59e0b",
+                "primary", "#ffffff",
+                "#aaaaaa"
+              ],
+              "line-opacity": 0.7,
+              "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.8, 14, 3],
+            },
+            layout: { "line-cap": "round", "line-join": "round" },
+          },
+          {
+            id: "islamabad-outline-sat",
+            type: "line",
+            source: "islamabad_boundary",
+            paint: { "line-color": "#60a5fa", "line-width": 2.5, "line-dasharray": [4, 2] },
+          },
+        ].concat(placeLabelLayers(labelText, labelHalo)),
+      };
+    }
+  </script>
+</body>
+</html>

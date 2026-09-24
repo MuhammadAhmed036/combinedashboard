@@ -1,0 +1,27 @@
+node_modules
+.next
+.git
+.gitignore
+data
+dist
+build
+*.tsbuildinfo
+npm-debug.log*
+
+.env
+.env.*
+!.env.example
+
+# Raw source for the already-committed public/maps output — must never
+# enter the build context (37MB combined, irrelevant to the running app).
+islamabad_map_package
+rawalpindi_map_package
+
+docker-compose.yml
+.dockerignore
+deploy
+packaging
+
+README.md
+AGENTS.md
+CLAUDE.md
