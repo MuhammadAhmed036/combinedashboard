@@ -328,3 +328,57 @@ docker compose --env-file .env -f docker\docker-compose.yml down -v
 
 Then start again with `up -d --build`.
 
+
+## Important: Run Docker Commands From The Right Folder
+
+The root `.env` and compose file live in `D:\newdashboard`, not in `D:\newdashboard\frontend`.
+
+If your PowerShell prompt is this:
+
+```powershell
+PS D:\newdashboard\frontend>
+```
+
+then first go back to the project root:
+
+```powershell
+cd ..
+```
+
+Then run Docker commands from:
+
+```powershell
+PS D:\newdashboard>
+```
+
+Correct commands from project root:
+
+```powershell
+docker compose --env-file .env -f docker\docker-compose.yml up -d --build db sync person-count-ws
+docker compose --env-file .env -f docker\docker-compose.yml ps
+docker compose --env-file .env -f docker\docker-compose.yml logs -f sync
+```
+
+If you intentionally want to stay inside `frontend`, use parent paths:
+
+```powershell
+docker compose --env-file ..\.env -f ..\docker\docker-compose.yml up -d --build db sync person-count-ws
+docker compose --env-file ..\.env -f ..\docker\docker-compose.yml ps
+docker compose --env-file ..\.env -f ..\docker\docker-compose.yml logs -f sync
+```
+
+Do not run this from `frontend`:
+
+```powershell
+docker compose --env-file .env -f docker\docker-compose.yml up -d db
+```
+
+That command looks for `D:\newdashboard\frontend\.env`, which does not exist.
+
+If Docker Desktop says Engine running but every `docker version` or `docker compose ps` command hangs, restart Docker Desktop from the tray icon, then run:
+
+```powershell
+docker context use desktop-linux
+docker version
+docker compose --env-file .env -f docker\docker-compose.yml ps
+```
