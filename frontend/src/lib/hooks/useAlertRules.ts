@@ -20,11 +20,15 @@ import {
 import { effectiveUnseenCount } from "@/lib/alertUnseen";
 import { useAlertSeenBaselineStore } from "@/lib/store/useAlertSeenBaselineStore";
 
-export function useAlertRules(filters: AlertRuleFilters = {}) {
+export function useAlertRules(
+  filters: AlertRuleFilters = {},
+  options: { enabled?: boolean; refetchInterval?: number | false } = {}
+) {
   return useQuery({
     queryKey: ["alert-rules", filters],
     queryFn: () => fetchAlertRules(filters),
-    refetchInterval: 3000,
+    enabled: options.enabled,
+    refetchInterval: options.refetchInterval ?? 3000,
     refetchIntervalInBackground: false,
     staleTime: 2000,
   });
@@ -81,11 +85,15 @@ export function useAlertHistory(alertId: string | null) {
 }
 
 /** Fetch all alert events across all rules, with optional camera/date filters. */
-export function useAllAlertEvents(filters: AllAlertEventsFilters = {}) {
+export function useAllAlertEvents(
+  filters: AllAlertEventsFilters = {},
+  options: { enabled?: boolean; refetchInterval?: number | false } = {}
+) {
   return useQuery({
     queryKey: ["alert-events", "all", filters],
     queryFn: () => fetchAllAlertEvents(filters),
-    refetchInterval: 1500,
+    enabled: options.enabled,
+    refetchInterval: options.refetchInterval ?? 1500,
     refetchIntervalInBackground: false,
     staleTime: 1000,
   });

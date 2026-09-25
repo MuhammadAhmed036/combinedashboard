@@ -8,6 +8,8 @@ export interface RuntimeConfig {
   pollIntervalMs: number;
   /** Base URL of the standalone person-count WebSocket service (Media Wall live occupancy). */
   personCountWsBase: string | null;
+  /** Base URL of the standalone Luna events WebSocket service. */
+  lunaWsUrl: string | null;
 }
 
 const FALLBACK: RuntimeConfig = {
@@ -15,6 +17,7 @@ const FALLBACK: RuntimeConfig = {
   wsBase: null,
   pollIntervalMs: DEFAULT_POLL_INTERVAL_MS,
   personCountWsBase: null,
+  lunaWsUrl: null,
 };
 
 let resolved: RuntimeConfig | null = null;
@@ -39,6 +42,7 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
         apiBase?: unknown;
         pollIntervalMs?: unknown;
         personCountWsBase?: unknown;
+        lunaWsUrl?: unknown;
       };
       const apiBase = typeof payload.apiBase === "string" ? payload.apiBase : null;
       const pollIntervalMs =
@@ -47,7 +51,8 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
           : DEFAULT_POLL_INTERVAL_MS;
       const personCountWsBase =
         typeof payload.personCountWsBase === "string" ? payload.personCountWsBase : null;
-      return { apiBase, wsBase: toWsBaseUrl(apiBase), pollIntervalMs, personCountWsBase };
+      const lunaWsUrl = typeof payload.lunaWsUrl === "string" ? payload.lunaWsUrl : null;
+      return { apiBase, wsBase: toWsBaseUrl(apiBase), pollIntervalMs, personCountWsBase, lunaWsUrl };
     })
     .catch(() => FALLBACK)
     .then((config) => {

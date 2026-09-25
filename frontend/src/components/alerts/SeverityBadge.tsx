@@ -1,13 +1,19 @@
 import { AlertTriangle, ShieldAlert } from "lucide-react";
 import type { AlertSeverity } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { SEVERITY_LABEL } from "@/lib/mock/alert-types";
 
 const STYLES: Record<AlertSeverity, string> = {
   critical: "bg-severity-critical/15 text-severity-critical border-severity-critical/30",
   high: "bg-severity-high/15 text-severity-high border-severity-high/30",
   medium: "bg-severity-medium/15 text-severity-medium border-severity-medium/30",
   low: "bg-severity-low/15 text-severity-low border-severity-low/30",
+};
+
+const SEVERITY_LABEL: Record<AlertSeverity, string> = {
+  critical: "Critical",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
 };
 
 export function SeverityBadge({

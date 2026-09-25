@@ -26,8 +26,7 @@ import {
   useUpdateAlertRuleStatus,
   useUpdateAlertRuleDetails,
 } from "@/lib/hooks/useAlertRules";
-import { useCameras } from "@/lib/hooks/useCameras";
-import type { AlertMatchEvent, AlertRuleV2, AlertCategory } from "@/lib/types";
+import type { AlertMatchEvent, AlertRuleV2, AlertCategory, Camera as CameraType } from "@/lib/types";
 import { CATEGORY_ACCENT, CATEGORY_LABEL, classAccent, classLabel } from "./alertVisuals";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -286,7 +285,7 @@ function ConfiguredRuleItem({
 
 // ─── Main AlertRail Component ─────────────────────────────────────────────────
 
-export function AlertRail() {
+export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
   const [activeTab, setActiveTab] = useState<"live" | "rules">("live");
 
   // Filters for Live Events
@@ -313,9 +312,12 @@ export function AlertRail() {
   const [deletingRule, setDeletingRule] = useState<AlertRuleV2 | null>(null);
 
   // Queries & Mutations
-  const { data: events, isLoading: eventsLoading, error: eventsError } = useAllAlertEvents(activeFilters);
-  const { data: rules, isLoading: rulesLoading } = useAlertRules();
-  const { data: cameras } = useCameras();
+  const { data: events, isLoading: eventsLoading, error: eventsError } = useAllAlertEvents(activeFilters, {
+    enabled: activeTab === "live",
+  });
+  const { data: rules, isLoading: rulesLoading } = useAlertRules({}, {
+    enabled: activeTab === "rules",
+  });
 
   const deleteRuleMutation = useDeleteAlertRule();
   const updateStatusMutation = useUpdateAlertRuleStatus();

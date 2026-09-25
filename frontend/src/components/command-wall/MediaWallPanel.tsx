@@ -33,7 +33,7 @@ import { useZones } from "@/lib/hooks/useZones";
 import { useUIStore } from "@/lib/store/useUIStore";
 import { resolveDetectionCameraId } from "@/lib/streamToDetectionCameraId";
 import { cn } from "@/lib/utils";
-import type { AlertRuleV2, Camera, GridLayoutKey } from "@/lib/types";
+import type { Camera, GridLayoutKey } from "@/lib/types";
 
 type OccupancyEntry = {
   cameraId: string;
@@ -57,8 +57,8 @@ function cameraKeys(camera: Camera) {
     .map((value) => String(value).toLowerCase());
 }
 
-function findLivePeopleCount(camera: Camera, liveOccupancy: Record<string, OccupancyEntry>) {
-  const keys = new Set(cameraKeys(camera));
+function createOccupancyLookup(liveOccupancy: Record<string, OccupancyEntry>) {
+  const lookup = new Map<string, number>();
   for (const entry of Object.values(liveOccupancy)) {
     const entryKeys = [
       entry.cameraId,
@@ -68,7 +68,15 @@ function findLivePeopleCount(camera: Camera, liveOccupancy: Record<string, Occup
     ]
       .filter(Boolean)
       .map((value) => String(value).toLowerCase());
-    if (entryKeys.some((key) => keys.has(key))) return entry.peopleCount;
+    entryKeys.forEach((key) => lookup.set(key, entry.peopleCount));
+  }
+  return lookup;
+}
+
+function findLivePeopleCount(camera: Camera, occupancyLookup: Map<string, number>) {
+  for (const key of cameraKeys(camera)) {
+    const count = occupancyLookup.get(key);
+    if (count !== undefined) return count;
   }
   return null;
 }
@@ -174,12 +182,10 @@ function DroppableMediaTile({
 
 export function MediaWallPanel({
   cameras,
-  rules: _rules,
   liveOccupancy,
   isLoading,
 }: {
   cameras: Camera[] | undefined;
-  rules: AlertRuleV2[];
   liveOccupancy: Record<string, OccupancyEntry>;
   isLoading: boolean;
 }) {
@@ -207,6 +213,17 @@ export function MediaWallPanel({
   const cameraById = useMemo(() => {
     return new Map(cameras?.map((c) => [c.id, c]) ?? []);
   }, [cameras]);
+
+  const assignmentByCell = useMemo(() => {
+    return new Map(assignments.map((assignment) => [assignment.cellIndex, assignment.cameraId]));
+  }, [assignments]);
+
+  const occupancyLookup = useMemo(() => createOccupancyLookup(liveOccupancy), [liveOccupancy]);
+
+  const onlineCameraCount = useMemo(
+    () => cameras?.filter((camera) => camera.status === "online").length ?? 0,
+    [cameras]
+  );
 
   const assignedCameraIds = useMemo(
     () => new Set(assignments.map((a) => a.cameraId).filter(Boolean) as string[]),
@@ -240,7 +257,7 @@ export function MediaWallPanel({
     setLayout(autoLayout);
     const count = gridDimensions(autoLayout) ** 2;
     autoCams.slice(0, count).forEach((cam, i) => assignCameraToCell(i, cam.id));
-  }, [cameras]);
+  }, [assignCameraToCell, assignments.length, cameras, setLayout]);
 
   // Save to JSON in LocalStorage whenever user explicitly clicks or updates
   const handleSaveConfig = () => {
@@ -319,7 +336,7 @@ export function MediaWallPanel({
               {layout}
             </span>
             <span className="truncate text-[11px] text-muted-foreground hidden sm:inline">
-              {cameras?.filter((c) => c.status === "online").length ?? 0}/{cameras?.length ?? 0} cameras online
+              {onlineCameraCount}/{cameras?.length ?? 0} cameras online
             </span>
           </div>
 
@@ -366,9 +383,9 @@ export function MediaWallPanel({
 
               {!isLoading &&
                 Array.from({ length: cellCount }).map((_, index) => {
-                  const assignment = assignments.find((a) => a.cellIndex === index);
-                  const camera = assignment?.cameraId ? cameraById.get(assignment.cameraId) ?? null : null;
-                  const livePeopleCount = camera ? findLivePeopleCount(camera, liveOccupancy) : null;
+                  const assignedCameraId = assignmentByCell.get(index);
+                  const camera = assignedCameraId ? cameraById.get(assignedCameraId) ?? null : null;
+                  const livePeopleCount = camera ? findLivePeopleCount(camera, occupancyLookup) : null;
 
                   return (
                     <DroppableMediaTile

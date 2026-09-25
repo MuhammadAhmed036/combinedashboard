@@ -15,6 +15,7 @@ export async function GET() {
       apiBase: process.env.DETECTION_API_BASE_URL ?? null,
       pollIntervalMs: Number(process.env.POLL_INTERVAL_MS) || 5000,
       personCountWsBase: process.env.PERSON_COUNT_WS_URL ?? null,
+      lunaWsUrl: process.env.NEXT_PUBLIC_LUNA_WS_URL || "ws://localhost:8092",
     },
     { headers: { "Cache-Control": "no-store" } }
   );

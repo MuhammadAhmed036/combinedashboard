@@ -87,19 +87,17 @@ Features included:
 
 The live occupancy text is rendered in the media-wall cell components using the `livePeopleCount` prop, for example: `Current frame contains X persons`.
 
-## WebSocket Service
+## WebSocket Services
 
+### 1. Person-Count WebSocket (`person-count-ws`)
 Server:
-
-- `websocket/person-count-ws/index.js`
+- `websocket/person-count-ws/index.js` (Port: 8090 / mapped to 8091)
 
 Client:
-
 - `frontend/src/lib/allCamerasFeed.ts`
 - `frontend/src/lib/hooks/useLiveCameraOccupancy.ts`
 
 Event shape:
-
 ```json
 {
   "type": "people_count",
@@ -112,7 +110,87 @@ Event shape:
 }
 ```
 
-Reconnect behavior is client-side in `allCamerasFeed.ts`: one shared browser socket, 5 second reconnect delay, connection status broadcasts, JSON parse protection, and close/error handling.
+### 2. Luna Events WebSocket Proxy (`luna-ws`)
+Replaces the Python FastAPI socket with a lightweight, high-performance Node.js WebSocket service. It proxies face recognition events between the dashboard browser and the upstream Luna platform using Basic Authentication and `Luna-Account-Id` headers.
+
+Server:
+- `websocket/luna-ws/index.js` (Port: `8092`, env `LUNA_WS_PORT=8092`)
+- `websocket/luna-ws/Dockerfile`
+
+Client:
+- `frontend/src/components/luna/LunaEventsRail.tsx` (connects via `lunaWsUrl`)
+- Server API proxies under `frontend/src/app/api/luna/*`
+
+#### How to Run the Entire Project (Full Docker Stack):
+Run from `D:\newdashboard`:
+```powershell
+docker compose --env-file .env -f docker\docker-compose.yml up -d --build
+```
+
+This brings up all 5 Dockerized services:
+1. `db`: Local PostgreSQL database (Port `5370`)
+2. `app`: Dashboard web application (Port `3002` -> `http://localhost:3002/dashboard`)
+3. `person-count-ws`: Person occupancy WebSocket (Port `8091`)
+4. `sync`: Real-time YOLO detection events synchronization worker
+5. `luna-ws`: Luna live face & body recognition WebSocket proxy (Port `8092`)
+
+Check status of all containers:
+```powershell
+docker compose --env-file .env -f docker\docker-compose.yml ps
+```
+
+To view live logs of `luna-ws`:
+```powershell
+docker compose --env-file .env -f docker\docker-compose.yml logs -f luna-ws
+```
+
+To restart just the Luna WebSocket service:
+```powershell
+docker compose --env-file .env -f docker\docker-compose.yml restart luna-ws
+```
+
+---
+
+## Luna Face Events & Person Movement Trace Module
+
+The left rail of the Command Wall dashboard (`frontend/src/components/luna/LunaEventsRail.tsx`, occupying 15% width) integrates Luna live and historical face recognition events with person tracking:
+
+### 1. Live Events Mode (Real-Time WebSocket)
+- Connects automatically to `ws://localhost:8092/6/ws` via the `luna-ws` Docker container.
+- **Latest 50 Events Buffer**: Displays a smooth streaming feed of the latest 50 events in real-time.
+- **Status Indicator**: Green pulsing dot showing `LIVE (N/50)` when connected, or `STANDBY` if reconnecting.
+
+### 2. Alert History Mode (Paginated Browsing & Complete Filters)
+When switching to the **History** tab:
+- **Default Load**: Automatically loads historical events from the Luna surveillance platform with instant previews.
+- **Pagination**:
+  - Page navigation (`< Previous`, `Next >`)
+  - Page indicator (`Page 1`, `Page 2`, ...)
+  - Items per page selector: `10`, `20`, `50`, `100` items per page.
+- **Complete Filter Suite**:
+  - **Quick Similarity Tiers**: `All`, `≥75%` (Green), `50-74%` (Yellow), `<50%` (Red / Unmatched).
+  - **Similarity Slider**: Fine-tune Min & Max similarity match percentage (0% to 100%).
+  - **Time Range**: Quick presets (`1h`, `6h`, `12h`, `24h`, `3d`, `7d`, `30d`, `All`) and custom `Start Time` / `End Time` pickers.
+  - **Camera / Handler**: Filter events by specific cameras/handlers fetched dynamically from Luna API.
+  - **Watchlist / List**: Filter events by registered watchlists (Suspects, Office, Detected, etc.).
+  - **Gender Filter**: Filter by `Any`, `Male`, or `Female`.
+  - **Age Range**: Filter by `Min Age` and `Max Age`.
+  - **Search**: Real-time search across person name, camera name, clothes, and attributes.
+  - **Sort Order**: Toggle between `Newest First` (descending) and `Oldest First` (ascending).
+
+### 3. Dual Photo Cards (`LunaEventCard.tsx`) & Body Detections
+- Displays detected frame crop image alongside matched reference avatar (if face is recognized in watchlists).
+- Color-coded similarity match badge.
+- Automatic person attribute extraction: Gender, estimated age, upper garment color, and lower garment type.
+- **Person Movement Trace (`FaceMovementTraceModal.tsx`)**: Clicking the `➤` (Trace) button opens a chronological timeline tracing the person across camera nodes, showing timestamps, cameras visited, detection crops, and similarity percentages, with CSV export capability.
+
+### Luna API Proxy Routes
+- `GET /api/luna/events` - Queries Luna events with filter and pagination support.
+- `GET /api/luna/lists` - Fetches registered watchlists.
+- `GET /api/luna/handlers` - Fetches camera streams and handlers.
+- `GET /api/luna/images/[...path]` - Proxies Luna JPEG detection crops (`/6/images/...`) without CORS issues.
+- `GET /api/luna/samples/[sampleId]` - Proxies Luna sample crops (`/6/samples/...`).
+- `GET /api/luna/faces/[faceId]` - Fetches face details and avatar reference.
 
 ## Database Ownership
 
@@ -150,6 +228,10 @@ Update `newdashboard/.env` for the next project. Important variables:
 - `STREAMS_API_URL`, `STREAMS_API_USERNAME`, `STREAMS_API_PASSWORD` - stream camera list.
 - `CAMERA_FEED_BASE_URL`, `CAMERA_FEED_USERNAME`, `CAMERA_FEED_PASSWORD` - live frame proxy.
 - `PERSON_COUNT_WS_URL`, `PERSON_COUNT_WS_PORT` - person-count WebSocket.
+- `LUNA_HOST`, `LUNA_API_PORT` - Luna server host and port.
+- `LUNA_ACCOUNT_ID` - Luna account ID (e.g. `6`).
+- `LUNA_AUTH_USER`, `LUNA_AUTH_PASS` - Luna Basic Auth credentials.
+- `LUNA_WS_PORT`, `NEXT_PUBLIC_LUNA_WS_URL` - Luna WebSocket proxy port (8092) and client URL (`ws://localhost:8092`).
 - `SYNC_*` - sync worker intervals/batch sizes.
 - `RAW_IMAGE_RETENTION_TARGET` - camera retention metric.
 
@@ -159,13 +241,15 @@ Update `newdashboard/.env` for the next project. Important variables:
 2. Ensure `frontend/public/maps` and `frontend/public/map-fonts` are present for offline map rendering.
 3. Create the local DB using `database/init-db/*.sql` in numeric order.
 4. Configure `.env`.
-5. Start the app, sync worker, and WebSocket service:
+5. Start the app, sync worker, and WebSocket services:
 
 ```bash
 npm install
 npm run dev
 npm run sync
 npm run ws
+# To start Luna WebSocket proxy:
+node websocket/luna-ws/index.js
 ```
 
 For Docker, use `docker/docker-compose.yml` and `docker/Dockerfile` as the base deployment setup.
@@ -180,7 +264,8 @@ Use this section when you want your local dashboard DB to sync from the team `yo
 - Local DB service `db`: this dashboard's own Postgres. Alerts are created here.
 - Sync worker service `sync`: pulls team `detection_events` / `camera_locations` into local DB and evaluates active alert rules.
 - WebSocket service `person-count-ws`: reads local `detection_events` and broadcasts live people counts.
-- Dashboard app: reads local DB and stream/camera APIs.
+- WebSocket service `luna-ws`: proxies live Luna face recognition events to the dashboard left rail.
+- Dashboard app: reads local DB, Luna APIs, and stream/camera APIs.
 
 ### Required `.env` Shape
 
@@ -195,6 +280,16 @@ DATABASE_URL=postgres://dashboard:admin@localhost:5370/dashboard
 TEAM_DATABASE_URL=postgres://...
 PERSON_COUNT_WS_PORT=8090
 PERSON_COUNT_WS_URL=ws://localhost:8090
+
+# Luna Face Recognition & WebSocket Proxy
+LUNA_HOST=localhost
+LUNA_API_PORT=5000
+LUNA_ACCOUNT_ID=6
+LUNA_AUTH_USER=root@visionlabs.ai
+LUNA_AUTH_PASS=root
+LUNA_AUTH_METHOD=basic
+LUNA_WS_PORT=8092
+NEXT_PUBLIC_LUNA_WS_URL=ws://localhost:8092
 ```
 
 If you open the dashboard from another machine on the network, set `PERSON_COUNT_WS_URL` to that machine's reachable host/IP instead of `localhost`.

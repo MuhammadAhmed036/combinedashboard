@@ -68,6 +68,23 @@ services:
       db:
         condition: service_healthy
 
+  luna-ws:
+    image: safecity-luna-ws:${LUNA_WS_IMAGE_TAG:-0.1.0}
+    build:
+      context: ../websocket/luna-ws
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      LUNA_WS_PORT: "8092"
+      LUNA_HOST: ${LUNA_HOST:-192.168.18.71}
+      LUNA_API_PORT: ${LUNA_API_PORT:-5000}
+      LUNA_ACCOUNT_ID: ${LUNA_ACCOUNT_ID:-00000000-0000-4000-b000-000000000146}
+      LUNA_AUTH_USER: ${LUNA_AUTH_USER:-root@visionlabs.ai}
+      LUNA_AUTH_PASS: ${LUNA_AUTH_PASS:-root}
+    ports:
+      - "${LUNA_WS_PORT:-8092}:8092"
+
 volumes:
   safecity-data:
   safecity-db-data:
