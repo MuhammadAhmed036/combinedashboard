@@ -89,7 +89,7 @@ export function CameraLibraryPanel({
                   camera={camera}
                   isFavorite={favoriteIds.has(camera.id)}
                   onToggleFavorite={() => onToggleFavorite(camera.id)}
-                  disabled={assignedCameraIds.has(camera.id)}
+                  isAssigned={assignedCameraIds.has(camera.id)}
                 />
               ))}
             </div>

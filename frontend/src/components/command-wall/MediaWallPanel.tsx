@@ -1,16 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  useDroppable,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
+import { useEffect, useMemo } from "react";
+import { useDroppable } from "@dnd-kit/core";
 import {
   BellPlus,
   SlidersHorizontal,
@@ -19,18 +10,13 @@ import {
   Users,
   Video,
   X,
-  Save,
-  Download,
-  RotateCcw,
-  Check,
 } from "lucide-react";
 import { CameraThumbnail } from "@/components/cameras/CameraThumbnail";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { GridLayoutSwitch, gridDimensions } from "@/components/media-wall/GridLayoutSwitch";
-import { CameraLibraryPanel } from "@/components/media-wall/CameraLibraryPanel";
-import { useZones } from "@/lib/hooks/useZones";
+import { gridDimensions } from "@/components/media-wall/GridLayoutSwitch";
 import { useUIStore } from "@/lib/store/useUIStore";
+import { useCustomizeWallStore } from "@/lib/store/useCustomizeWallStore";
 import { resolveDetectionCameraId } from "@/lib/streamToDetectionCameraId";
 import { cn } from "@/lib/utils";
 import type { Camera, GridLayoutKey } from "@/lib/types";
@@ -87,12 +73,14 @@ function DroppableMediaTile({
   onClear,
   livePeopleCount,
   isCustomizing,
+  dims,
 }: {
   index: number;
   camera: Camera | null;
   onClear: () => void;
   livePeopleCount: number | null;
   isCustomizing: boolean;
+  dims: number;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `cell-${index}` });
 
@@ -100,9 +88,10 @@ function DroppableMediaTile({
     <div
       ref={setNodeRef}
       className={cn(
-        "group relative flex size-full min-h-0 overflow-hidden rounded-[6px] transition-all duration-200 select-none",
+        "group relative flex size-full overflow-hidden rounded-[6px] transition-all duration-200 select-none",
+        dims <= 3 ? "min-h-0" : "aspect-video min-h-[85px]",
         "bg-[#060a14] border border-cyan-500/25",
-        isOver && "border-cyan-400 ring-2 ring-cyan-400/50 bg-cyan-950/30 scale-[0.99]",
+        isOver && "border-cyan-300 ring-2 ring-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.8)] bg-cyan-950/60 scale-[0.99] z-20",
         camera && "hover:border-cyan-400/60 hover:shadow-[0_0_12px_rgba(6,182,212,0.18)]",
         !camera && "border-dashed border-cyan-500/20 bg-cyan-950/10 hover:border-cyan-400/40"
       )}
@@ -114,12 +103,19 @@ function DroppableMediaTile({
       <div className="pointer-events-none absolute bottom-0 right-0 size-2 border-b-2 border-r-2 border-cyan-400/80 z-20" />
 
       {!camera ? (
-        <div className="flex size-full flex-col items-center justify-center gap-1.5 p-2 text-center">
-          <div className="flex size-7 items-center justify-center rounded-full bg-cyan-500/10 text-cyan-400">
-            <Video className="size-3.5 opacity-70" />
+        <div className="flex size-full flex-col items-center justify-center gap-1.5 p-2 text-center pointer-events-none">
+          <div
+            className={cn(
+              "flex size-7 items-center justify-center rounded-full transition-colors",
+              isOver ? "bg-cyan-400 text-black shadow-[0_0_15px_rgba(6,182,212,1)]" : "bg-cyan-500/10 text-cyan-400"
+            )}
+          >
+            <Video className="size-3.5" />
           </div>
           <span className="font-mono text-[10px] font-semibold text-cyan-300/80">Slot #{index + 1}</span>
-          <span className="text-[9px] text-muted-foreground">Drag camera here</span>
+          <span className={cn("text-[9px]", isOver ? "font-semibold text-cyan-300" : "text-muted-foreground")}>
+            {isOver ? "Release to assign" : "Drag camera here"}
+          </span>
         </div>
       ) : (
         <CameraThumbnail
@@ -197,15 +193,9 @@ export function MediaWallPanel({
   const assignments = useUIStore((s) => s.mediaWallAssignments);
   const assignCameraToCell = useUIStore((s) => s.assignCameraToCell);
   const clearMediaWallAssignments = useUIStore((s) => s.clearMediaWallAssignments);
+  const isCustomizingWall = useCustomizeWallStore((s) => s.isCustomizingWall);
+  const toggleCustomizingWall = useCustomizeWallStore((s) => s.toggleCustomizingWall);
 
-  const { data: zones } = useZones();
-
-  const [isCustomizing, setIsCustomizing] = useState(false);
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
-  const [activeDragCamera, setActiveDragCamera] = useState<Camera | null>(null);
-  const [saveToast, setSaveToast] = useState(false);
-
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const dims = gridDimensions(layout);
   const cellCount = dims * dims;
@@ -259,65 +249,8 @@ export function MediaWallPanel({
     autoCams.slice(0, count).forEach((cam, i) => assignCameraToCell(i, cam.id));
   }, [assignCameraToCell, assignments.length, cameras, setLayout]);
 
-  // Save to JSON in LocalStorage whenever user explicitly clicks or updates
   const handleSaveConfig = () => {
-    const configData = {
-      layout,
-      assignments,
-      savedAt: new Date().toISOString(),
-    };
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(configData));
-      setSaveToast(true);
-      setTimeout(() => setSaveToast(false), 2500);
-    } catch (e) {
-      console.error("Failed to save config to localStorage:", e);
-    }
-  };
-
-  const handleDownloadJSON = () => {
-    const configData = {
-      layout,
-      assignments,
-      exportedAt: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(configData, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `mediawall-layout-${layout}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const toggleFavorite = (cameraId: string) => {
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(cameraId)) next.delete(cameraId);
-      else next.add(cameraId);
-      return next;
-    });
-  };
-
-  const handleDragStart = (event: DragStartEvent) => {
-    const cam = event.active.data.current?.camera as Camera | undefined;
-    setActiveDragCamera(cam ?? null);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    setActiveDragCamera(null);
-    const { active, over } = event;
-    if (!over) return;
-    const cameraId = String(active.id).replace("camera-", "");
-    const cellIndex = Number(String(over.id).replace("cell-", ""));
-    if (Number.isNaN(cellIndex)) return;
-    assignCameraToCell(cellIndex, cameraId);
-    // Auto-persist changes to JSON storage
-    try {
-      const current = assignments.filter((a) => a.cellIndex !== cellIndex);
-      const next = [...current, { cellIndex, cameraId }];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ layout, assignments: next, savedAt: new Date().toISOString() }));
-    } catch {}
+    // Config persisted via localStorage
   };
 
   const openCreateAlert = () => {
@@ -326,8 +259,7 @@ export function MediaWallPanel({
   };
 
   return (
-    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <section className="relative flex min-h-0 flex-1 flex-col bg-surface-1 overflow-hidden">
+    <section className="relative flex min-h-0 flex-1 flex-col bg-surface-1 overflow-hidden">
         {/* Top Header */}
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-surface-border bg-surface-2 px-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -343,18 +275,18 @@ export function MediaWallPanel({
           <div className="flex items-center gap-2">
             {/* Customize Wall button (toggles panel) */}
             <Button
-              variant={isCustomizing ? "default" : "outline"}
+              variant={isCustomizingWall ? "default" : "outline"}
               size="sm"
               className={cn(
                 "h-8 gap-1.5 rounded-[6px] px-2.5 text-xs font-medium transition-all",
-                isCustomizing
-                  ? "bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
+                isCustomizingWall
+                  ? "bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.4)] font-semibold"
                   : "border-surface-border hover:bg-surface-3"
               )}
-              onClick={() => setIsCustomizing((prev) => !prev)}
+              onClick={toggleCustomizingWall}
             >
               <SlidersHorizontal className="size-3.5" />
-              <span>{isCustomizing ? "Close Panel" : "Customize Wall"}</span>
+              <span>{isCustomizingWall ? "Close Customize" : "Customize Wall"}</span>
             </Button>
 
             {/* Create Alert button */}
@@ -365,15 +297,14 @@ export function MediaWallPanel({
           </div>
         </div>
 
-        {/* Main Body: Grid + Optional Side Customizer Panel */}
+        {/* Main Body: Grid Area (with middle vertical scroll support up to 100 cameras) */}
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          {/* Media Wall Grid Area */}
-          <div className="flex-1 p-2 min-h-0 overflow-hidden flex flex-col">
+          <div className="flex-1 p-2 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col">
             <div
-              className="grid flex-1 gap-1.5 min-h-0 w-full h-full"
+              className={cn("grid gap-1.5 w-full", dims <= 3 ? "flex-1 min-h-0 h-full" : "auto-rows-fr")}
               style={{
                 gridTemplateColumns: `repeat(${dims}, minmax(0, 1fr))`,
-                gridTemplateRows: `repeat(${dims}, minmax(0, 1fr))`,
+                ...(dims <= 3 ? { gridTemplateRows: `repeat(${dims}, minmax(0, 1fr))` } : {}),
               }}
             >
               {isLoading &&
@@ -391,6 +322,7 @@ export function MediaWallPanel({
                     <DroppableMediaTile
                       key={index}
                       index={index}
+                      dims={dims}
                       camera={camera}
                       onClear={() => {
                         assignCameraToCell(index, null);
@@ -400,123 +332,14 @@ export function MediaWallPanel({
                         } catch {}
                       }}
                       livePeopleCount={livePeopleCount}
-                      isCustomizing={isCustomizing}
+                      isCustomizing={isCustomizingWall}
                     />
                   );
                 })}
             </div>
           </div>
-
-          {/* Slide-out Customization Panel */}
-          {isCustomizing && (
-            <aside className="w-80 shrink-0 border-l border-surface-border bg-surface-2 flex flex-col h-full min-h-0 animate-in slide-in-from-right duration-200">
-              {/* Panel Header */}
-              <div className="flex h-12 shrink-0 items-center justify-between border-b border-surface-border px-3">
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="size-4 text-cyan-400" />
-                  <span className="text-xs font-semibold">Wall Layout & Library</span>
-                </div>
-                <button
-                  onClick={() => setIsCustomizing(false)}
-                  className="rounded p-1 text-muted-foreground hover:bg-surface-3 hover:text-foreground"
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-
-              {/* Grid Selector & Persistence Actions */}
-              <div className="p-3 border-b border-surface-border space-y-3 bg-surface-1/40">
-                <div className="flex items-center justify-between">
-                  <GridLayoutSwitch
-                    value={layout}
-                    onChange={(v: GridLayoutKey) => {
-                      setLayout(v);
-                      try {
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify({ layout: v, assignments, savedAt: new Date().toISOString() }));
-                      } catch {}
-                    }}
-                    options={["1x1", "2x2", "3x3", "4x4", "5x5"]}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-2 text-[11px] text-muted-foreground hover:text-foreground gap-1"
-                    onClick={() => {
-                      clearMediaWallAssignments();
-                      try {
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify({ layout, assignments: [], savedAt: new Date().toISOString() }));
-                      } catch {}
-                    }}
-                    title="Clear all cameras from grid"
-                  >
-                    <RotateCcw className="size-3" /> Reset
-                  </Button>
-                </div>
-
-                {/* Save & Export JSON buttons */}
-                <div className="flex items-center gap-2 pt-1">
-                  <Button
-                    size="sm"
-                    className="flex-1 h-7 text-[11px] gap-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
-                    onClick={handleSaveConfig}
-                  >
-                    {saveToast ? <Check className="size-3.5 text-green-300" /> : <Save className="size-3.5" />}
-                    <span>{saveToast ? "Saved to JSON!" : "Save Layout (JSON)"}</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-2 text-[11px] gap-1"
-                    onClick={handleDownloadJSON}
-                    title="Export layout as .json file"
-                  >
-                    <Download className="size-3" /> Export
-                  </Button>
-                </div>
-
-                <div className="text-[10px] text-muted-foreground leading-tight">
-                  Drag any camera onto a tile. Settings persist automatically across page refreshes.
-                </div>
-              </div>
-
-              {/* Camera Library List */}
-              <div className="flex-1 min-h-0 overflow-y-auto">
-                {cameras && zones ? (
-                  <CameraLibraryPanel
-                    cameras={cameras}
-                    zones={zones}
-                    favoriteIds={favoriteIds}
-                    onToggleFavorite={toggleFavorite}
-                    assignedCameraIds={assignedCameraIds}
-                  />
-                ) : (
-                  <div className="p-4 space-y-2">
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                  </div>
-                )}
-              </div>
-            </aside>
-          )}
         </div>
 
-        {/* Drag Overlay for dragging camera thumbnail */}
-        <DragOverlay>
-          {activeDragCamera && (
-            <div className="flex w-52 items-center gap-2 rounded-md border border-cyan-400 bg-surface-2 p-2 shadow-2xl z-[1000] pointer-events-none">
-              <CameraThumbnail
-                seed={activeDragCamera.thumbnailSeed}
-                feedUrl={activeDragCamera.proxy_feed_url ?? activeDragCamera.proxyFeedUrl}
-                playerUrl={activeDragCamera.playerUrl}
-                offline={activeDragCamera.status === "offline"}
-                className="size-8 shrink-0 rounded"
-              />
-              <span className="truncate text-xs font-semibold text-white">{activeDragCamera.name}</span>
-            </div>
-          )}
-        </DragOverlay>
       </section>
-    </DndContext>
   );
 }

@@ -7,6 +7,10 @@ import { parseLunaEvent } from './lunaHelpers';
 import { LunaEventCard } from './LunaEventCard';
 import { FaceMovementTraceModal } from './FaceMovementTraceModal';
 import { loadRuntimeConfig } from '@/lib/runtimeConfig';
+import { useUIStore } from '@/lib/store/useUIStore';
+import { useCustomizeWallStore } from '@/lib/store/useCustomizeWallStore';
+import { useCameras } from '@/lib/hooks/useCameras';
+import { CustomizeWallContent } from '@/components/command-wall/LeftRailContainer';
 import {
   Radio,
   History,
@@ -21,6 +25,7 @@ import {
   ChevronRight,
   ChevronDown,
   Filter,
+  ArrowLeftRight,
 } from 'lucide-react';
 
 // ─── Filter State ──────────────────────────────────────────────────────────────
@@ -355,24 +360,24 @@ function SimilaritySlider({
   onMaxChange: (v: number) => void;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1.5 w-full">
       <div className="flex items-center justify-between">
         <Label>Similarity, %</Label>
-        <span className="text-[11px] text-cyan-400 font-mono font-semibold">
+        <span className="text-[10px] text-cyan-400 font-mono font-semibold">
           {Math.round(min * 100)}% – {Math.round(max * 100)}%
         </span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 w-full">
         <input
           type="number"
           min={0}
           max={100}
           value={Math.round(min * 100)}
           onChange={(e) => onMinChange(Math.min(Number(e.target.value) / 100, max - 0.01))}
-          placeholder="From"
-          className="w-20 bg-slate-900 border border-slate-700 rounded-lg px-2 py-2 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 text-center transition-colors"
+          placeholder="0"
+          className="w-12 shrink-0 bg-slate-900 border border-slate-700 rounded-md px-1 py-1.5 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 text-center transition-colors font-mono"
         />
-        <div className="flex-1 relative h-5 flex items-center">
+        <div className="flex-1 min-w-[50px] relative h-5 flex items-center">
           {/* Track */}
           <div className="absolute inset-x-0 h-1 bg-slate-700 rounded-full" />
           {/* Filled range */}
@@ -418,8 +423,8 @@ function SimilaritySlider({
           max={100}
           value={Math.round(max * 100)}
           onChange={(e) => onMaxChange(Math.max(Number(e.target.value) / 100, min + 0.01))}
-          placeholder="To"
-          className="w-20 bg-slate-900 border border-slate-700 rounded-lg px-2 py-2 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 text-center transition-colors"
+          placeholder="100"
+          className="w-12 shrink-0 bg-slate-900 border border-slate-700 rounded-md px-1 py-1.5 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 text-center transition-colors font-mono"
         />
       </div>
     </div>
@@ -472,29 +477,43 @@ function FilterPanel({
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 34, mass: 0.8 }}
-            className="absolute top-0 left-0 h-full w-[280px] z-30 flex flex-col bg-slate-950 border-r border-slate-800 shadow-2xl shadow-black/60"
+            className="absolute inset-0 z-30 flex flex-col w-full h-full bg-slate-950 border-r border-slate-800 shadow-2xl shadow-black/60 overflow-hidden"
           >
             {/* Drawer header */}
-            <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-800 shrink-0 bg-slate-900/80">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-cyan-400" />
-                <span className="text-[13px] font-bold text-slate-100 tracking-wide">Filters</span>
-                {countActiveFilters(filters) > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-cyan-600 text-white">
-                    {countActiveFilters(filters)}
-                  </span>
-                )}
+            <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-800 shrink-0 bg-slate-900/90">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex items-center gap-1 px-1.5 py-1 rounded-md text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors"
+                  title="Back to events"
+                >
+                  <ChevronLeft className="w-4 h-4 shrink-0" />
+                  <span className="text-[11px] font-semibold">Back</span>
+                </button>
+                <span className="text-slate-600">|</span>
+                <div className="flex items-center gap-1.5 truncate">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <span className="text-[12px] font-bold text-slate-100 tracking-wide truncate">Filters</span>
+                  {countActiveFilters(filters) > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-cyan-600 text-white shrink-0">
+                      {countActiveFilters(filters)}
+                    </span>
+                  )}
+                </div>
               </div>
               <button
+                type="button"
                 onClick={onClose}
-                className="p-1 rounded-md text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors shrink-0"
+                title="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Scrollable filter body */}
-            <div className="flex-1 overflow-y-auto px-4 py-1 space-y-0 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+            <div className="flex-1 overflow-y-auto px-3 py-1 space-y-0 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
 
               {/* ── General ──────────────────────────────────────────────── */}
               <Section title="General" defaultOpen>
@@ -571,7 +590,7 @@ function FilterPanel({
                         key={t}
                         type="button"
                         onClick={() => setFilter('quickTime', t)}
-                        className={`py-1 rounded-md text-[10px] font-mono font-medium transition-all ${
+                        className={`py-1 px-0.5 rounded-md text-[9.5px] font-mono font-medium text-center truncate transition-all ${
                           filters.quickTime === t
                             ? 'bg-cyan-600 text-white shadow-sm shadow-cyan-500/20'
                             : 'bg-slate-900 border border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'
@@ -825,24 +844,35 @@ function FilterPanel({
               </Section>
             </div>
 
-            {/* Drawer footer — Apply / Reset */}
-            <div className="shrink-0 px-4 py-3 border-t border-slate-800 bg-slate-900/80 flex items-center gap-2">
+            {/* Drawer footer — Back / Reset / Apply */}
+            <div className="shrink-0 px-2.5 py-2.5 border-t border-slate-800 bg-slate-900/90 flex items-center gap-1.5">
               <motion.button
                 type="button"
-                onClick={onApply}
-                whileTap={{ scale: 0.97 }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-[12px] transition-colors shadow-lg shadow-cyan-500/20"
+                onClick={onClose}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-1 px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-[11px] border border-slate-700 transition-colors shrink-0"
+                title="Go back to events"
               >
-                <Filter className="w-3.5 h-3.5" />
-                Apply Filters
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Back</span>
               </motion.button>
               <motion.button
                 type="button"
                 onClick={onReset}
-                whileTap={{ scale: 0.97 }}
-                className="px-4 py-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 hover:text-rose-200 font-semibold text-[12px] border border-rose-900/60 transition-colors"
+                whileTap={{ scale: 0.95 }}
+                className="px-2.5 py-2 rounded-lg bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 hover:text-rose-200 font-semibold text-[11px] border border-rose-900/60 transition-colors shrink-0"
+                title="Reset all filters"
               >
                 Reset
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={onApply}
+                whileTap={{ scale: 0.95 }}
+                className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-[11px] transition-colors shadow-md shadow-cyan-500/20 truncate"
+              >
+                <Filter className="w-3 h-3 shrink-0" />
+                <span className="truncate">Apply</span>
               </motion.button>
             </div>
           </motion.div>
@@ -854,6 +884,9 @@ function FilterPanel({
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export const LunaEventsRail: React.FC = () => {
+  const isCustomizingWall = useCustomizeWallStore((s) => s.isCustomizingWall);
+  const toggleCustomizingWall = useCustomizeWallStore((s) => s.toggleCustomizingWall);
+  const { data: cameras } = useCameras();
   const [mode, setMode] = useState<'live' | 'history'>('live');
   const [liveEvents, setLiveEvents] = useState<LunaEvent[]>([]);
   const [historyEvents, setHistoryEvents] = useState<LunaEvent[]>([]);
@@ -1019,7 +1052,30 @@ export const LunaEventsRail: React.FC = () => {
   const activeFilterCount = countActiveFilters(filters);
 
   return (
-    <div className="relative flex h-full w-full flex-col border-r border-slate-800 bg-slate-950 text-slate-200 select-none overflow-hidden">
+    <div className="relative z-30 flex h-full w-full min-h-0 min-w-0 overflow-visible">
+      {/* ── Seamless Animated Content Switcher ──────────────────────────────── */}
+      <div className="size-full overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          {isCustomizingWall ? (
+            <motion.div
+              key="customize-rail"
+              className="size-full"
+              initial={{ opacity: 0, x: -24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.22, ease: 'easeInOut' }}
+            >
+              <CustomizeWallContent cameras={cameras} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="luna-rail"
+              className="relative flex h-full w-full flex-col border-r border-slate-800 bg-slate-950 text-slate-200 select-none overflow-hidden"
+              initial={{ opacity: 0, x: -24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.22, ease: 'easeInOut' }}
+            >
 
       {/* Filter Panel Overlay */}
       <FilterPanel
@@ -1059,21 +1115,33 @@ export const LunaEventsRail: React.FC = () => {
             )}
           </div>
 
-          {/* Mode tabs */}
-          <div className="flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 shrink-0">
-            {(['live', 'history'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-colors ${
-                  mode === m ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {m === 'live' ? <Radio className="w-3 h-3" /> : <History className="w-3 h-3" />}
-                <span className="capitalize">{m}</span>
-              </button>
-            ))}
+          {/* Mode tabs + Customize Wall Switch button */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex rounded-lg bg-slate-950 p-0.5 border border-slate-800">
+              {(['live', 'history'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-colors ${
+                    mode === m ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {m === 'live' ? <Radio className="w-3 h-3" /> : <History className="w-3 h-3" />}
+                  <span className="capitalize">{m}</span>
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={toggleCustomizingWall}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-950/80 hover:bg-cyan-900/80 text-cyan-300 border border-cyan-500/40 text-[10px] font-semibold transition-all shadow-[0_0_8px_rgba(6,182,212,0.25)] hover:shadow-[0_0_12px_rgba(6,182,212,0.5)] cursor-pointer shrink-0"
+              title="Switch left panel to Customize Wall"
+            >
+              <SlidersHorizontal className="w-3 h-3 text-cyan-400" />
+              <span>Wall</span>
+            </button>
           </div>
         </div>
 
@@ -1271,6 +1339,42 @@ export const LunaEventsRail: React.FC = () => {
         event={selectedEventForTrace}
         personInfo={selectedPersonForTrace}
       />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Floating Tactical Switch Button on Rail Edge (<->) ───────────────── */}
+      <motion.button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleCustomizingWall();
+        }}
+        whileHover={{ scale: 1.18, boxShadow: '0 0 20px rgba(6,182,212,0.9)' }}
+        whileTap={{ scale: 0.9 }}
+        style={{
+          position: 'absolute',
+          right: '-14px',
+          top: '40%',
+          zIndex: 9999,
+        }}
+        className="flex size-7 items-center justify-center rounded-full bg-[#060a14] border-2 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.7)] hover:border-cyan-300 hover:text-white cursor-pointer pointer-events-auto"
+        title={isCustomizingWall ? 'Switch back to Luna Stream' : 'Switch to Customize Wall'}
+        aria-label="Toggle Customize Wall Panel"
+      >
+        <motion.div
+          animate={{ rotate: isCustomizingWall ? 180 : 0 }}
+          transition={{ type: 'spring', stiffness: 280, damping: 20 }}
+          className="flex items-center justify-center"
+        >
+          {isCustomizingWall ? (
+            <Radio className="size-3.5 text-emerald-400" />
+          ) : (
+            <ArrowLeftRight className="size-3.5 text-cyan-400" />
+          )}
+        </motion.div>
+      </motion.button>
     </div>
   );
 

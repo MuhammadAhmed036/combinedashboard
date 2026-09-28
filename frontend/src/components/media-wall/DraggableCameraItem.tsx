@@ -10,11 +10,13 @@ export function DraggableCameraItem({
   camera,
   isFavorite,
   onToggleFavorite,
+  isAssigned,
   disabled,
 }: {
   camera: Camera;
   isFavorite: boolean;
   onToggleFavorite: () => void;
+  isAssigned?: boolean;
   disabled?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -28,28 +30,42 @@ export function DraggableCameraItem({
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform) }}
       className={cn(
-        "flex items-center gap-2 rounded-md border border-surface-border bg-surface-2 px-2 py-1.5 text-sm",
-        isDragging && "opacity-40",
-        disabled && "opacity-50"
+        "group flex items-center gap-2 rounded-md border border-surface-border bg-surface-2 px-2.5 py-1.5 text-xs transition-all select-none",
+        isDragging && "opacity-30 border-cyan-400 bg-cyan-950/40 scale-[0.98]",
+        disabled && "opacity-50 cursor-not-allowed",
+        !disabled && "cursor-grab active:cursor-grabbing hover:border-cyan-500/50 hover:bg-surface-3 touch-none"
       )}
+      {...(!disabled ? attributes : {})}
+      {...(!disabled ? listeners : {})}
     >
-      <button
-        {...attributes}
-        {...listeners}
-        className="cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
-        aria-label="Drag camera"
-      >
-        <GripVertical className="size-4" />
-      </button>
+      <div className="cursor-grab active:cursor-grabbing text-muted-foreground group-hover:text-cyan-400 shrink-0">
+        <GripVertical className="size-3.5" />
+      </div>
       <span
         className={cn(
-          "size-1.5 shrink-0 rounded-full",
-          camera.status === "online" ? "bg-status-active" : "bg-status-resolved"
+          "size-2 shrink-0 rounded-full",
+          camera.status === "online" ? "bg-emerald-400 shadow-[0_0_6px_#34d399]" : "bg-slate-600"
         )}
       />
-      <span className="min-w-0 flex-1 truncate">{camera.name}</span>
-      <button onClick={onToggleFavorite} aria-label="Toggle favorite" className="text-muted-foreground hover:text-severity-medium">
-        <Star className={cn("size-3.5", isFavorite && "fill-severity-medium text-severity-medium")} />
+      <span className="min-w-0 flex-1 truncate font-medium text-slate-200 group-hover:text-white">
+        {camera.name}
+      </span>
+      {isAssigned && (
+        <span className="shrink-0 px-1 py-0.5 rounded text-[8px] font-mono uppercase tracking-wider text-cyan-300 bg-cyan-950/80 border border-cyan-700/50">
+          Wall
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleFavorite();
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        aria-label="Toggle favorite"
+        className="text-muted-foreground hover:text-amber-400 shrink-0 p-0.5 transition-colors cursor-pointer"
+      >
+        <Star className={cn("size-3.5", isFavorite && "fill-amber-400 text-amber-400")} />
       </button>
     </div>
   );
