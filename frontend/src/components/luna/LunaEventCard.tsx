@@ -78,34 +78,52 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
     subtitle: string;
   } | null>(null);
 
-  const sim = info.similarity;
-  let cardBorder = 'border-2 border-rose-500 shadow-rose-500/10';
-  let badgeStyle = 'bg-rose-500 text-white border-rose-400';
-  let dotColor = 'bg-rose-400';
-
-  if (sim >= 80) {
-    cardBorder = 'border-2 border-emerald-500 shadow-emerald-500/15';
-    badgeStyle = 'bg-emerald-500 text-slate-950 border-emerald-400';
-    dotColor = 'bg-emerald-400';
-  } else if (sim >= 60) {
-    cardBorder = 'border-2 border-amber-400 shadow-amber-400/15';
-    badgeStyle = 'bg-amber-400 text-slate-950 border-amber-300';
-    dotColor = 'bg-amber-400';
-  }
-
   const dateTimeLabel = [info.dateFormatted, info.timeFormatted].filter(Boolean).join(' ') || info.timeFormatted;
   const detectedImageUrl = info.detectedFaceUrl || info.sampleUrl || info.frameUrl;
   const hasMatchedAvatar = Boolean(avatarUrl && !avatarError);
+
+  // Dynamic color palette per wireframe (Green >= 80%, Yellow 60-79%, Red < 60%)
+  const sim = info.similarity;
+  let cardBorder = 'border-2 border-rose-500/90 shadow-[0_0_14px_rgba(244,63,94,0.18)]';
+  let cardBg = 'bg-gradient-to-r from-slate-950 via-slate-900 to-rose-950/30';
+  let badgeStyle = 'bg-rose-500 text-white border-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.4)]';
+  let nameBlock = 'bg-slate-800/90 text-rose-200 border-slate-700/70';
+  let camBlock = 'bg-slate-800/70 text-slate-300 border-slate-700/50';
+  let listBlock = 'bg-rose-950/40 text-rose-300 border-rose-800/50';
+  let matchBorder = 'border-2 border-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.5)]';
+  let traceBtn = 'bg-rose-600/30 hover:bg-rose-500/50 text-rose-200 border-rose-500/60';
+  let dotColor = 'bg-rose-400';
+
+  if (sim >= 80) {
+    cardBorder = 'border-2 border-emerald-500/90 shadow-[0_0_14px_rgba(16,185,129,0.18)]';
+    cardBg = 'bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950/30';
+    badgeStyle = 'bg-emerald-500 text-slate-950 border-emerald-300 shadow-[0_0_8px_rgba(16,185,129,0.4)]';
+    nameBlock = 'bg-slate-800/90 text-emerald-200 border-slate-700/70';
+    camBlock = 'bg-slate-800/70 text-slate-300 border-slate-700/50';
+    listBlock = 'bg-emerald-950/40 text-emerald-300 border-emerald-800/50';
+    matchBorder = 'border-2 border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]';
+    traceBtn = 'bg-emerald-600/30 hover:bg-emerald-500/50 text-emerald-200 border-emerald-500/60';
+    dotColor = 'bg-emerald-400';
+  } else if (sim >= 60) {
+    cardBorder = 'border-2 border-amber-400/90 shadow-[0_0_14px_rgba(245,158,11,0.18)]';
+    cardBg = 'bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950/30';
+    badgeStyle = 'bg-amber-400 text-slate-950 border-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.4)]';
+    nameBlock = 'bg-slate-800/90 text-amber-200 border-slate-700/70';
+    camBlock = 'bg-slate-800/70 text-slate-300 border-slate-700/50';
+    listBlock = 'bg-amber-950/40 text-amber-300 border-amber-800/50';
+    matchBorder = 'border-2 border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.5)]';
+    traceBtn = 'bg-amber-600/30 hover:bg-amber-500/50 text-amber-200 border-amber-500/60';
+    dotColor = 'bg-amber-400';
+  }
 
   return (
     <>
       <div
         onClick={() => onSelect?.(event)}
-        className={`group relative flex items-center gap-2 rounded-xl bg-slate-900/95 p-2 shadow-lg transition-all duration-200 hover:bg-slate-900 overflow-visible text-xs text-slate-200 select-none ${cardBorder}`}
+        className={`group relative flex items-stretch rounded-xl p-2 shadow-lg transition-all duration-200 hover:brightness-105 cursor-pointer text-xs select-none mt-2.5 overflow-visible ${cardBorder} ${cardBg}`}
       >
-        {/* ── Left Area: Dual-Image (Detected + Matched Original) or Single Image ── */}
-        <div className="relative shrink-0 flex items-center gap-1.5">
-          {/* 1. Camera Detected Image */}
+        {/* ── Left Area: Large Camera Detected Image (Blue in wireframe) ── */}
+        <div className="relative shrink-0 w-24 h-28 flex items-center justify-center">
           <div
             onClick={(e) => {
               e.stopPropagation();
@@ -117,8 +135,8 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
                 });
               }
             }}
-            className={`group/det relative ${hasMatchedAvatar ? 'w-13 h-26' : 'w-20 h-28'} rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center overflow-hidden cursor-pointer shadow-md`}
-            title="Click to expand Detected Image"
+            className="group/det relative w-full h-full rounded-lg bg-slate-950 border border-slate-800/80 flex items-center justify-center overflow-hidden shadow-inner cursor-pointer"
+            title="Click to view full detected image"
           >
             {detectedImageUrl && !sampleError ? (
               <>
@@ -144,90 +162,93 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
               DETECTED
             </span>
           </div>
-
-          {/* 2. Original Matched Reference Image from Luna Platform */}
-          {hasMatchedAvatar && (
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                if (avatarUrl && !avatarError) {
-                  setLightbox({
-                    url: avatarUrl,
-                    title: `Matched Reference (Original): ${info.name}`,
-                    subtitle: `${info.listName} • Similarity: ${sim}%`,
-                  });
-                }
-              }}
-              className="group/match relative w-13 h-26 rounded-lg bg-slate-950 border-2 border-emerald-500/80 shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center justify-center overflow-hidden cursor-pointer"
-              title="Click to expand Original Matched Photo"
-            >
-              <img
-                src={avatarUrl!}
-                alt="Original Matched Photo"
-                className="w-full h-full object-cover rounded-md transition-transform duration-300 group-hover/match:scale-110"
-                onError={() => setAvatarError(true)}
-              />
-              <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/match:opacity-100 transition-opacity flex items-center justify-center">
-                <ZoomIn className="w-3.5 h-3.5 text-emerald-300 drop-shadow" />
-              </div>
-
-              {/* Sub-label badge */}
-              <span className="absolute bottom-0 inset-x-0 bg-emerald-950/95 text-[7px] text-emerald-300 font-mono text-center py-0.5 border-t border-emerald-800/80 pointer-events-none">
-                ORIGINAL
-              </span>
-            </div>
-          )}
         </div>
 
-        {/* ── Right Area: Clean Metadata (Name, Cam Name, List, Date & Time, Similarity) ── */}
-        <div className="flex-1 min-w-0 flex flex-col justify-between gap-1 py-0.5">
-          {/* Row 1: Name + Similarity Score */}
-          <div className="flex items-center justify-between gap-1">
-            <div
-              className="font-bold text-slate-100 text-[11px] truncate flex items-center gap-1 min-w-0"
-              title={info.name}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
-              <span className="truncate">{info.name}</span>
+        {/* ── Overlapping Match Image Badge (Brown box in wireframe) ── */}
+        {hasMatchedAvatar && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              if (avatarUrl && !avatarError) {
+                setLightbox({
+                  url: avatarUrl,
+                  title: `Matched Reference (Original): ${info.name}`,
+                  subtitle: `${info.listName} • Similarity: ${sim}%`,
+                });
+              }
+            }}
+            className={`group/match absolute -top-2.5 left-[74px] z-20 w-11 h-14 rounded-lg bg-slate-950 ${matchBorder} flex items-center justify-center overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-110`}
+            title="Click to view original match photo"
+          >
+            <img
+              src={avatarUrl!}
+              alt="Match Reference"
+              className="w-full h-full object-cover rounded-md"
+              onError={() => setAvatarError(true)}
+            />
+            <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/match:opacity-100 transition-opacity flex items-center justify-center">
+              <ZoomIn className="w-3 h-3 text-white drop-shadow" />
             </div>
 
+            {/* Match sub-badge */}
+            <span className="absolute bottom-0 inset-x-0 bg-slate-950/95 text-[6.5px] font-bold text-center py-0.2 text-emerald-300 tracking-wider pointer-events-none border-t border-slate-800">
+              MATCH
+            </span>
+          </div>
+        )}
+
+        {/* ── Right Area: Metadata Rows per wireframe (name, Cam name, list, listTD/Trace) ── */}
+        <div className="flex-1 min-w-0 pl-2.5 flex flex-col justify-between py-0.5">
+          {/* Top Row: Category tag on left & Similarity Score on Top-Right */}
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[8px] uppercase tracking-wider text-slate-400 font-mono pl-4">
+              {hasMatchedAvatar ? 'MATCH' : 'ALERT'}
+            </span>
             <div
-              className={`shrink-0 flex items-center justify-center px-1.5 py-0.5 rounded font-black text-[10px] shadow-sm border ${badgeStyle}`}
+              className={`shrink-0 px-1.5 py-0.5 rounded font-black text-[10px] border shadow-sm ${badgeStyle}`}
               title={`Similarity: ${sim}%`}
             >
               {sim}%
             </div>
           </div>
 
-          {/* Row 2: Camera Name */}
+          {/* Row 1: Name block */}
           <div
-            className="flex items-center gap-1 text-[10px] text-slate-300 bg-slate-800/60 px-1.5 py-0.5 rounded border border-slate-700/40 truncate"
+            className={`px-1.5 py-0.5 rounded border text-[11px] font-bold truncate flex items-center gap-1.5 ${nameBlock}`}
+            title={info.name}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+            <span className="truncate">{info.name}</span>
+          </div>
+
+          {/* Row 2: Cam Name block */}
+          <div
+            className={`px-1.5 py-0.5 rounded border text-[10px] truncate flex items-center gap-1.5 ${camBlock}`}
             title={`Camera: ${info.cameraName}`}
           >
-            <Camera className="w-3 h-3 text-slate-400 shrink-0" />
+            <Camera className="w-3 h-3 text-cyan-400 shrink-0" />
             <span className="truncate font-medium">{info.cameraName}</span>
           </div>
 
-          {/* Row 3: List / Watchlist */}
+          {/* Row 3: List block */}
           <div
-            className="flex items-center gap-1 text-[9px] text-cyan-300 bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-800/40 truncate"
-            title={`List: ${info.listName}`}
+            className={`px-1.5 py-0.5 rounded border text-[10px] truncate flex items-center gap-1.5 ${listBlock}`}
+            title={`Watchlist: ${info.listName}`}
           >
             <Tag className="w-2.5 h-2.5 text-cyan-400 shrink-0" />
             <span className="truncate font-medium">{info.listName}</span>
           </div>
 
-          {/* Row 4: Date & Time */}
-          <div
-            className="flex items-center gap-1 text-[9px] text-slate-400 font-mono truncate"
-            title={`Time: ${dateTimeLabel}`}
-          >
-            <Clock className="w-2.5 h-2.5 text-slate-500 shrink-0" />
-            <span className="truncate">{dateTimeLabel}</span>
-          </div>
+          {/* Row 4: ListTD / Timestamp + Trace Button */}
+          <div className="flex items-center justify-between gap-1 pt-0.5">
+            <div
+              className="flex items-center gap-1 text-[9px] text-slate-400 font-mono truncate"
+              title={dateTimeLabel}
+            >
+              <Clock className="w-2.5 h-2.5 text-slate-500 shrink-0" />
+              <span className="truncate">{info.timeFormatted}</span>
+            </div>
 
-          {/* Row 5: Action Button (Trace) */}
-          <div className="flex items-center justify-end pt-0.5">
             <button
               type="button"
               onClick={(e) => {
@@ -235,7 +256,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
                 onTraceClick(event, info);
               }}
               title="Trace Person Movement"
-              className="flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/80 hover:bg-cyan-600/40 text-cyan-300 hover:text-cyan-100 border border-cyan-800/70 hover:border-cyan-500 text-[9px] font-semibold transition-colors"
+              className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[9px] font-bold transition-all shadow-sm shrink-0 ${traceBtn}`}
             >
               <Navigation className="w-2.5 h-2.5 rotate-45" />
               <span>Trace</span>

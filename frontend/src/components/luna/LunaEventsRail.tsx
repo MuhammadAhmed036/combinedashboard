@@ -1276,7 +1276,7 @@ export const LunaEventsRail: React.FC = () => {
       )}
 
       {/* ── Events list ───────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto overflow-x-visible p-2.5 space-y-3 min-h-0">
+      <div className="flex-1 overflow-y-auto overflow-x-visible p-2 pt-3.5 space-y-3.5 min-h-0">
         {loading && historyEvents.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-slate-500 text-xs gap-2">
             <RefreshCw className="w-5 h-5 animate-spin text-cyan-500" />
