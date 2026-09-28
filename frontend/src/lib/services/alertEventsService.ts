@@ -53,7 +53,7 @@ export async function fetchAllAlertEvents(
       personCountOutside: asNumber(record.person_count_outside) ?? 0,
       classCountsInside: {},
       classCountsOutside: {},
-      boundingBox: null,
+      boundingBox: (record.bounding_box as any) ?? null,
       note: asString(record.note),
       seen: Boolean(record.seen),
       isLatest: Boolean(record.is_latest),
