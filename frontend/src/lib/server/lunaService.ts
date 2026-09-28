@@ -92,11 +92,77 @@ export async function fetchLunaEvents(searchParams: URLSearchParams) {
       return { events: [], error: `Luna status ${response.status}: ${errorText}` };
     }
 
-    return await response.json();
+    const result = await response.json();
+    const events = result.events || (Array.isArray(result) ? result : []);
+
+    if (Array.isArray(events) && events.length > 0) {
+      const faceIdsToFetch = new Set<string>();
+      for (const ev of events) {
+        const faceId =
+          ev.top_match?.face_id ||
+          ev.top_match?.face?.face_id ||
+          ev.match_result?.[0]?.candidates?.[0]?.face?.face_id ||
+          ev.face_id;
+        if (faceId && !faceAvatarCache.has(faceId)) {
+          faceIdsToFetch.add(faceId);
+        }
+      }
+
+      if (faceIdsToFetch.size > 0) {
+        await Promise.allSettled(
+          Array.from(faceIdsToFetch).map(async (fId) => {
+            await resolveFaceAvatar(fId);
+          })
+        );
+      }
+
+      for (const ev of events) {
+        const faceId =
+          ev.top_match?.face_id ||
+          ev.top_match?.face?.face_id ||
+          ev.match_result?.[0]?.candidates?.[0]?.face?.face_id ||
+          ev.face_id;
+        if (faceId && faceAvatarCache.has(faceId)) {
+          const avatar = faceAvatarCache.get(faceId);
+          if (ev.top_match) {
+            ev.top_match.avatar = avatar;
+            if (ev.top_match.face) ev.top_match.face.avatar = avatar;
+            else ev.top_match.face = { face_id: faceId, avatar };
+          }
+          if (ev.match_result?.[0]?.candidates?.[0]?.face) {
+            ev.match_result[0].candidates[0].face.avatar = avatar;
+          }
+          if (!ev.avatar) {
+            ev.avatar = avatar;
+          }
+        }
+      }
+    }
+
+    return result;
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'Luna offline';
     return { events: [], offline: true, error: errorMsg };
   }
+}
+
+const faceAvatarCache = new Map<string, string>();
+
+export async function resolveFaceAvatar(faceId: string): Promise<string | null> {
+  if (!faceId) return null;
+  if (faceAvatarCache.has(faceId)) {
+    return faceAvatarCache.get(faceId) || null;
+  }
+  try {
+    const faceData = await fetchLunaFace(faceId);
+    if (faceData && faceData.avatar) {
+      faceAvatarCache.set(faceId, faceData.avatar);
+      return faceData.avatar;
+    }
+  } catch (err) {
+    console.error(`Failed to resolve face avatar for ${faceId}:`, err);
+  }
+  return null;
 }
 
 export async function fetchLunaLists() {

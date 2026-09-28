@@ -3,13 +3,41 @@ import { getLunaConfig, getLunaHeaders } from '@/lib/server/lunaService';
 
 export const dynamic = 'force-dynamic';
 
-function fetchSample(sampleId: string) {
+async function fetchSample(sampleId: string) {
   const { host, apiPort } = getLunaConfig();
-  return fetch(`http://${host}:${apiPort}/6/samples/${sampleId}`, {
+  const headers = getLunaHeaders();
+
+  // 1. Try standard /6/samples/${sampleId}
+  let res = await fetch(`http://${host}:${apiPort}/6/samples/${sampleId}`, {
     method: 'GET',
-    headers: getLunaHeaders(),
+    headers,
     cache: 'force-cache',
   });
+  if (res.ok) return res;
+
+  // 2. Try /6/samples/faces/${sampleId}
+  res = await fetch(`http://${host}:${apiPort}/6/samples/faces/${sampleId}`, {
+    method: 'GET',
+    headers,
+    cache: 'force-cache',
+  });
+  if (res.ok) return res;
+
+  // 3. Try /6/samples/bodies/${sampleId}
+  res = await fetch(`http://${host}:${apiPort}/6/samples/bodies/${sampleId}`, {
+    method: 'GET',
+    headers,
+    cache: 'force-cache',
+  });
+  if (res.ok) return res;
+
+  // 4. Try port 8080 LP5 fallback
+  res = await fetch(`http://${host}:8080/api/lp5/6/samples/faces/${sampleId}`, {
+    method: 'GET',
+    headers,
+    cache: 'force-cache',
+  });
+  return res;
 }
 
 export async function GET(

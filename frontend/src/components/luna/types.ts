@@ -123,6 +123,8 @@ export interface ParsedLunaPersonInfo {
   listId: string | null;
   sampleUrl: string | null;
   avatarUrl: string | null;
+  detectedFaceUrl?: string | null;
+  frameUrl?: string | null;
   timestamp: string;
   timeFormatted: string;
   dateFormatted: string;

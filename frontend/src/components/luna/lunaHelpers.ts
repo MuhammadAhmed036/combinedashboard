@@ -2,20 +2,33 @@ import { LunaEvent, LunaCandidate, ParsedLunaPersonInfo } from './types';
 
 export function resolveLunaSampleUrl(rawUrlOrId?: string | null): string | null {
   if (!rawUrlOrId) return null;
+
+  // Extract standard UUID first (handles /6/samples/faces/<uuid>, /6/samples/<uuid>, etc.)
+  const uuidMatch = rawUrlOrId.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+  if (uuidMatch) {
+    if (rawUrlOrId.includes('/images/')) {
+      return `/api/luna/images/${uuidMatch[0]}`;
+    }
+    return `/api/luna/samples/${uuidMatch[0]}`;
+  }
+
   if (rawUrlOrId.startsWith('http://') || rawUrlOrId.startsWith('https://')) {
     return rawUrlOrId;
   }
+
   // Check if it's like /6/images/<hash>
   const imageMatch = rawUrlOrId.match(/(?:images)\/([a-zA-Z0-9_-]+)/);
   if (imageMatch && imageMatch[1]) {
     return `/api/luna/images/${imageMatch[1]}`;
   }
+
   // Check if it's like /6/samples/<hash>
   const sampleMatch = rawUrlOrId.match(/(?:samples|faces)\/([a-zA-Z0-9_-]+)/);
   if (sampleMatch && sampleMatch[1]) {
     return `/api/luna/samples/${sampleMatch[1]}`;
   }
-  // If it's a UUID
+
+  // If it's a raw ID
   if (/^[a-zA-Z0-9_-]{10,}$/.test(rawUrlOrId)) {
     return `/api/luna/samples/${rawUrlOrId}`;
   }
@@ -56,6 +69,8 @@ export function parseLunaEvent(event: LunaEvent): ParsedLunaPersonInfo {
   const listId: string | null = null;
   let avatarUrl: string | null = null;
   let sampleUrl: string | null = null;
+  let detectedFaceUrl: string | null = null;
+  let frameUrl: string | null = null;
   let attributesSummary = '';
 
   // 1. Try top_match
@@ -64,8 +79,9 @@ export function parseLunaEvent(event: LunaEvent): ParsedLunaPersonInfo {
     name = evt.top_match.face?.user_data || evt.top_match.label || 'Identified Person';
     rawSim = evt.top_match.similarity ?? evt.top_match.score ?? 0;
     listName = evt.top_match.label || 'Watchlist Match';
-    if (evt.top_match.face?.avatar) {
-      avatarUrl = resolveLunaSampleUrl(evt.top_match.face.avatar);
+    const rawAvatar = (evt.top_match as any).avatar || evt.top_match.face?.avatar || (evt as any).avatar;
+    if (rawAvatar) {
+      avatarUrl = resolveLunaSampleUrl(rawAvatar);
     }
   }
 
@@ -77,29 +93,30 @@ export function parseLunaEvent(event: LunaEvent): ParsedLunaPersonInfo {
       name = candidate.face?.user_data || candidate.label || 'Identified Person';
       rawSim = candidate.similarity || 0;
       listName = candidate.label || 'Watchlist Match';
-      if (candidate.face?.avatar) {
-        avatarUrl = resolveLunaSampleUrl(candidate.face.avatar);
+      const rawAvatar = candidate.face?.avatar || (evt as any).avatar;
+      if (rawAvatar) {
+        avatarUrl = resolveLunaSampleUrl(rawAvatar);
       }
     }
   }
 
-  // 3. Body Detections / Attribute Extraction (as seen in Luna events)
-  const bodyDet = evt.body_detections?.[0];
-  if (bodyDet?.image_origin) {
-    sampleUrl = resolveLunaSampleUrl(bodyDet.image_origin);
+  // 3. Extract detected face crop & camera full frame
+  const faceSampleId =
+    evt.face_detections?.[0]?.sample_id ||
+    evt.detections?.[0]?.sample_id ||
+    evt.face_detections?.[0]?.samples?.face?.url;
+  if (faceSampleId) {
+    detectedFaceUrl = resolveLunaSampleUrl(faceSampleId);
   }
 
-  if (!sampleUrl) {
-    const sampleId =
-      evt.face_detections?.[0]?.sample_id ||
-      evt.detections?.[0]?.sample_id ||
-      evt.face_detections?.[0]?.samples?.face?.url ||
-      evt.detections?.[0]?.samples?.face?.url;
-
-    if (sampleId) {
-      sampleUrl = resolveLunaSampleUrl(sampleId);
-    }
+  const cameraOrigin =
+    (evt.face_detections?.[0] as any)?.image_origin ||
+    evt.body_detections?.[0]?.image_origin;
+  if (cameraOrigin) {
+    frameUrl = resolveLunaSampleUrl(cameraOrigin);
   }
+
+  sampleUrl = detectedFaceUrl || frameUrl;
 
   // Build descriptive name & attributes if no matched face identity
   if (evt.body_basic_attributes) {
@@ -162,6 +179,8 @@ export function parseLunaEvent(event: LunaEvent): ParsedLunaPersonInfo {
     listId,
     sampleUrl,
     avatarUrl,
+    detectedFaceUrl,
+    frameUrl,
     timestamp,
     timeFormatted,
     dateFormatted,

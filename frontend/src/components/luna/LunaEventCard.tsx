@@ -2,10 +2,10 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LunaEvent, ParsedLunaPersonInfo } from './types';
-import { parseLunaEvent } from './lunaHelpers';
+import { parseLunaEvent, resolveLunaSampleUrl } from './lunaHelpers';
 import {
   Navigation,
   User,
@@ -23,6 +23,8 @@ interface LunaEventCardProps {
   onSelect?: (event: LunaEvent) => void;
 }
 
+const clientAvatarCache = new Map<string, string>();
+
 export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   event,
   onTraceClick,
@@ -32,17 +34,50 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   const [sampleError, setSampleError] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
 
-  // Full-view lightbox state for clicking detected image or match image
+  // Matched / enrolled original face avatar state
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
+    return info.avatarUrl || (info.faceId ? clientAvatarCache.get(info.faceId) || null : null);
+  });
+
+  useEffect(() => {
+    if (info.avatarUrl) {
+      setAvatarUrl(info.avatarUrl);
+      if (info.faceId) clientAvatarCache.set(info.faceId, info.avatarUrl);
+      return;
+    }
+    if (!info.faceId) return;
+
+    if (clientAvatarCache.has(info.faceId)) {
+      setAvatarUrl(clientAvatarCache.get(info.faceId) || null);
+      return;
+    }
+
+    let isMounted = true;
+    fetch(`/api/luna/faces/${info.faceId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data?.avatar) {
+          const resolved = resolveLunaSampleUrl(data.avatar);
+          if (resolved) {
+            clientAvatarCache.set(info.faceId!, resolved);
+            setAvatarUrl(resolved);
+          }
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [info.faceId, info.avatarUrl]);
+
+  // Full-view lightbox state
   const [lightbox, setLightbox] = useState<{
     url: string;
     title: string;
     subtitle: string;
   } | null>(null);
 
-  // Similarity color thresholds:
-  // 80% to 100% -> Green border
-  // 60% to 79%  -> Yellow border
-  // 0% to 59%   -> Red border
   const sim = info.similarity;
   let cardBorder = 'border-2 border-rose-500 shadow-rose-500/10';
   let badgeStyle = 'bg-rose-500 text-white border-rose-400';
@@ -59,6 +94,8 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   }
 
   const dateTimeLabel = [info.dateFormatted, info.timeFormatted].filter(Boolean).join(' ') || info.timeFormatted;
+  const detectedImageUrl = info.detectedFaceUrl || info.sampleUrl || info.frameUrl;
+  const hasMatchedAvatar = Boolean(avatarUrl && !avatarError);
 
   return (
     <>
@@ -66,82 +103,80 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
         onClick={() => onSelect?.(event)}
         className={`group relative flex items-center gap-2 rounded-xl bg-slate-900/95 p-2 shadow-lg transition-all duration-200 hover:bg-slate-900 overflow-visible text-xs text-slate-200 select-none ${cardBorder}`}
       >
-        {/* ── Left Area: Compact Detection Image + Overlapping Match Image ── */}
-        <div className="relative shrink-0 w-20 h-28 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center overflow-visible">
-          {/* Main Detected Image */}
+        {/* ── Left Area: Dual-Image (Detected + Matched Original) or Single Image ── */}
+        <div className="relative shrink-0 flex items-center gap-1.5">
+          {/* 1. Camera Detected Image */}
           <div
             onClick={(e) => {
               e.stopPropagation();
-              if (info.sampleUrl && !sampleError) {
+              if (detectedImageUrl && !sampleError) {
                 setLightbox({
-                  url: info.sampleUrl,
+                  url: detectedImageUrl,
                   title: `Detected Person: ${info.name}`,
                   subtitle: `${info.cameraName} • ${dateTimeLabel}`,
                 });
               }
             }}
-            className="group/det relative w-full h-full rounded-lg overflow-hidden cursor-pointer"
-            title="Click to view full image"
+            className={`group/det relative ${hasMatchedAvatar ? 'w-13 h-26' : 'w-20 h-28'} rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center overflow-hidden cursor-pointer shadow-md`}
+            title="Click to expand Detected Image"
           >
-            {info.sampleUrl && !sampleError ? (
+            {detectedImageUrl && !sampleError ? (
               <>
                 <img
-                  src={info.sampleUrl}
+                  src={detectedImageUrl}
                   alt="Detected Person"
                   className="w-full h-full object-cover rounded-lg transition-transform duration-300 group-hover/det:scale-110"
                   onError={() => setSampleError(true)}
                 />
-                {/* Click to expand overlay hint */}
                 <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/det:opacity-100 transition-opacity flex items-center justify-center">
-                  <Maximize2 className="w-4 h-4 text-white drop-shadow" />
+                  <Maximize2 className="w-3.5 h-3.5 text-white drop-shadow" />
                 </div>
               </>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 text-[9px] gap-1 p-1 text-center bg-slate-950">
-                <User className="w-5 h-5 text-slate-600" />
+              <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 text-[8px] gap-1 p-1 text-center bg-slate-950">
+                <User className="w-4 h-4 text-slate-600" />
                 <span>No Img</span>
               </div>
             )}
 
-            {/* Time badge at bottom of thumbnail */}
-            <span className="absolute bottom-0.5 left-0.5 right-0.5 bg-slate-950/85 text-[8px] text-cyan-300 font-mono text-center py-0.5 rounded border border-slate-800 pointer-events-none">
-              {info.timeFormatted}
+            {/* Sub-label badge */}
+            <span className="absolute bottom-0 inset-x-0 bg-slate-950/90 text-[7px] text-cyan-300 font-mono text-center py-0.5 border-t border-slate-800 pointer-events-none">
+              DETECTED
             </span>
           </div>
 
-          {/* Match Image (Smaller, at Top-Right Corner of detection image as requested) */}
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              if (info.avatarUrl && !avatarError) {
-                setLightbox({
-                  url: info.avatarUrl,
-                  title: `Match Reference: ${info.name}`,
-                  subtitle: `${info.listName} • Similarity: ${sim}%`,
-                });
-              }
-            }}
-            className="group/match absolute -top-2 -right-2 z-20 w-8 h-8 rounded-md border-2 border-amber-500/90 bg-slate-950 shadow-xl overflow-hidden cursor-pointer flex items-center justify-center"
-            title="Click to view full match image"
-          >
-            {info.avatarUrl && !avatarError ? (
-              <>
-                <img
-                  src={info.avatarUrl}
-                  alt="Match Reference"
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover/match:scale-125"
-                  onError={() => setAvatarError(true)}
-                />
-                <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/match:opacity-100 transition-opacity flex items-center justify-center">
-                  <ZoomIn className="w-3 h-3 text-amber-300 drop-shadow" />
-                </div>
-              </>
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 text-[7px] text-center bg-slate-900">
-                <User className="w-3 h-3 text-slate-600" />
+          {/* 2. Original Matched Reference Image from Luna Platform */}
+          {hasMatchedAvatar && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                if (avatarUrl && !avatarError) {
+                  setLightbox({
+                    url: avatarUrl,
+                    title: `Matched Reference (Original): ${info.name}`,
+                    subtitle: `${info.listName} • Similarity: ${sim}%`,
+                  });
+                }
+              }}
+              className="group/match relative w-13 h-26 rounded-lg bg-slate-950 border-2 border-emerald-500/80 shadow-[0_0_12px_rgba(16,185,129,0.3)] flex items-center justify-center overflow-hidden cursor-pointer"
+              title="Click to expand Original Matched Photo"
+            >
+              <img
+                src={avatarUrl!}
+                alt="Original Matched Photo"
+                className="w-full h-full object-cover rounded-md transition-transform duration-300 group-hover/match:scale-110"
+                onError={() => setAvatarError(true)}
+              />
+              <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/match:opacity-100 transition-opacity flex items-center justify-center">
+                <ZoomIn className="w-3.5 h-3.5 text-emerald-300 drop-shadow" />
               </div>
-            )}
-          </div>
+
+              {/* Sub-label badge */}
+              <span className="absolute bottom-0 inset-x-0 bg-emerald-950/95 text-[7px] text-emerald-300 font-mono text-center py-0.5 border-t border-emerald-800/80 pointer-events-none">
+                ORIGINAL
+              </span>
+            </div>
+          )}
         </div>
 
         {/* ── Right Area: Clean Metadata (Name, Cam Name, List, Date & Time, Similarity) ── */}
