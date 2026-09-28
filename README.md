@@ -1,479 +1,209 @@
-# New Dashboard Module Bundle
+# SafeCity AI Command Wall & Surveillance Dashboard
 
-This folder is a portable extraction of the current dashboard modules for a new single-page dashboard project. It contains the functional source, APIs, local database schema, sync workers, WebSocket service, Docker/deployment configs, and offline map assets.
-
-## Folder Map
-
-- `frontend/` - runnable Next app source copied from the current dashboard, including `src/`, `public/`, package manifests, and framework configs.
-- `backend/` - server-side stores/connectors used by API routes, including Postgres access and alert/camera/event stores.
-- `apis/` - all Next API route handlers plus `API_REFERENCE.md`.
-- `websocket/` - `person-count-ws`, the standalone WebSocket service for live person counts.
-- `database/` - local Postgres schema/init SQL.
-- `migrations/` - same ordered SQL migration/init files for reuse in another migration runner.
-- `workers/` - background sync/alert evaluation worker copy.
-- `sync/` - sync-service copy with its package manifest and Dockerfile.
-- `maps/` - complete offline Islamabad + Rawalpindi map module: PMTiles, GeoJSON, glyphs, standalone map packages, map React components, and camera icon asset.
-- `mediawall/` - media wall page, drag/drop components, live camera hooks, occupancy WebSocket client, and persisted layout store.
-- `alerts/` - alert page/components/hooks/services for rule creation, dynamic detection classes, absence alerts, lifecycle UI, seen/delete/status handling.
-- `docker/` - Dockerfile, compose file, init DB mount, deployment docs, and runtime scripts.
-- `configs/` - copied config, env example, scripts, and docs.
-- `.env` / `.env.example` - placeholder runtime configuration. Update these values for the next project.
-
-## Offline Map Module
-
-The dashboard map is fully offline for tiles and labels:
-
-- Runtime style code: `maps/components/mapStyles.ts`
-- Map component: `maps/components/CameraLocationMap.tsx`
-- App page: `maps/page/page.tsx`
-- Browser-served PMTiles: `maps/public-maps/*.pmtiles`
-- Browser-served glyphs: `maps/map-fonts/Noto Sans Regular/*.pbf`
-- Standalone packages: `maps/islamabad_map_package/` and `maps/rawalpindi_map_package/`
-- Saved map regions seed: `maps/data/map-regions.json` and `frontend/data/map-regions.json`
-
-The MapLibre style uses local URLs only:
-
-```text
-pmtiles:///maps/islamabad.pmtiles
-pmtiles:///maps/islamabad-satellite.pmtiles
-pmtiles:///maps/rawalpindi.pmtiles
-pmtiles:///maps/rawalpindi-satellite.pmtiles
-/map-fonts/{fontstack}/{range}.pbf
-```
-
-For a runnable Next app, keep the same assets under `frontend/public/maps` and `frontend/public/map-fonts`.
-
-## Alerts Module
-
-Alert rule creation lives in:
-
-- `alerts/components/CreateAlertModal.tsx`
-- `alerts/components/RegionDrawCanvas.tsx`
-- `alerts/alertConditions.ts`
-- `alerts/detectionBoxes.ts`
-- `alerts/useAlertRules.ts`
-- `backend/server/alertsStore.ts`
-- `apis/api/alerts/**`
-
-Supported lifecycle:
-
-- Create alert rule with camera, category, latest frame, drawn ROI, trigger direction, and selected detection classes.
-- Dynamic classes are loaded from `GET /api/cameras/:cameraId/classes`, which reads recent `detection_events.detections_json`; future YOLO classes appear automatically.
-- Absence/no-person rules use `conditions.condition = "absence"` and optional restricted ROI.
-- Server-side worker `sync/sync-service/index.js` evaluates region and absence rules continuously, inserts `alert_events`, opens/closes `absence_events`, and updates alert latest/unseen state.
-- UI/API supports list, detail, mark seen/unseen, status patch, delete, event history, and absence history/summary.
-
-Category note: the current code stores the top severity internally as `critical` for DB/backward compatibility, but the extracted UI displays it as `High`, so operators see Low, Medium, and High.
-
-## Media Wall Module
-
-Media wall source is in:
-
-- `mediawall/page/page.tsx`
-- `mediawall/components/*`
-- `mediawall/useCameras.ts`
-- `mediawall/useLiveCameraOccupancy.ts`
-- `mediawall/allCamerasFeed.ts`
-- `mediawall/useUIStore.ts`
-
-Features included:
-
-- Camera grid with `2x2`, `3x3`, and `4x4` layouts.
-- Right-side camera library.
-- Drag-and-drop camera placement via `@dnd-kit/core`.
-- Layout and assignments persisted in browser local storage under `safecity-ui-store`.
-- Live frames via `/api/stream-cameras` and `/api/camera-feed/:cameraName`.
-- Current frame person count display from the shared person-count WebSocket.
-
-The live occupancy text is rendered in the media-wall cell components using the `livePeopleCount` prop, for example: `Current frame contains X persons`.
-
-## WebSocket Services
-
-### 1. Person-Count WebSocket (`person-count-ws`)
-Server:
-- `websocket/person-count-ws/index.js` (Port: 8090 / mapped to 8091)
-
-Client:
-- `frontend/src/lib/allCamerasFeed.ts`
-- `frontend/src/lib/hooks/useLiveCameraOccupancy.ts`
-
-Event shape:
-```json
-{
-  "type": "people_count",
-  "camera_id": "CAM-01",
-  "camera_name": "Gate Camera",
-  "zone": "Entrance",
-  "people_count": 3,
-  "event_id": "event-uuid",
-  "time": "2026-09-24T10:00:00.000Z"
-}
-```
-
-### 2. Luna Events WebSocket Proxy (`luna-ws`)
-Replaces the Python FastAPI socket with a lightweight, high-performance Node.js WebSocket service. It proxies face recognition events between the dashboard browser and the upstream Luna platform using Basic Authentication and `Luna-Account-Id` headers.
-
-Server:
-- `websocket/luna-ws/index.js` (Port: `8092`, env `LUNA_WS_PORT=8092`)
-- `websocket/luna-ws/Dockerfile`
-
-Client:
-- `frontend/src/components/luna/LunaEventsRail.tsx` (connects via `lunaWsUrl`)
-- Server API proxies under `frontend/src/app/api/luna/*`
-
-#### How to Run the Entire Project (Full Docker Stack):
-Run from `D:\newdashboard`:
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml up -d --build
-```
-
-This brings up all 5 Dockerized services:
-1. `db`: Local PostgreSQL database (Port `5370`)
-2. `app`: Dashboard web application (Port `3002` -> `http://localhost:3002/dashboard`)
-3. `person-count-ws`: Person occupancy WebSocket (Port `8091`)
-4. `sync`: Real-time YOLO detection events synchronization worker
-5. `luna-ws`: Luna live face & body recognition WebSocket proxy (Port `8092`)
-
-Check status of all containers:
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml ps
-```
-
-To view live logs of `luna-ws`:
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml logs -f luna-ws
-```
-
-To restart just the Luna WebSocket service:
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml restart luna-ws
-```
+A unified, real-time SafeCity surveillance and command dashboard featuring offline vector maps, live camera grids with drag-and-drop media wall, automated YOLO detection alert engine, and full **VisionLabs Luna Platform 5** face and body recognition integration with movement tracing.
 
 ---
 
-## Luna Face Events & Person Movement Trace Module
+## ⚡ Quick Start: Run the Whole Project (Single Command)
 
-The left rail of the Command Wall dashboard (`frontend/src/components/luna/LunaEventsRail.tsx`, occupying 15% width) integrates Luna live and historical face recognition events with person tracking:
+To run the entire system — including the database, dashboard application, sync worker, and all WebSocket services — open your terminal in the project root (`D:\newdashboard`) and run:
 
-### 1. Live Events Mode (Real-Time WebSocket)
-- Connects automatically to `ws://localhost:8092/6/ws` via the `luna-ws` Docker container.
-- **Latest 50 Events Buffer**: Displays a smooth streaming feed of the latest 50 events in real-time.
-- **Status Indicator**: Green pulsing dot showing `LIVE (N/50)` when connected, or `STANDBY` if reconnecting.
-
-### 2. Alert History Mode (Paginated Browsing & Complete Filters)
-When switching to the **History** tab:
-- **Default Load**: Automatically loads historical events from the Luna surveillance platform with instant previews.
-- **Pagination**:
-  - Page navigation (`< Previous`, `Next >`)
-  - Page indicator (`Page 1`, `Page 2`, ...)
-  - Items per page selector: `10`, `20`, `50`, `100` items per page.
-- **Complete Filter Suite**:
-  - **Quick Similarity Tiers**: `All`, `≥75%` (Green), `50-74%` (Yellow), `<50%` (Red / Unmatched).
-  - **Similarity Slider**: Fine-tune Min & Max similarity match percentage (0% to 100%).
-  - **Time Range**: Quick presets (`1h`, `6h`, `12h`, `24h`, `3d`, `7d`, `30d`, `All`) and custom `Start Time` / `End Time` pickers.
-  - **Camera / Handler**: Filter events by specific cameras/handlers fetched dynamically from Luna API.
-  - **Watchlist / List**: Filter events by registered watchlists (Suspects, Office, Detected, etc.).
-  - **Gender Filter**: Filter by `Any`, `Male`, or `Female`.
-  - **Age Range**: Filter by `Min Age` and `Max Age`.
-  - **Search**: Real-time search across person name, camera name, clothes, and attributes.
-  - **Sort Order**: Toggle between `Newest First` (descending) and `Oldest First` (ascending).
-
-### 3. Dual Photo Cards (`LunaEventCard.tsx`) & Body Detections
-- Displays detected frame crop image alongside matched reference avatar (if face is recognized in watchlists).
-- Color-coded similarity match badge.
-- Automatic person attribute extraction: Gender, estimated age, upper garment color, and lower garment type.
-- **Person Movement Trace (`FaceMovementTraceModal.tsx`)**: Clicking the `➤` (Trace) button opens a chronological timeline tracing the person across camera nodes, showing timestamps, cameras visited, detection crops, and similarity percentages, with CSV export capability.
-
-### Luna API Proxy Routes
-- `GET /api/luna/events` - Queries Luna events with filter and pagination support.
-- `GET /api/luna/lists` - Fetches registered watchlists.
-- `GET /api/luna/handlers` - Fetches camera streams and handlers.
-- `GET /api/luna/images/[...path]` - Proxies Luna JPEG detection crops (`/6/images/...`) without CORS issues.
-- `GET /api/luna/samples/[sampleId]` - Proxies Luna sample crops (`/6/samples/...`).
-- `GET /api/luna/faces/[faceId]` - Fetches face details and avatar reference.
-
-## Database Ownership
-
-Local DB is this dashboard's source of truth for:
-
-- `alerts`
-- `alert_events`
-- `absence_events`
-- `sync_cursors`
-- locally enriched `camera_locations` fields such as map coordinates
-- saved map regions in `data/map-regions.json`
-
-Team DB is source of truth for:
-
-- `detection_events`
-- `camera_locations` baseline registry
-
-Sync rules:
-
-- `detection_events` are pulled incrementally by source `id`.
-- `camera_locations` are refreshed/upserted from Team DB on each sync poll.
-- local rows backed only by detection events are retained when Team DB registry is incomplete.
-- `alerts` and `alert_events` are not pulled from Team DB in the current worker; this dashboard owns them locally.
-- Sync cursor is stored in `sync_cursors`.
-- Default intervals: `SYNC_POLL_MS=3000`, `SYNC_RECONCILE_MS=60000`.
-- Conflict handling uses upserts. Local alert event insertion is idempotent by `UNIQUE(alert_id, event_id)` plus an advisory lock.
-
-## Environment
-
-Update `newdashboard/.env` for the next project. Important variables:
-
-- `DATABASE_URL` - this dashboard's local Postgres.
-- `TEAM_DATABASE_URL` - read-only Team DB.
-- `DETECTION_API_BASE_URL` - detection backend proxied by `/api/ai`.
-- `STREAMS_API_URL`, `STREAMS_API_USERNAME`, `STREAMS_API_PASSWORD` - stream camera list.
-- `CAMERA_FEED_BASE_URL`, `CAMERA_FEED_USERNAME`, `CAMERA_FEED_PASSWORD` - live frame proxy.
-- `PERSON_COUNT_WS_URL`, `PERSON_COUNT_WS_PORT` - person-count WebSocket.
-- `LUNA_HOST`, `LUNA_API_PORT` - Luna server host and port.
-- `LUNA_ACCOUNT_ID` - Luna account ID (e.g. `6`).
-- `LUNA_AUTH_USER`, `LUNA_AUTH_PASS` - Luna Basic Auth credentials.
-- `LUNA_WS_PORT`, `NEXT_PUBLIC_LUNA_WS_URL` - Luna WebSocket proxy port (8092) and client URL (`ws://localhost:8092`).
-- `SYNC_*` - sync worker intervals/batch sizes.
-- `RAW_IMAGE_RETENTION_TARGET` - camera retention metric.
-
-## Running In A New Project
-
-1. Copy or move the contents of `frontend/` into the new app root, or keep this bundle and run from `frontend/`.
-2. Ensure `frontend/public/maps` and `frontend/public/map-fonts` are present for offline map rendering.
-3. Create the local DB using `database/init-db/*.sql` in numeric order.
-4. Configure `.env`.
-5. Start the app, sync worker, and WebSocket services:
-
-```bash
-npm install
-npm run dev
-npm run sync
-npm run ws
-# To start Luna WebSocket proxy:
-node websocket/luna-ws/index.js
+```powershell
+docker compose --env-file .env -f docker/docker-compose.yml up -d --build
 ```
 
-For Docker, use `docker/docker-compose.yml` and `docker/Dockerfile` as the base deployment setup.
+> **Important**: Always run this command from the project root (`D:\newdashboard`), where `.env` and `docker/` reside.
 
-## Local Run And Team DB Sync
+Once started, open your browser and navigate to:
+👉 **[http://localhost:3002/dashboard](http://localhost:3002/dashboard)** (or `http://localhost:3000/dashboard` depending on `APP_PORT` in your `.env`)
 
-Use this section when you want your local dashboard DB to sync from the team `yolo_events` DB and then create alerts from the UI.
+---
 
-### What Runs Where
+## 🐳 Docker Stack Architecture (What Runs in Containers)
 
-- Team DB: source of truth for `detection_events` and baseline `camera_locations`.
-- Local DB service `db`: this dashboard's own Postgres. Alerts are created here.
-- Sync worker service `sync`: pulls team `detection_events` / `camera_locations` into local DB and evaluates active alert rules.
-- WebSocket service `person-count-ws`: reads local `detection_events` and broadcasts live people counts.
-- WebSocket service `luna-ws`: proxies live Luna face recognition events to the dashboard left rail.
-- Dashboard app: reads local DB, Luna APIs, and stream/camera APIs.
+The entire system is orchestrated with Docker Compose into 5 interconnected services:
 
-### Required `.env` Shape
+| Service | Container Name | Port | Description |
+| :--- | :--- | :--- | :--- |
+| **`app`** | `safecity-newdashboard-app-1` | `3002:3000` | Next.js 16 (Turbopack) dashboard web app, server-side APIs, and Luna reverse proxies |
+| **`db`** | `safecity-newdashboard-db-1` | `5370:5432` | Local PostgreSQL 16 database storing alerts, rules, locations, and synced detection events |
+| **`sync`** | `safecity-newdashboard-sync-1` | *Internal* | Background worker that polls Team DB for YOLO detections, updates cursors, and triggers alerts |
+| **`person-count-ws`** | `safecity-newdashboard-person-count-ws-1` | `8091:8090` | Node.js WebSocket broadcasting real-time person counts per camera to the Media Wall |
+| **`luna-ws`** | `safecity-newdashboard-luna-ws-1` | `8092:8092` | High-performance Node.js WebSocket proxy relaying live face/body recognition events from Luna |
 
-Make sure these values agree with each other:
+---
+
+## 🛠️ Management & Monitoring Commands
+
+All commands are run from `D:\newdashboard`:
+
+- **Check status of all running containers**:
+  ```powershell
+  docker compose --env-file .env -f docker/docker-compose.yml ps
+  ```
+
+- **View live logs of a specific service**:
+  ```powershell
+  # Next.js web application
+  docker compose --env-file .env -f docker/docker-compose.yml logs -f app
+
+  # Luna WebSocket proxy
+  docker compose --env-file .env -f docker/docker-compose.yml logs -f luna-ws
+
+  # Sync worker (Team DB -> Local DB)
+  docker compose --env-file .env -f docker/docker-compose.yml logs -f sync
+  ```
+
+- **Restart a single service (e.g. after editing frontend code)**:
+  ```powershell
+  docker compose --env-file .env -f docker/docker-compose.yml restart app
+  ```
+
+- **Stop the entire project**:
+  ```powershell
+  docker compose --env-file .env -f docker/docker-compose.yml down
+  ```
+
+- **Reset local database and rebuild from scratch**:
+  ```powershell
+  docker compose --env-file .env -f docker/docker-compose.yml down -v
+  docker compose --env-file .env -f docker/docker-compose.yml up -d --build
+  ```
+
+---
+
+## 👤 VisionLabs Luna Platform 5 Integration
+
+The left rail of the Command Wall dashboard (`15% width`) is dedicated to real-time face & body recognition events powered by **Luna Platform 5**:
+
+### 1. Live Events Stream (Real-Time WebSocket)
+- Connects automatically to `ws://localhost:8092/6/ws` via the `luna-ws` Docker container.
+- Maintains a rolling buffer of the **50 latest events** in real time.
+- Status indicator shows `LIVE (N/50)` with a pulsing indicator when active, or `STANDBY` during reconnection.
+
+### 2. History Mode (Pagination & Full Filter Suite)
+- **Pagination**: Navigate historical detections across pages (`page=1`, `page=2`, etc.) with customizable page size (`10`, `20`, `50`, `100` items/page).
+- **Smart Gender & Body Detection Filtering**:
+  - In Luna Platform 5, face detections use `gender: 1` (Male) / `0` (Female).
+  - Body detections (full-body crops from surveillance cameras) use `body_basic_attributes.apparent_gender: 1` (Male) / `0` (Female).
+  - The dashboard automatically bridges and queries `apparent_gender` so that filtering for "Male" or "Female" accurately retrieves body detection events from surveillance footage.
+- **Similarity Match Tiers**:
+  - 🟢 **80% to 100%**: High Match (Solid **Green** card outline)
+  - 🟡 **60% to 79%**: Medium Match (Solid **Yellow** card outline)
+  - 🔴 **0% to 59%**: Low Match / Unregistered Stranger (Solid **Red** card outline)
+- **One-Click Quick Filter Dots (`🔴 🟢 🟡`)**:
+  - Quick filter buttons on the rail header to toggle similarity tiers with a single click.
+- **Glassmorphic Filter Drawer (Framer Motion)**:
+  - Slide-in drawer with dual-thumb similarity percentage slider, handler/camera picker, watchlist matcher, age range, clothing color/garment filters, and custom time ranges.
+
+### 3. Event Cards (`LunaEventCard.tsx`) & Full-View Lightbox
+- **Dual Photo Layout**:
+  - **Main Detection Image**: Large, crisp crop of the detected person.
+  - **Overlapping Match Image**: Smaller reference avatar thumbnail at the top-right corner of the detection image.
+- **Full-Screen Lightbox Modal**:
+  - Clicking on **either** the detected photo or the match photo opens a full-screen high-resolution modal with image zoom, title, camera source, timestamp, and close button.
+- **Streamlined Metadata**:
+  - Shows person name/identity, source camera name, watchlist/detection class, and formatted date & time.
+- **Movement Trace Modal (`FaceMovementTraceModal.tsx`)**:
+  - Clicking the **Trace** (`➤`) button opens an interactive chronological timeline showing the person's journey across camera nodes, timestamps, and detection crops, with CSV export.
+
+### 4. Luna Backend Proxies
+To bypass CORS and handle Luna authentication securely, the dashboard provides server-side reverse proxy routes:
+- `GET /api/luna/events` - Queries Luna events with URL filter parameters.
+- `GET /api/luna/lists` - Fetches watchlists.
+- `GET /api/luna/handlers` - Fetches active streams and camera handlers.
+- `GET /api/luna/images/[...path]` - Proxies Luna JPEG detection crops (`/6/images/...`).
+- `GET /api/luna/samples/[sampleId]` - Proxies Luna face/body sample crops (`/6/samples/...`).
+- `GET /api/luna/faces/[faceId]` - Fetches registered face metadata and reference avatars.
+
+---
+
+## 🚨 Alerts & YOLO Detection Engine
+
+- **Rule Creation**: Set up alert rules with specific camera, severity category, latest frame reference, drawn polygon/ROI, trigger direction, and YOLO detection classes.
+- **Dynamic YOLO Classes**: Automatically populated from `GET /api/cameras/:cameraId/classes` based on recent detections (e.g. `person`, `car`, `truck`, `motorcycle`).
+- **Absence / No-Person Rules**: Rules can trigger when an area is left empty (`condition = "absence"`).
+- **Automated Worker Evaluation**: The `sync` worker continuously checks incoming detections against active rules, inserts `alert_events`, tracks unread states, and closes absence events.
+- **Severity Categories**: Displayed in the UI as **Low**, **Medium**, and **High**.
+
+---
+
+## 📺 Media Wall Module
+
+- **Layout Options**: `2x2`, `3x3`, and `4x4` dynamic camera grids.
+- **Drag-and-Drop**: Reorder and assign cameras to cells using `@dnd-kit/core`.
+- **Saved Configurations**: Layouts and cell assignments are automatically saved in browser local storage.
+- **Live Occupancy**: Displays live person counts for each camera stream streamed over the `person-count-ws` WebSocket.
+
+---
+
+## 🗺️ Offline Vector Maps Module
+
+The map system operates 100% offline without external internet or third-party tile server dependencies:
+- **Offline PMTiles**: Islamabad & Rawalpindi street and satellite vector tiles stored under `frontend/public/maps/`.
+- **Local Font Glyphs**: Served locally from `frontend/public/map-fonts/`.
+- **MapLibre GL Integration**: Offline styles located in `frontend/src/components/map/mapStyles.ts`.
+
+---
+
+## 🗄️ Database Ownership & Synchronization
+
+- **Local DB (`db`)**: Dashboard's source of truth for:
+  - `alerts` & `alert_events`
+  - `absence_events`
+  - `sync_cursors`
+  - Enriched `camera_locations` (geographic coordinates and map regions)
+- **Team DB (External Source of Truth)**:
+  - `detection_events` (YOLO detection logs)
+  - Baseline `camera_locations`
+- **Sync Mechanism**:
+  - The `sync` service pulls new detection events incrementally using `id` cursors stored in `sync_cursors`.
+  - Uses PostgreSQL advisory locks and `UNIQUE(alert_id, event_id)` constraints to ensure idempotent processing without duplicate alert triggers.
+
+---
+
+## ⚙️ Environment Variables Reference (`.env`)
+
+Configure your `.env` file in the project root:
 
 ```env
+# ── Local Database ───────────────────────────────────────────────────────────
 LOCAL_DB_USER=dashboard
 LOCAL_DB_PASSWORD=admin
 LOCAL_DB_NAME=dashboard
 LOCAL_DB_PORT=5370
 DATABASE_URL=postgres://dashboard:admin@localhost:5370/dashboard
-TEAM_DATABASE_URL=postgres://...
-PERSON_COUNT_WS_PORT=8090
-PERSON_COUNT_WS_URL=ws://localhost:8090
 
-# Luna Face Recognition & WebSocket Proxy
-LUNA_HOST=localhost
+# ── Team Database (Read-Only YOLO Events) ────────────────────────────────────
+TEAM_DATABASE_URL=postgres://user:password@team-db-host:5432/yolo_events
+
+# ── Web App & Ports ──────────────────────────────────────────────────────────
+APP_PORT=3002
+PERSON_COUNT_WS_PORT=8091
+PERSON_COUNT_WS_URL=ws://localhost:8091
+
+# ── VisionLabs Luna Platform 5 Config ────────────────────────────────────────
+LUNA_HOST=192.168.18.71
 LUNA_API_PORT=5000
-LUNA_ACCOUNT_ID=6
+LUNA_ACCOUNT_ID=00000000-0000-4000-b000-000000000146
 LUNA_AUTH_USER=root@visionlabs.ai
 LUNA_AUTH_PASS=root
-LUNA_AUTH_METHOD=basic
 LUNA_WS_PORT=8092
 NEXT_PUBLIC_LUNA_WS_URL=ws://localhost:8092
+
+# ── Background Sync Worker ───────────────────────────────────────────────────
+SYNC_POLL_MS=1000
+SYNC_BATCH_SIZE=2000
+SYNC_RECONCILE_MS=60000
 ```
 
-If you open the dashboard from another machine on the network, set `PERSON_COUNT_WS_URL` to that machine's reachable host/IP instead of `localhost`.
+---
 
-### Option A: Full Docker Stack
+## ❓ Common Troubleshooting
 
-Run from `D:\newdashboard`:
-
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml up -d --build
-```
-
-Check status:
-
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml ps
-```
-
-Watch team DB sync:
-
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml logs -f sync
-```
-
-Open the dashboard:
-
-```text
-http://localhost:3000/dashboard
-```
-
-### Option B: Docker DB/Sync, Next.js On Host
-
-This is best while editing UI code.
-
-Start only DB, sync worker, and people-count WebSocket:
-
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml up -d --build db sync person-count-ws
-```
-
-Run Next.js locally:
-
-```powershell
-cd frontend
-npm install
-npm run dev
-```
-
-Open the URL printed by Next.js, usually:
-
-```text
-http://localhost:3000/dashboard
-```
-
-If port 3000 is busy, Next.js will choose another port like `3002`.
-
-### Verify APIs
-
-From PowerShell:
-
-```powershell
-Invoke-WebRequest http://localhost:3000/api/runtime-config -UseBasicParsing
-Invoke-WebRequest http://localhost:3000/api/stream-cameras -UseBasicParsing
-Invoke-WebRequest http://localhost:3000/api/alerts?limit=5 -UseBasicParsing
-Invoke-WebRequest http://localhost:3000/api/stats -UseBasicParsing
-```
-
-If you are running host Next.js on port 3002, replace `3000` with `3002`.
-
-### Verify Sync Data
-
-Open local Postgres:
-
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml exec db psql -U dashboard -d dashboard
-```
-
-Useful checks:
-
-```sql
-SELECT * FROM sync_cursors;
-SELECT COUNT(*) FROM detection_events;
-SELECT COUNT(*) FROM camera_locations;
-SELECT COUNT(*) FROM alerts;
-SELECT COUNT(*) FROM alert_events;
-```
-
-Recent synced detection rows:
-
-```sql
-SELECT id, event_id, camera_id, detection_ts, detection_count
-FROM detection_events
-ORDER BY id DESC
-LIMIT 10;
-```
-
-### Common Issues
-
-`connect ECONNREFUSED 127.0.0.1:5370`
-
-Local DB is not running or `LOCAL_DB_PORT` / `DATABASE_URL` do not match. Start it:
-
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml up -d db
-```
-
-`Alert API offline` in the right panel
-
-The dashboard rendered, but `/api/alerts` could not reach local DB. Check:
-
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml ps db
-docker compose --env-file .env -f docker\docker-compose.yml logs db
-```
-
-No detections / empty camera stats
-
-The sync worker may not be able to reach `TEAM_DATABASE_URL`. Check:
-
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml logs -f sync
-```
-
-If the team DB was down earlier, leave `sync` running; it resumes from `sync_cursors` and catches up in batches.
-
-Reset local DB only when you intentionally want to delete local alerts/history:
-
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml down -v
-```
-
-Then start again with `up -d --build`.
-
-
-## Important: Run Docker Commands From The Right Folder
-
-The root `.env` and compose file live in `D:\newdashboard`, not in `D:\newdashboard\frontend`.
-
-If your PowerShell prompt is this:
-
-```powershell
-PS D:\newdashboard\frontend>
-```
-
-then first go back to the project root:
-
-```powershell
-cd ..
-```
-
-Then run Docker commands from:
-
-```powershell
-PS D:\newdashboard>
-```
-
-Correct commands from project root:
-
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml up -d --build db sync person-count-ws
-docker compose --env-file .env -f docker\docker-compose.yml ps
-docker compose --env-file .env -f docker\docker-compose.yml logs -f sync
-```
-
-If you intentionally want to stay inside `frontend`, use parent paths:
-
-```powershell
-docker compose --env-file ..\.env -f ..\docker\docker-compose.yml up -d --build db sync person-count-ws
-docker compose --env-file ..\.env -f ..\docker\docker-compose.yml ps
-docker compose --env-file ..\.env -f ..\docker\docker-compose.yml logs -f sync
-```
-
-Do not run this from `frontend`:
-
-```powershell
-docker compose --env-file .env -f docker\docker-compose.yml up -d db
-```
-
-That command looks for `D:\newdashboard\frontend\.env`, which does not exist.
-
-If Docker Desktop says Engine running but every `docker version` or `docker compose ps` command hangs, restart Docker Desktop from the tray icon, then run:
-
-```powershell
-docker context use desktop-linux
-docker version
-docker compose --env-file .env -f docker\docker-compose.yml ps
-```
+| Issue | Cause | Solution |
+| :--- | :--- | :--- |
+| `connect ECONNREFUSED 127.0.0.1:5370` | Local PostgreSQL container is stopped or still initializing. | Run `docker compose --env-file .env -f docker/docker-compose.yml up -d db` and wait 5 seconds. |
+| `Alert API offline` in UI | Web app cannot communicate with local DB. | Verify `DATABASE_URL` matches `LOCAL_DB_USER`, `LOCAL_DB_PASSWORD`, and `LOCAL_DB_PORT`. |
+| No events in Luna History | Luna server unreachable or network route down. | Check connection: `docker compose ... logs luna-ws` and verify `LUNA_HOST` in `.env`. |
+| Port already in use (`3000` or `5370`) | A local Node process or another Docker container is using the port. | Change `APP_PORT=3002` in `.env` or stop conflicting services. |
