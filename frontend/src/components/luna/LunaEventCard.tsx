@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LunaEvent, ParsedLunaPersonInfo } from './types';
 import { parseLunaEvent, resolveLunaSampleUrl } from './lunaHelpers';
+import { directFetchLunaFace } from '@/lib/lunaDirectClient';
 import {
   Navigation,
   User,
@@ -53,8 +54,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
     }
 
     let isMounted = true;
-    fetch(`/api/luna/faces/${info.faceId}`)
-      .then((res) => res.json())
+    directFetchLunaFace(info.faceId)
       .then((data) => {
         if (isMounted && data?.avatar) {
           const resolved = resolveLunaSampleUrl(data.avatar);

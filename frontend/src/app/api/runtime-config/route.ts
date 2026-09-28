@@ -16,6 +16,14 @@ export async function GET() {
       pollIntervalMs: Number(process.env.POLL_INTERVAL_MS) || 5000,
       personCountWsBase: process.env.PERSON_COUNT_WS_URL ?? null,
       lunaWsUrl: process.env.NEXT_PUBLIC_LUNA_WS_URL || "ws://localhost:8092",
+      lunaApiUrl:
+        process.env.NEXT_PUBLIC_LUNA_API_URL ||
+        `http://${process.env.LUNA_HOST || "192.168.18.71"}:${process.env.LUNA_GATEWAY_PORT || "8080"}/api/lp5/6`,
+      lunaHost: process.env.LUNA_HOST || "192.168.18.71",
+      lunaPort: process.env.LUNA_GATEWAY_PORT || "8080",
+      lunaAccountId: process.env.LUNA_ACCOUNT_ID || "00000000-0000-4000-b000-000000000146",
+      lunaAuthUser: process.env.LUNA_AUTH_USER || "root@visionlabs.ai",
+      lunaAuthPass: process.env.LUNA_AUTH_PASS || "root",
     },
     { headers: { "Cache-Control": "no-store" } }
   );

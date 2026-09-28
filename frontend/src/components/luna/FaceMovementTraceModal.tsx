@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { LunaEvent, MovementTracePoint, ParsedLunaPersonInfo } from './types';
 import { resolveLunaSampleUrl } from './lunaHelpers';
+import { directFetchLunaEvents } from '@/lib/lunaDirectClient';
 import {
   X,
   Navigation,
@@ -72,13 +73,7 @@ export const FaceMovementTraceModal: React.FC<FaceMovementTraceModalProps> = ({
         params.append('create_time__gte', past.toISOString());
       }
 
-      const res = await fetch(`/api/luna/events?${params.toString()}`);
-      if (!res.ok) {
-        throw new Error(`Failed to fetch trace events (${res.status})`);
-      }
-
-      const data: LunaEvent[] | LunaEventsResponse = await res.json();
-      const events = Array.isArray(data) ? data : data.events || [];
+      const { events } = await directFetchLunaEvents(params);
 
       const points: MovementTracePoint[] = events.map((item, index) => {
         const ev = item.event || item;

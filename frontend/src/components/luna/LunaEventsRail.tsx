@@ -7,6 +7,11 @@ import { parseLunaEvent } from './lunaHelpers';
 import { LunaEventCard } from './LunaEventCard';
 import { FaceMovementTraceModal } from './FaceMovementTraceModal';
 import { loadRuntimeConfig } from '@/lib/runtimeConfig';
+import {
+  directFetchLunaEvents,
+  directFetchLunaHandlers,
+  directFetchLunaLists,
+} from '@/lib/lunaDirectClient';
 import { useUIStore } from '@/lib/store/useUIStore';
 import { useCustomizeWallStore } from '@/lib/store/useCustomizeWallStore';
 import { useCameras } from '@/lib/hooks/useCameras';
@@ -920,33 +925,24 @@ export const LunaEventsRail: React.FC = () => {
   useEffect(() => {
     async function loadMeta() {
       try {
-        const [listsRes, handlersRes] = await Promise.allSettled([
-          fetch('/api/luna/lists').then((r) => r.json()),
-          fetch('/api/luna/handlers').then((r) => r.json()),
+        const [lists, handlers] = await Promise.allSettled([
+          directFetchLunaLists(),
+          directFetchLunaHandlers(),
         ]);
-        if (listsRes.status === 'fulfilled' && listsRes.value?.lists) setAvailableLists(listsRes.value.lists);
-        if (handlersRes.status === 'fulfilled' && handlersRes.value?.handlers) setAvailableHandlers(handlersRes.value.handlers);
+        if (lists.status === 'fulfilled') setAvailableLists(lists.value);
+        if (handlers.status === 'fulfilled') setAvailableHandlers(handlers.value);
       } catch { /* silent */ }
     }
     loadMeta();
   }, []);
 
-  // Fetch history
+  // Fetch history directly from VisionLabs Luna LP5
   const fetchHistoryEvents = useCallback(async (pageToFetch: number, currentFilters: FilterState, currentPageSize: number) => {
     setLoading(true);
     setError(null);
     try {
       const params = buildParams(currentFilters, pageToFetch, currentPageSize);
-      const res = await fetch(`/api/luna/events?${params.toString()}`);
-      if (!res.ok) throw new Error(`Luna error ${res.status}`);
-      const data: LunaEvent[] | LunaEventsResponse = await res.json();
-      if (!Array.isArray(data) && data.offline) {
-        setHistoryEvents([]);
-        setHasMoreHistory(false);
-        setError('Luna server offline');
-        return;
-      }
-      const list: LunaEvent[] = Array.isArray(data) ? data : data.events || [];
+      const { events: list } = await directFetchLunaEvents(params);
       setHistoryEvents(list);
       setCurrentPage(pageToFetch);
       setHasMoreHistory(list.length >= currentPageSize);

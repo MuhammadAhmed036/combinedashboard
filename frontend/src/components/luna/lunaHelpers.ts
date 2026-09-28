@@ -1,38 +1,8 @@
 import { LunaEvent, LunaCandidate, ParsedLunaPersonInfo } from './types';
+import { resolveDirectLunaImageUrl } from '@/lib/lunaDirectClient';
 
 export function resolveLunaSampleUrl(rawUrlOrId?: string | null): string | null {
-  if (!rawUrlOrId) return null;
-
-  // Extract standard UUID first (handles /6/samples/faces/<uuid>, /6/samples/<uuid>, etc.)
-  const uuidMatch = rawUrlOrId.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
-  if (uuidMatch) {
-    if (rawUrlOrId.includes('/images/')) {
-      return `/api/luna/images/${uuidMatch[0]}`;
-    }
-    return `/api/luna/samples/${uuidMatch[0]}`;
-  }
-
-  if (rawUrlOrId.startsWith('http://') || rawUrlOrId.startsWith('https://')) {
-    return rawUrlOrId;
-  }
-
-  // Check if it's like /6/images/<hash>
-  const imageMatch = rawUrlOrId.match(/(?:images)\/([a-zA-Z0-9_-]+)/);
-  if (imageMatch && imageMatch[1]) {
-    return `/api/luna/images/${imageMatch[1]}`;
-  }
-
-  // Check if it's like /6/samples/<hash>
-  const sampleMatch = rawUrlOrId.match(/(?:samples|faces)\/([a-zA-Z0-9_-]+)/);
-  if (sampleMatch && sampleMatch[1]) {
-    return `/api/luna/samples/${sampleMatch[1]}`;
-  }
-
-  // If it's a raw ID
-  if (/^[a-zA-Z0-9_-]{10,}$/.test(rawUrlOrId)) {
-    return `/api/luna/samples/${rawUrlOrId}`;
-  }
-  return rawUrlOrId;
+  return resolveDirectLunaImageUrl(rawUrlOrId);
 }
 
 export function findBestCandidate(event: LunaEvent): LunaCandidate | null {
