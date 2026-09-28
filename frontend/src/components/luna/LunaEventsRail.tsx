@@ -1066,7 +1066,7 @@ export const LunaEventsRail: React.FC = () => {
           ) : (
             <motion.div
               key="luna-rail"
-              className="relative flex h-full w-full flex-col border-r border-slate-800 bg-slate-950 text-slate-200 select-none overflow-hidden"
+              className="relative flex h-full w-full flex-col border-r border-slate-800 bg-slate-950 text-slate-200 select-none"
               initial={{ opacity: 0, x: -24 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -24 }}
@@ -1088,7 +1088,7 @@ export const LunaEventsRail: React.FC = () => {
       />
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2 px-3 py-3 border-b border-slate-800/80 bg-slate-900/60 shrink-0">
+      <div className="flex flex-col gap-2 pl-3 pr-4 py-3 border-b border-slate-800/80 bg-slate-900/60 shrink-0 overflow-visible">
 
         {/* Title row */}
         <div className="flex items-center justify-between">
@@ -1114,7 +1114,7 @@ export const LunaEventsRail: React.FC = () => {
         </div>
 
         {/* Live / History Mode Tabs + Filters Button Row (Search and Wall buttons removed per request) */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 min-w-0">
           {/* Live / History Pill Switch */}
           <div className="flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 shrink-0">
             {(['live', 'history'] as const).map((m) => (
@@ -1137,7 +1137,7 @@ export const LunaEventsRail: React.FC = () => {
             type="button"
             whileTap={{ scale: 0.94 }}
             onClick={() => setShowFilterPanel(true)}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[11px] font-semibold transition-colors shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[11px] font-semibold transition-colors shrink-0 mr-2 ${
               activeFilterCount > 0
                 ? 'bg-cyan-950 text-cyan-300 border-cyan-700/60 ring-1 ring-cyan-500/30'
                 : 'bg-slate-900 text-slate-300 border-slate-800 hover:text-white hover:border-slate-700'

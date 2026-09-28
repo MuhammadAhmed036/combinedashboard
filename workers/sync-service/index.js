@@ -400,13 +400,24 @@ function personBoxesFromRow(row) {
 // The drawn "Restricted Zone" of an absence rule in 0–1 coords, or null for a
 // frame-wide rule (any person anywhere counts as presence).
 function absenceRuleRegion(rule) {
-  const bbox = rule.bounding_box;
-  const meta = rule.metadata || {};
+  let bbox = rule.bounding_box;
+  if (typeof bbox === "string") {
+    try { bbox = JSON.parse(bbox); } catch { bbox = null; }
+  }
+  let meta = rule.metadata || {};
+  if (typeof meta === "string") {
+    try { meta = JSON.parse(meta); } catch { meta = {}; }
+  }
   const refW = Number(meta.ref_image_width);
   const refH = Number(meta.ref_image_height);
   if (!bbox || !refW || !refH) return null;
   if (![bbox.x1, bbox.y1, bbox.x2, bbox.y2].every((v) => typeof v === "number")) return null;
-  return { x1: bbox.x1 / refW, y1: bbox.y1 / refH, x2: bbox.x2 / refW, y2: bbox.y2 / refH };
+  return {
+    x1: Math.min(bbox.x1, bbox.x2) / refW,
+    y1: Math.min(bbox.y1, bbox.y2) / refH,
+    x2: Math.max(bbox.x1, bbox.x2) / refW,
+    y2: Math.max(bbox.y1, bbox.y2) / refH,
+  };
 }
 
 function boxesOverlap(a, b) {
@@ -535,17 +546,21 @@ async function evaluateAbsenceRules() {
   if (absenceRules.length === 0) return;
 
   for (const rule of absenceRules) {
-    const conditions = rule.conditions || {};
+    let conditions = rule.conditions || {};
+    if (typeof conditions === "string") {
+      try { conditions = JSON.parse(conditions); } catch { conditions = {}; }
+    }
     const thresholdSec = Number(conditions.absence_threshold_seconds) || 60;
     const region = absenceRuleRegion(rule);
 
-    // Recent frames, newest first — enough history to (a) pick a frame that
-    // actually shows the empty scene and (b) find when a person was last seen.
+    // Fetch enough recent frames to evaluate the absence threshold window.
+    // Standard workers emit approximately 1 detection event per second.
+    const queryLimit = Math.max(120, Math.ceil(thresholdSec * 1.5));
     const { rows: recent } = await local.query(
       `SELECT event_id, detection_ts, created_at, detection_count, detections_json,
               image_width, image_height, raw_image_path, raw_image_status
-       FROM detection_events WHERE camera_id = $1 ORDER BY id DESC LIMIT 30`,
-      [rule.camera_id]
+       FROM detection_events WHERE camera_id = $1 ORDER BY id DESC LIMIT $2`,
+      [rule.camera_id, queryLimit]
     );
     if (recent.length === 0) continue;
 
@@ -554,39 +569,61 @@ async function evaluateAbsenceRules() {
     const latestMs = new Date(latest.created_at || latest.detection_ts).getTime();
     const silentForSec = (now - latestMs) / 1000;
 
-    // A person in the latest frame closes the durable absence period.
+    // If the camera feed stopped reporting altogether (> 120s), do not fire false "absence" alarms.
+    if (silentForSec > 120) continue;
+
+    // A person in the latest frame means person is currently present inside the zone!
     if (framePersonPresent(latest, region)) {
+      // Close any active open absence episode since a person is present
       await closeAbsenceEvent(rule, latestMs);
       continue;
     }
 
-    // Absent when the newest frame is clear, OR the worker has gone quiet for
-    // the whole threshold window (empty scene → detections stop altogether).
+    // Person is NOT in the latest frame. Check when a person was last detected in this zone.
+    const lastPresent = recent.find((r) => framePersonPresent(r, region));
 
-    // Snapshot: newest recent frame that still has its raw image AND shows no
-    // person for this rule. Falls back to the newest frame that has an image
-    // (worker went silent → the last real frame is the best we can show).
+    let absentSinceMs;
+    let elapsedSec;
+
+    if (lastPresent) {
+      // Person was seen in recent history at this timestamp
+      const lastPresentMs = new Date(lastPresent.created_at || lastPresent.detection_ts).getTime();
+      elapsedSec = (now - lastPresentMs) / 1000;
+      absentSinceMs = lastPresentMs;
+    } else {
+      // No person seen in any of the fetched recent frames.
+      // Use the oldest frame observed as our minimum verified absence start.
+      const oldest = recent[recent.length - 1];
+      const oldestMs = new Date(oldest.created_at || oldest.detection_ts).getTime();
+      elapsedSec = (now - oldestMs) / 1000;
+      absentSinceMs = oldestMs;
+    }
+
+    // CRITICAL: If person was seen recently and elapsed absence is LESS than the required threshold,
+    // DO NOT fire an alert! The zone must remain continuously unoccupied for at least thresholdSec.
+    if (elapsedSec < thresholdSec) {
+      continue;
+    }
+
+    // Check if an absence event is ALREADY OPEN for this rule
+    const { rows: openRows } = await local.query(
+      `SELECT id FROM absence_events WHERE alert_id = $1 AND ended_at IS NULL LIMIT 1`,
+      [rule.alert_id]
+    );
+    if (openRows.length > 0) {
+      // An alert has already been fired for this continuous absence period.
+      // Do NOT send duplicate alerts every polling cycle while the zone remains unoccupied.
+      continue;
+    }
+
+    const absentSec = Math.round(elapsedSec);
+    const inZone = region ? " in zone" : "";
     const hasImage = (r) => r.raw_image_status === "available" && r.event_id;
     const snapshot =
       recent.find((r) => hasImage(r) && !framePersonPresent(r, region)) ||
       recent.find(hasImage) ||
       latest;
 
-    // Absence started right after the most recent frame that showed a person;
-    // if none is in view, at least a threshold-window ago.
-    const lastPresent = recent.find((r) => framePersonPresent(r, region));
-    const absentSinceMs = lastPresent
-      ? new Date(lastPresent.created_at || lastPresent.detection_ts).getTime()
-      : latestMs - thresholdSec * 1000;
-    const absentSec = Math.max(thresholdSec, Math.round((now - absentSinceMs) / 1000));
-
-    const { rows: openRows } = await local.query(
-      `SELECT id FROM absence_events WHERE alert_id = $1 AND ended_at IS NULL LIMIT 1`,
-      [rule.alert_id]
-    );
-    if (openRows.length > 0) continue;
-
-    const inZone = region ? " in zone" : "";
     await insertAlertEventIfNew({
       alertId: rule.alert_id,
       eventId: snapshot.event_id,
@@ -597,7 +634,7 @@ async function evaluateAbsenceRules() {
       boundingBox: region ? JSON.stringify(rule.bounding_box) : null,
       detectionsJson: JSON.stringify({ inside: 0, outside: 0 }),
       sourceRawImagePath: snapshot.raw_image_path || null,
-      note: `No person detected${inZone} for ~${Math.round(absentSec / 60)}m (threshold ${Math.round(thresholdSec / 60)}m)`,
+      note: `No person detected${inZone} for ~${Math.max(1, Math.round(absentSec / 60))}m (threshold ${Math.max(1, Math.round(thresholdSec / 60))}m)`,
     });
     await openAbsenceEvent(rule, snapshot, absentSinceMs);
   }

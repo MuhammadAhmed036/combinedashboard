@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/lib/formatters";
 import {
   useAllAlertEvents,
+  useAlertHistory,
   useAlertRules,
   useDeleteAlertRule,
   useUpdateAlertRuleStatus,
@@ -76,10 +77,7 @@ function AlertEventItem({
     >
       <div className="flex h-full">
         {/* Left: Picture container */}
-        <div
-          className="relative shrink-0 overflow-hidden bg-surface-3"
-          style={{ width: "48%" }}
-        >
+        <div className="relative shrink-0 overflow-hidden bg-surface-3 w-[48%]">
           {event.eventId ? (
             <DetectionFrameImage
               eventId={event.eventId}
@@ -379,11 +377,13 @@ function ConfiguredRuleItem({
   onEdit,
   onDelete,
   onToggleStatus,
+  onViewAlerts,
 }: {
   rule: AlertRuleV2;
   onEdit: (rule: AlertRuleV2) => void;
   onDelete: (rule: AlertRuleV2) => void;
   onToggleStatus: (rule: AlertRuleV2) => void;
+  onViewAlerts: (rule: AlertRuleV2) => void;
 }) {
   const categoryColor = CATEGORY_ACCENT[rule.category || "medium"];
   const isActive = rule.status === "active";
@@ -398,8 +398,12 @@ function ConfiguredRuleItem({
     >
       {/* Top: Name & Category Indicator */}
       <div className="flex items-start justify-between gap-1.5 mb-1.5">
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-bold text-white leading-tight">
+        <div
+          onClick={() => onViewAlerts(rule)}
+          className="min-w-0 flex-1 cursor-pointer group"
+          title="Click to view alerts for this rule"
+        >
+          <div className="truncate text-xs font-bold text-white leading-tight group-hover:text-cyan-400 transition-colors">
             {rule.name || rule.label || rule.alertId}
           </div>
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
@@ -417,19 +421,29 @@ function ConfiguredRuleItem({
         </span>
       </div>
 
-      {/* Middle: Trigger Counts */}
-      <div className="my-2 rounded-[5px] bg-black/40 px-2 py-1.5 flex items-center justify-between text-[11px] border border-white/5">
-        <div className="flex items-center gap-1 text-muted-foreground">
+      {/* Middle: Trigger Counts — clickable to view alerts for this rule */}
+      <button
+        type="button"
+        onClick={() => onViewAlerts(rule)}
+        className="my-2 w-full rounded-[5px] bg-black/40 px-2 py-1.5 flex items-center justify-between text-[11px] border border-white/5 hover:border-cyan-500/40 hover:bg-black/60 transition-all group cursor-pointer text-left"
+        title="Click to view alerts for this rule"
+      >
+        <div className="flex items-center gap-1.5 text-muted-foreground group-hover:text-cyan-300 transition-colors">
           <Activity className="size-3 text-cyan-400" />
           <span>Total Alerts:</span>
           <span className="font-bold font-mono text-white text-xs">{rule.eventCount}</span>
         </div>
-        {rule.unseenCount > 0 && (
-          <span className="rounded bg-destructive/80 px-1 py-0.2 text-[9px] font-bold text-white">
-            +{rule.unseenCount} new
+        <div className="flex items-center gap-1.5">
+          {rule.unseenCount > 0 && (
+            <span className="rounded bg-destructive/80 px-1 py-0.2 text-[9px] font-bold text-white">
+              +{rule.unseenCount} new
+            </span>
+          )}
+          <span className="text-[10px] text-cyan-400 font-semibold flex items-center gap-0.5 group-hover:underline">
+            View Alerts →
           </span>
-        )}
-      </div>
+        </div>
+      </button>
 
       {/* Bottom: Action buttons (Status toggle, Edit, Delete) */}
       <div className="flex items-center justify-between pt-1 border-t border-white/5">
@@ -487,7 +501,24 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
     cameraId?: string;
     dateFrom?: string;
     dateTo?: string;
+    alertId?: string;
   }>({});
+
+  // Rule drill-down: which rule's alerts are being viewed
+  const [selectedRuleForAlerts, setSelectedRuleForAlerts] = useState<AlertRuleV2 | null>(null);
+
+  // Drill into a rule's alerts: switch to live tab filtered by this rule
+  const handleViewRuleAlerts = (rule: AlertRuleV2) => {
+    setSelectedRuleForAlerts(rule);
+    setActiveFilters({ alertId: rule.alertId });
+    setActiveTab("live");
+  };
+
+  const handleBackToRules = () => {
+    setSelectedRuleForAlerts(null);
+    setActiveFilters({});
+    setActiveTab("rules");
+  };
 
   // Filter for Rules Tab
   const [ruleCameraFilter, setRuleCameraFilter] = useState<string>("all");
@@ -502,9 +533,18 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
   const [deletingRule, setDeletingRule] = useState<AlertRuleV2 | null>(null);
 
   // Queries & Mutations
-  const { data: events, isLoading: eventsLoading, error: eventsError } = useAllAlertEvents(
-    activeTab === "live" ? activeFilters : undefined
+  const { data: allEvents, isLoading: allEventsLoading, error: allEventsError } = useAllAlertEvents(
+    activeTab === "live" && !selectedRuleForAlerts ? activeFilters : undefined
   );
+
+  // Dedicated query when a rule is clicked — fetches ONLY that rule's alerts:
+  const { data: ruleEvents, isLoading: ruleEventsLoading, error: ruleEventsError } = useAlertHistory(
+    selectedRuleForAlerts ? selectedRuleForAlerts.alertId : null
+  );
+
+  const events = selectedRuleForAlerts ? ruleEvents : allEvents;
+  const eventsLoading = selectedRuleForAlerts ? ruleEventsLoading : allEventsLoading;
+  const eventsError = selectedRuleForAlerts ? ruleEventsError : allEventsError;
   const { data: rules, isLoading: rulesLoading } = useAlertRules(
     activeTab === "rules" ? {} : undefined
   );
@@ -516,11 +556,11 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
   const hasActiveFilters = Object.values(activeFilters).some((v) => v !== undefined);
 
   // Filtered Rules
-  const filteredRules = useMemo(() => {
-    if (!rules) return [];
+  const filteredRules = useMemo<AlertRuleV2[]>(() => {
+    if (!rules || !Array.isArray(rules)) return [];
     if (ruleCameraFilter === "all") return rules;
     return rules.filter(
-      (r) => r.cameraId.toLowerCase() === ruleCameraFilter.toLowerCase()
+      (r: AlertRuleV2) => r.cameraId.toLowerCase() === ruleCameraFilter.toLowerCase()
     );
   }, [rules, ruleCameraFilter]);
 
@@ -538,6 +578,7 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
     setDateFrom("");
     setDateTo("");
     setActiveFilters({});
+    setSelectedRuleForAlerts(null);
     setPopoverOpen(false);
   };
 
@@ -575,7 +616,23 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
       {/* Top Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-surface-border px-3 bg-surface-2">
         <div className="flex items-center gap-2 min-w-0">
-          {activeTab === "live" ? (
+          {selectedRuleForAlerts ? (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <button
+                type="button"
+                onClick={handleBackToRules}
+                className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 text-[11px] font-medium shrink-0 transition-colors"
+                title="Back to Rules"
+              >
+                <SlidersHorizontal className="size-3" />
+                <span>Rules</span>
+              </button>
+              <span className="text-muted-foreground text-[11px]">/</span>
+              <span className="truncate text-xs font-semibold text-white">
+                {selectedRuleForAlerts.name || selectedRuleForAlerts.label || selectedRuleForAlerts.alertId}
+              </span>
+            </div>
+          ) : activeTab === "live" ? (
             hasActiveFilters ? (
               <span className="truncate text-sm font-semibold text-amber-400">
                 Alert History
@@ -714,6 +771,20 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
       {/* Tab 1: Live Feed / Alert History */}
       {activeTab === "live" && (
         <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
+          {selectedRuleForAlerts && (
+            <div className="flex items-center justify-between px-2.5 py-1.5 bg-cyan-950/70 border-b border-cyan-800/50 text-[11px] text-cyan-200 shrink-0">
+              <span className="truncate">
+                Rule: <strong className="text-white">{selectedRuleForAlerts.name || selectedRuleForAlerts.label}</strong> ({events?.length ?? 0} alerts)
+              </span>
+              <button
+                type="button"
+                onClick={handleBackToRules}
+                className="text-[10px] text-cyan-400 hover:text-white underline font-semibold shrink-0 ml-2"
+              >
+                ← Back to Rules
+              </button>
+            </div>
+          )}
           {eventsLoading &&
             Array.from({ length: 6 }).map((_, index) => (
               <Skeleton
@@ -758,13 +829,14 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
           )}
 
           {!rulesLoading &&
-            filteredRules.map((rule) => (
+            filteredRules.map((rule: AlertRuleV2) => (
               <ConfiguredRuleItem
                 key={rule.alertId}
                 rule={rule}
                 onEdit={openEditDialog}
                 onDelete={setDeletingRule}
                 onToggleStatus={handleToggleStatus}
+                onViewAlerts={handleViewRuleAlerts}
               />
             ))}
         </div>

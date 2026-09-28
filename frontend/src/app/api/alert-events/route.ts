@@ -9,12 +9,14 @@ export async function GET(request: Request) {
     const cameraId = searchParams.get("camera_id") ?? undefined;
     const dateFrom = searchParams.get("date_from") ?? undefined;
     const dateTo = searchParams.get("date_to") ?? undefined;
-    const limit = parseInt(searchParams.get("limit") || "50", 10);
+    const alertId = searchParams.get("alert_id") ?? undefined;
+    const limit = parseInt(searchParams.get("limit") || "100", 10);
 
     const events = await listAllAlertEvents({
       cameraId,
       dateFrom,
       dateTo,
+      alertId,
       limit,
     });
 

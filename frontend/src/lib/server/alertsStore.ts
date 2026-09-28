@@ -176,6 +176,7 @@ export interface ListAllAlertEventsFilters {
   cameraId?: string;
   dateFrom?: string;
   dateTo?: string;
+  alertId?: string;
   limit?: number;
 }
 
@@ -194,6 +195,10 @@ export async function listAllAlertEvents(filters: ListAllAlertEventsFilters): Pr
   const params: unknown[] = [];
   let paramIdx = 1;
 
+  if (filters.alertId) {
+    query += ` AND e.alert_id = ${paramIdx++}`;
+    params.push(filters.alertId);
+  }
   if (filters.cameraId) {
     query += ` AND e.camera_id = $${paramIdx++}`;
     params.push(filters.cameraId);
@@ -208,7 +213,7 @@ export async function listAllAlertEvents(filters: ListAllAlertEventsFilters): Pr
   }
 
   query += ` ORDER BY COALESCE(e.detection_ts::timestamptz, e.created_at) DESC LIMIT $${paramIdx++}`;
-  params.push(filters.limit ?? 50);
+  params.push(filters.limit ?? 100);
 
   const { rows } = await pool.query(query, params);
   return rows;

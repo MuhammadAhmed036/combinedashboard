@@ -385,22 +385,6 @@ export function MediaWallPanel({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Customize Wall button (toggles panel) */}
-            <Button
-              variant={isCustomizingWall ? "default" : "outline"}
-              size="sm"
-              className={cn(
-                "h-8 gap-1.5 rounded-[6px] px-2.5 text-xs font-medium transition-all",
-                isCustomizingWall
-                  ? "bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.4)] font-semibold"
-                  : "border-surface-border hover:bg-surface-3"
-              )}
-              onClick={toggleCustomizingWall}
-            >
-              <SlidersHorizontal className="size-3.5" />
-              <span>{isCustomizingWall ? "Close Customize" : "Customize Wall"}</span>
-            </Button>
-
             {/* Create Alert button */}
             <Button size="sm" className="h-8 gap-1.5 rounded-[6px] px-2.5 text-xs font-medium" onClick={openCreateAlert}>
               <BellPlus className="size-3.5" />
