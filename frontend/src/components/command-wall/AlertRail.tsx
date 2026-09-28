@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   Filter,
   X,
@@ -15,8 +15,12 @@ import {
   Check,
   Radio,
   SlidersHorizontal,
+  Download,
+  Copy,
+  Maximize2,
 } from "lucide-react";
 import { DetectionFrameImage } from "@/components/alerts/DetectionFrameImage";
+import { liveEventImageUrl } from "@/lib/hooks/useCameraLiveFeed";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/lib/formatters";
 import {
@@ -40,47 +44,47 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+
+// ─── Virtual Scroller Constants ───────────────────────────────────────────────
+const ITEM_HEIGHT = 74; // 66px card + 8px margin
+const OVERSCAN = 5;
 
 // ─── Event Item in Live Feed ──────────────────────────────────────────────────
 
-function AlertEventItem({ event }: { event: AlertMatchEvent }) {
-  const [isHovered, setIsHovered] = useState(false);
-  const [isClicked, setIsClicked] = useState(false);
+function AlertEventItem({
+  event,
+  onInspect,
+}: {
+  event: AlertMatchEvent;
+  onInspect: (event: AlertMatchEvent) => void;
+}) {
   const primaryClass = event.classNames?.[0] ?? "person";
   const categoryColor = CATEGORY_ACCENT[event.category || "medium"];
   const classColor = classAccent(primaryClass);
   const ts = event.detectionTs ?? event.createdAt;
 
-  const isEnlarged = isHovered || isClicked;
-
   return (
     <article
-      className="relative mx-1.5 my-1 overflow-hidden rounded-[8px] bg-surface-2 transition-all duration-200"
+      onClick={() => onInspect(event)}
+      className="group relative mx-1.5 my-1 overflow-hidden rounded-[8px] bg-surface-2 cursor-pointer transition-all duration-150 hover:bg-surface-3/80 select-none"
       style={{
+        height: 66,
         border: `1.5px solid ${categoryColor}`,
         boxShadow: `0 0 8px ${categoryColor}20`,
       }}
     >
-      <div className="flex h-[66px]">
-        {/* Left: Picture container — zoom triggers strictly on picture interaction */}
+      <div className="flex h-full">
+        {/* Left: Picture container */}
         <div
-          className="group/img relative shrink-0 overflow-hidden bg-black cursor-pointer select-none"
+          className="relative shrink-0 overflow-hidden bg-surface-3"
           style={{ width: "48%" }}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsClicked((prev) => !prev);
-          }}
-          title="Click or hover to enlarge image"
         >
           {event.eventId ? (
             <DetectionFrameImage
               eventId={event.eventId}
               alt="Matched frame"
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-200 group-hover/img:scale-105"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
             />
           ) : (
             <div className="flex size-full items-center justify-center text-muted-foreground">
@@ -88,8 +92,11 @@ function AlertEventItem({ event }: { event: AlertMatchEvent }) {
             </div>
           )}
 
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity group-hover/img:opacity-100">
-            <span className="rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-medium text-white">Zoom</span>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+            <span className="rounded bg-black/80 px-1.5 py-0.5 text-[9px] font-medium text-white shadow flex items-center gap-1">
+              <Maximize2 className="size-2.5 text-cyan-400" />
+              Forensic
+            </span>
           </div>
 
           <div
@@ -100,8 +107,8 @@ function AlertEventItem({ event }: { event: AlertMatchEvent }) {
           </div>
         </div>
 
-        {/* Right: metadata (hovering here does NOT enlarge picture) */}
-        <div className="flex flex-col justify-between min-w-0 flex-1 px-2 py-1.5 select-text">
+        {/* Right: metadata */}
+        <div className="flex flex-col justify-between min-w-0 flex-1 px-2 py-1.5">
           <div className="truncate text-[11px] font-semibold text-white leading-tight">
             {event.ruleName ?? event.alertId}
           </div>
@@ -117,69 +124,251 @@ function AlertEventItem({ event }: { event: AlertMatchEvent }) {
           </div>
         </div>
       </div>
+    </article>
+  );
+}
 
-      {/* Enlarged modal/overlay preview */}
-      <AnimatePresence>
-        {isEnlarged && event.eventId && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-xs cursor-pointer"
-            onClick={() => {
-              setIsHovered(false);
-              setIsClicked(false);
-            }}
-          >
-            <motion.div
-              initial={{ scale: 0.88 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.88 }}
-              transition={{ duration: 0.15, ease: "easeOut" }}
-              className="relative w-[70vw] max-w-[720px] aspect-video overflow-hidden rounded-xl shadow-2xl bg-black"
-              style={{ border: `2px solid ${categoryColor}` }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <DetectionFrameImage
-                eventId={event.eventId}
-                alt="Full frame preview"
-                className="h-full w-full object-contain bg-black"
+// ─── Virtualized Alert Feed (Maintains 60 FPS under 1,000+ alerts) ───────────
+
+function VirtualAlertEventList({
+  events,
+  onInspect,
+}: {
+  events: AlertMatchEvent[];
+  onInspect: (event: AlertMatchEvent) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(600);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const updateHeight = () => {
+      if (el.clientHeight > 0) {
+        setContainerHeight(el.clientHeight);
+      }
+    };
+    updateHeight();
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const totalHeight = events.length * ITEM_HEIGHT;
+  const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN);
+  const endIndex = Math.min(
+    events.length,
+    Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + OVERSCAN
+  );
+
+  const visibleEvents = events.slice(startIndex, endIndex);
+  const offsetY = startIndex * ITEM_HEIGHT;
+
+  return (
+    <div
+      ref={containerRef}
+      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      className="min-h-0 flex-1 overflow-y-auto will-change-scroll"
+      style={{ position: "relative" }}
+    >
+      <div style={{ height: `${totalHeight}px`, width: "100%", position: "relative" }}>
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            transform: `translateY(${offsetY}px)`,
+          }}
+        >
+          {visibleEvents.map((event, idx) => (
+            <AlertEventItem
+              key={`${event.eventId || "evt"}-${event.id || startIndex + idx}`}
+              event={event}
+              onInspect={onInspect}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Forensic Evidence Modal (High-Res Frame + Telemetry + Export) ─────────────
+
+function ForensicEvidenceModal({
+  event,
+  onClose,
+}: {
+  event: AlertMatchEvent | null;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  if (!event) return null;
+
+  const categoryColor = CATEGORY_ACCENT[event.category || "medium"];
+  const primaryClass = event.classNames?.[0] ?? "person";
+  const ts = event.detectionTs ?? event.createdAt;
+  const imageUrl = event.eventId ? liveEventImageUrl(event.eventId) : null;
+
+  const handleDownload = () => {
+    if (!imageUrl) return;
+    const link = document.createElement("a");
+    link.href = imageUrl;
+    link.download = `evidence_${event.cameraId}_${event.eventId || Date.now()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleCopyLog = () => {
+    const logData = JSON.stringify(
+      {
+        eventId: event.eventId,
+        ruleName: event.ruleName ?? event.alertId,
+        alertId: event.alertId,
+        cameraId: event.cameraId,
+        timestamp: ts,
+        primaryClass,
+        insideCount: event.personCountInside,
+        outsideCount: event.personCountOutside,
+        classCountsInside: event.classCountsInside,
+        classCountsOutside: event.classCountsOutside,
+        boundingBox: event.boundingBox,
+      },
+      null,
+      2
+    );
+    navigator.clipboard.writeText(logData);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Dialog open={Boolean(event)} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-3xl w-[92vw] p-0 overflow-hidden bg-surface-1 border-surface-border text-white">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-surface-border bg-surface-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span
+              className="h-2.5 w-2.5 rounded-full shrink-0 animate-ping"
+              style={{ backgroundColor: categoryColor }}
+            />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-sm text-white truncate">
+                  {event.ruleName ?? event.ruleLabel ?? event.alertId}
+                </h3>
+                <span
+                  className="rounded-[4px] px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider shrink-0"
+                  style={{ backgroundColor: categoryColor }}
+                >
+                  {CATEGORY_LABEL[event.category || "medium"]}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                <span className="flex items-center gap-1 text-cyan-400">
+                  <Camera className="size-3" />
+                  {event.cameraId}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="size-3" />
+                  {ts ? formatDateTime(ts) : "—"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Content Body */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
+          {/* Main Visual Frame */}
+          <div className="md:col-span-2 relative aspect-video bg-black flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-surface-border">
+            {imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageUrl}
+                alt="Forensic Frame"
+                className="w-full h-full object-contain"
               />
+            ) : (
+              <div className="text-muted-foreground text-xs">No forensic frame captured</div>
+            )}
+          </div>
 
-              <button
-                onClick={() => {
-                  setIsHovered(false);
-                  setIsClicked(false);
-                }}
-                className="absolute top-3 right-3 flex size-7 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black transition-colors"
-                title="Close preview"
-              >
-                <X className="size-4" />
-              </button>
+          {/* Forensic Metadata & Export Panel */}
+          <div className="flex flex-col justify-between p-3.5 bg-surface-2/60 text-xs space-y-3">
+            <div className="space-y-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                  Forensic Event ID
+                </span>
+                <p className="font-mono text-[11px] text-cyan-300 break-all select-all mt-0.5">
+                  {event.eventId || "N/A"}
+                </p>
+              </div>
 
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-4 py-3">
-                <div className="text-sm font-semibold text-white truncate">
-                  {event.ruleName ?? event.alertId}
-                </div>
-                <div className="flex items-center gap-3 mt-1 text-xs text-white/70">
-                  <span className="flex items-center gap-1">
-                    <Camera className="size-3 text-cyan-400" />
-                    {event.cameraId}
-                  </span>
-                  {ts && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="size-3" />
-                      {formatDateTime(ts)}
-                    </span>
-                  )}
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                  Detection Summary
+                </span>
+                <div className="mt-1 space-y-1 bg-surface-3/70 rounded p-2 border border-white/5">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-muted-foreground">Primary Object:</span>
+                    <span className="font-semibold text-white capitalize">{primaryClass}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-muted-foreground">Inside Region:</span>
+                    <span className="font-bold text-amber-400">{event.personCountInside ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-muted-foreground">Outside Region:</span>
+                    <span className="font-semibold text-white">{event.personCountOutside ?? 0}</span>
+                  </div>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </article>
+
+              {event.boundingBox && (
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                    Bounding Box Coordinates
+                  </span>
+                  <div className="mt-1 font-mono text-[10px] text-muted-foreground bg-surface-3/70 rounded p-1.5 border border-white/5">
+                    [{event.boundingBox.x1}, {event.boundingBox.y1}] to [{event.boundingBox.x2}, {event.boundingBox.y2}]
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-2 pt-2 border-t border-surface-border">
+              {imageUrl && (
+                <Button
+                  onClick={handleDownload}
+                  size="sm"
+                  className="w-full gap-1.5 h-8 text-xs bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
+                >
+                  <Download className="size-3.5" />
+                  Download Frame (.JPG)
+                </Button>
+              )}
+
+              <Button
+                onClick={handleCopyLog}
+                variant="outline"
+                size="sm"
+                className="w-full gap-1.5 h-8 text-xs border-surface-border hover:bg-surface-3"
+              >
+                {copied ? <Check className="size-3.5 text-green-400" /> : <Copy className="size-3.5" />}
+                {copied ? "Copied to Clipboard" : "Copy Forensic Log"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -287,6 +476,7 @@ function ConfiguredRuleItem({
 
 export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
   const [activeTab, setActiveTab] = useState<"live" | "rules">("live");
+  const [inspectedEvent, setInspectedEvent] = useState<AlertMatchEvent | null>(null);
 
   // Filters for Live Events
   const [cameraId, setCameraId] = useState<string>("all");
@@ -523,12 +713,12 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
 
       {/* Tab 1: Live Feed / Alert History */}
       {activeTab === "live" && (
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
           {eventsLoading &&
             Array.from({ length: 6 }).map((_, index) => (
               <Skeleton
                 key={index}
-                className="h-[66px] mx-1.5 my-1 rounded-[8px] border border-surface-border"
+                className="h-[66px] mx-1.5 my-1 rounded-[8px] border border-surface-border shrink-0"
               />
             ))}
 
@@ -541,14 +731,12 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
             </div>
           )}
 
-          {!eventsLoading &&
-            !eventsError &&
-            events?.map((event: AlertMatchEvent) => (
-              <AlertEventItem
-                key={`${event.eventId}-${event.id}`}
-                event={event}
-              />
-            ))}
+          {!eventsLoading && !eventsError && events && events.length > 0 && (
+            <VirtualAlertEventList
+              events={events}
+              onInspect={setInspectedEvent}
+            />
+          )}
         </div>
       )}
 
@@ -679,6 +867,12 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Central Forensic Evidence Modal */}
+      <ForensicEvidenceModal
+        event={inspectedEvent}
+        onClose={() => setInspectedEvent(null)}
+      />
     </aside>
   );
 }

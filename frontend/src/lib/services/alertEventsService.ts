@@ -28,7 +28,7 @@ function asNumber(value: unknown): number | null {
 export async function fetchAllAlertEvents(
   filters: AllAlertEventsFilters = {}
 ): Promise<AlertMatchEvent[]> {
-  const params = new URLSearchParams({ limit: "50" });
+  const params = new URLSearchParams({ limit: "100" });
   if (filters.cameraId) params.set("camera_id", filters.cameraId);
   if (filters.dateFrom) params.set("date_from", filters.dateFrom);
   if (filters.dateTo) params.set("date_to", filters.dateTo);

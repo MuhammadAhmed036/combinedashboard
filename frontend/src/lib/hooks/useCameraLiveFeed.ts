@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { subscribeToAllCamerasFeed } from "@/lib/allCamerasFeed";
+import { getCachedRuntimeConfig } from "@/lib/runtimeConfig";
 
 export interface CameraLiveFeedState {
   connected: boolean;
@@ -25,7 +26,18 @@ const INITIAL_STATE: CameraLiveFeedState = {
   error: null,
 };
 
+export function directEventImageUrl(eventId: string): string | null {
+  const cached = getCachedRuntimeConfig();
+  if (cached?.apiBase) {
+    const base = cached.apiBase.endsWith("/") ? cached.apiBase : `${cached.apiBase}/`;
+    return `${base}api/v2/events/${encodeURIComponent(eventId)}/image?kind=raw`;
+  }
+  return null;
+}
+
 export function liveEventImageUrl(eventId: string): string {
+  const direct = directEventImageUrl(eventId);
+  if (direct) return direct;
   return `/api/ai/v2/events/${encodeURIComponent(eventId)}/image?kind=raw`;
 }
 

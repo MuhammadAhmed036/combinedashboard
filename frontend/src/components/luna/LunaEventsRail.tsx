@@ -1097,76 +1097,50 @@ export const LunaEventsRail: React.FC = () => {
             <h2 className="text-[12px] font-bold uppercase tracking-wider text-slate-100 truncate">
               {mode === 'live' ? 'Luna Live Stream' : 'Luna History'}
             </h2>
-            {mode === 'live' && (
-              <span
-                className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-mono font-semibold shrink-0 ${
-                  connected
-                    ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-800/60'
-                    : 'bg-amber-950/70 text-amber-400 border border-amber-800/60'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                {connected ? `LIVE ${liveEvents.length}/50` : 'STANDBY'}
-              </span>
-            )}
           </div>
 
-          {/* Mode tabs + Customize Wall Switch button */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <div className="flex rounded-lg bg-slate-950 p-0.5 border border-slate-800">
-              {(['live', 'history'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMode(m)}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold transition-colors ${
-                    mode === m ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {m === 'live' ? <Radio className="w-3 h-3" /> : <History className="w-3 h-3" />}
-                  <span className="capitalize">{m}</span>
-                </button>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={toggleCustomizingWall}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-cyan-950/80 hover:bg-cyan-900/80 text-cyan-300 border border-cyan-500/40 text-[10px] font-semibold transition-all shadow-[0_0_8px_rgba(6,182,212,0.25)] hover:shadow-[0_0_12px_rgba(6,182,212,0.5)] cursor-pointer shrink-0"
-              title="Switch left panel to Customize Wall"
+          {mode === 'live' && (
+            <span
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-semibold shrink-0 ${
+                connected
+                  ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-800/60'
+                  : 'bg-amber-950/70 text-amber-400 border border-amber-800/60'
+              }`}
             >
-              <SlidersHorizontal className="w-3 h-3 text-cyan-400" />
-              <span>Wall</span>
-            </button>
-          </div>
+              <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+              {connected ? `LIVE ${liveEvents.length}/50` : 'STANDBY'}
+            </span>
+          )}
         </div>
 
-        {/* Search + Filter button row */}
-        <div className="flex items-center gap-1.5">
-          <div className="relative flex-1">
-            <Search className="w-3 h-3 text-slate-500 absolute left-2 top-2" />
-            <input
-              type="text"
-              placeholder="Search name, cam, clothing..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-6 pr-6 py-1 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-1.5 top-1.5 text-slate-500 hover:text-slate-300">
-                <X className="w-3 h-3" />
+        {/* Live / History Mode Tabs + Filters Button Row (Search and Wall buttons removed per request) */}
+        <div className="flex items-center justify-between gap-2">
+          {/* Live / History Pill Switch */}
+          <div className="flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 shrink-0">
+            {(['live', 'history'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-semibold transition-colors ${
+                  mode === m ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {m === 'live' ? <Radio className="w-3 h-3" /> : <History className="w-3 h-3" />}
+                <span className="capitalize">{m}</span>
               </button>
-            )}
+            ))}
           </div>
 
+          {/* Filters Button */}
           <motion.button
             type="button"
             whileTap={{ scale: 0.94 }}
             onClick={() => setShowFilterPanel(true)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[11px] font-semibold transition-colors shrink-0 ${
               activeFilterCount > 0
                 ? 'bg-cyan-950 text-cyan-300 border-cyan-700/60 ring-1 ring-cyan-500/30'
-                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
+                : 'bg-slate-900 text-slate-300 border-slate-800 hover:text-white hover:border-slate-700'
             }`}
           >
             <Filter className="w-3.5 h-3.5" />

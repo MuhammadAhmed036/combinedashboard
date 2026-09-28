@@ -36,19 +36,28 @@ export async function GET(
 
   try {
     const upstreamUrl = resolveUpstreamUrl(request, endpoint);
+    const acceptHeader = request.headers.get("accept") || "image/jpeg,image/*,*/*";
+
     const upstream = await fetch(upstreamUrl, {
       method: "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
+      headers: {
+        Accept: acceptHeader,
+      },
       signal: request.signal,
     });
-    const body = await upstream.arrayBuffer();
 
-    return new Response(body, {
+    if (!upstream.ok) {
+      return new Response(upstream.body, { status: upstream.status });
+    }
+
+    const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
+
+    return new Response(upstream.body, {
       status: upstream.status,
       headers: {
-        "Content-Type": upstream.headers.get("content-type") ?? "application/json",
-        "Cache-Control": "no-store",
+        "Content-Type": contentType,
+        // Immutable cache: Detection frame events never mutate, so cache in browser for 24h
+        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800, immutable",
       },
     });
   } catch (error) {
