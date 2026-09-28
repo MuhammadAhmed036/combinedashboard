@@ -17,6 +17,9 @@ export interface RuntimeConfig {
   lunaAccountId: string;
   lunaAuthUser: string;
   lunaAuthPass: string;
+  cameraFeedBaseUrl: string;
+  cameraFeedUser: string;
+  cameraFeedPass: string;
 }
 
 const FALLBACK: RuntimeConfig = {
@@ -31,6 +34,9 @@ const FALLBACK: RuntimeConfig = {
   lunaAccountId: "00000000-0000-4000-b000-000000000146",
   lunaAuthUser: "root@visionlabs.ai",
   lunaAuthPass: "root",
+  cameraFeedBaseUrl: "http://192.168.18.216:8889",
+  cameraFeedUser: "admin",
+  cameraFeedPass: "admin_123456",
 };
 
 let resolved: RuntimeConfig | null = null;
@@ -62,6 +68,9 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
         lunaAccountId?: unknown;
         lunaAuthUser?: unknown;
         lunaAuthPass?: unknown;
+        cameraFeedBaseUrl?: unknown;
+        cameraFeedUser?: unknown;
+        cameraFeedPass?: unknown;
       };
       const apiBase = typeof payload.apiBase === "string" ? payload.apiBase : null;
       const pollIntervalMs =
@@ -84,6 +93,14 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
       const lunaAuthUser =
         typeof payload.lunaAuthUser === "string" ? payload.lunaAuthUser : "root@visionlabs.ai";
       const lunaAuthPass = typeof payload.lunaAuthPass === "string" ? payload.lunaAuthPass : "root";
+      const cameraFeedBaseUrl =
+        typeof payload.cameraFeedBaseUrl === "string"
+          ? payload.cameraFeedBaseUrl
+          : "http://192.168.18.216:8889";
+      const cameraFeedUser =
+        typeof payload.cameraFeedUser === "string" ? payload.cameraFeedUser : "admin";
+      const cameraFeedPass =
+        typeof payload.cameraFeedPass === "string" ? payload.cameraFeedPass : "admin_123456";
 
       return {
         apiBase,
@@ -97,6 +114,9 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
         lunaAccountId,
         lunaAuthUser,
         lunaAuthPass,
+        cameraFeedBaseUrl,
+        cameraFeedUser,
+        cameraFeedPass,
       };
     })
     .catch(() => FALLBACK)

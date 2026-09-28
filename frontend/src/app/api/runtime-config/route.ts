@@ -24,6 +24,9 @@ export async function GET() {
       lunaAccountId: process.env.LUNA_ACCOUNT_ID || "00000000-0000-4000-b000-000000000146",
       lunaAuthUser: process.env.LUNA_AUTH_USER || "root@visionlabs.ai",
       lunaAuthPass: process.env.LUNA_AUTH_PASS || "root",
+      cameraFeedBaseUrl: process.env.CAMERA_FEED_BASE_URL || "http://192.168.18.216:8889",
+      cameraFeedUser: process.env.CAMERA_FEED_USERNAME || "admin",
+      cameraFeedPass: process.env.CAMERA_FEED_PASSWORD || "admin_123456",
     },
     { headers: { "Cache-Control": "no-store" } }
   );
