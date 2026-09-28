@@ -1,3 +1,6 @@
 "use client";
 
-export { CustomizeWallContent as CustomizeWallRail } from "@/components/command-wall/LeftRailContainer";
+import { CustomizeWallContent } from "./LeftRailContainer";
+
+export { CustomizeWallContent as CustomizeWallRail };
+export default CustomizeWallContent;

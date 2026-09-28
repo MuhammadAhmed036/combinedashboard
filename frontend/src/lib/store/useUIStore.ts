@@ -17,6 +17,10 @@ interface UIState {
   isCreateAlertModalOpen: boolean;
   setCreateAlertModalOpen: (open: boolean) => void;
 
+  isCustomizingWall: boolean;
+  setIsCustomizingWall: (open: boolean) => void;
+  toggleCustomizingWall: () => void;
+
   mediaWallLayout: GridLayoutKey;
   setMediaWallLayout: (layout: GridLayoutKey) => void;
   mediaWallAssignments: MediaWallAssignment[];
@@ -33,6 +37,10 @@ export const useUIStore = create<UIState>()(
       mobileNavOpen: false,
       toggleSidebar: () => set({ sidebarCollapsed: !get().sidebarCollapsed }),
       setMobileNavOpen: (open) => set({ mobileNavOpen: open }),
+
+      isCustomizingWall: false,
+      setIsCustomizingWall: (open) => set({ isCustomizingWall: open }),
+      toggleCustomizingWall: () => set({ isCustomizingWall: !get().isCustomizingWall }),
 
       selectedCameraId: null,
       setSelectedCameraId: (id) => set({ selectedCameraId: id }),

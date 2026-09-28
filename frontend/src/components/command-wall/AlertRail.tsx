@@ -502,12 +502,12 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
   const [deletingRule, setDeletingRule] = useState<AlertRuleV2 | null>(null);
 
   // Queries & Mutations
-  const { data: events, isLoading: eventsLoading, error: eventsError } = useAllAlertEvents(activeFilters, {
-    enabled: activeTab === "live",
-  });
-  const { data: rules, isLoading: rulesLoading } = useAlertRules({}, {
-    enabled: activeTab === "rules",
-  });
+  const { data: events, isLoading: eventsLoading, error: eventsError } = useAllAlertEvents(
+    activeTab === "live" ? activeFilters : undefined
+  );
+  const { data: rules, isLoading: rulesLoading } = useAlertRules(
+    activeTab === "rules" ? {} : undefined
+  );
 
   const deleteRuleMutation = useDeleteAlertRule();
   const updateStatusMutation = useUpdateAlertRuleStatus();
