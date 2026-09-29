@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LunaEvent, ParsedLunaPersonInfo } from './types';
 import { parseLunaEvent, resolveLunaSampleUrl } from './lunaHelpers';
-import { directFetchLunaFace } from '@/lib/lunaDirectClient';
+import { directFetchLunaFace, directFetchLunaEvent } from '@/lib/lunaDirectClient';
 import {
   Navigation,
   User,
@@ -25,6 +25,7 @@ interface LunaEventCardProps {
 }
 
 const clientAvatarCache = new Map<string, string>();
+const clientSampleCache = new Map<string, string>();
 
 export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   event,
@@ -38,6 +39,14 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   // Matched / enrolled original face avatar state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
     return info.avatarUrl || (info.faceId ? clientAvatarCache.get(info.faceId) || null : null);
+  });
+
+  // Detected camera face crop state
+  const [detectedUrl, setDetectedUrl] = useState<string | null>(() => {
+    const raw = info.detectedFaceUrl || info.sampleUrl || info.frameUrl;
+    if (raw) return raw;
+    const evId = event.event_id || (event as any).id;
+    return evId ? clientSampleCache.get(evId) || null : null;
   });
 
   useEffect(() => {
@@ -71,6 +80,47 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
     };
   }, [info.faceId, info.avatarUrl]);
 
+  // Asynchronously resolve detected image if missing from raw WebSocket event
+  useEffect(() => {
+    const existing = info.detectedFaceUrl || info.sampleUrl || info.frameUrl;
+    const evId = event.event_id || (event as any).id;
+    if (existing) {
+      setDetectedUrl(existing);
+      setSampleError(false);
+      if (evId) clientSampleCache.set(evId, existing);
+      return;
+    }
+
+    if (!evId) return;
+
+    if (clientSampleCache.has(evId)) {
+      setDetectedUrl(clientSampleCache.get(evId)!);
+      setSampleError(false);
+      return;
+    }
+
+    let isMounted = true;
+    directFetchLunaEvent(evId)
+      .then((fullEvt) => {
+        if (!isMounted || !fullEvt) return;
+        const parsed = parseLunaEvent(fullEvt);
+        const resolved = parsed.detectedFaceUrl || parsed.sampleUrl || parsed.frameUrl;
+        if (resolved) {
+          clientSampleCache.set(evId, resolved);
+          setDetectedUrl(resolved);
+          setSampleError(false);
+        }
+        if (parsed.avatarUrl && !avatarUrl) {
+          setAvatarUrl(parsed.avatarUrl);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [event.event_id, (event as any).id, info.detectedFaceUrl, info.sampleUrl, info.frameUrl, avatarUrl]);
+
   // Full-view lightbox state
   const [lightbox, setLightbox] = useState<{
     url: string;
@@ -79,7 +129,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   } | null>(null);
 
   const dateTimeLabel = [info.dateFormatted, info.timeFormatted].filter(Boolean).join(' ') || info.timeFormatted;
-  const detectedImageUrl = info.detectedFaceUrl || info.sampleUrl || info.frameUrl;
+  const detectedImageUrl = detectedUrl || info.detectedFaceUrl || info.sampleUrl || info.frameUrl;
   const hasMatchedAvatar = Boolean(avatarUrl && !avatarError);
 
   // Dynamic color palette per wireframe (Green >= 80%, Yellow 60-79%, Red < 60%)

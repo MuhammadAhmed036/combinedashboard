@@ -15,7 +15,8 @@ export function findBestCandidate(event: LunaEvent): LunaCandidate | null {
   for (const match of matches) {
     if (!match.candidates || !Array.isArray(match.candidates)) continue;
     for (const cand of match.candidates) {
-      const sim = cand.similarity || 0;
+      const rawSim = (cand as any).similarity ?? (cand as any).score;
+      const sim = typeof rawSim === 'number' ? rawSim : 1.0;
       if (sim > highestSim) {
         highestSim = sim;
         best = {
@@ -73,20 +74,42 @@ export function parseLunaEvent(event: LunaEvent): ParsedLunaPersonInfo {
   // 3. Extract detected face crop & camera full frame
   const faceSampleId =
     evt.face_detections?.[0]?.sample_id ||
+    (evt.face_detections?.[0] as any)?.samples?.face?.sample_id ||
+    (evt.face_detections?.[0] as any)?.samples?.face?.url ||
     evt.detections?.[0]?.sample_id ||
-    evt.face_detections?.[0]?.samples?.face?.url;
+    (evt.detections?.[0] as any)?.samples?.face?.sample_id ||
+    (evt.detections?.[0] as any)?.samples?.face?.url ||
+    (evt as any).sample_id ||
+    (evt as any).face_sample_id ||
+    (evt as any).samples?.face ||
+    (evt as any).samples?.[0];
+
   if (faceSampleId) {
     detectedFaceUrl = resolveLunaSampleUrl(faceSampleId);
   }
 
+  const bodySampleId =
+    evt.body_detections?.[0]?.sample_id ||
+    (evt.body_detections?.[0] as any)?.samples?.body?.sample_id ||
+    (evt.body_detections?.[0] as any)?.samples?.body?.url ||
+    (evt as any).body_sample_id;
+
+  if (bodySampleId && !detectedFaceUrl) {
+    detectedFaceUrl = resolveLunaSampleUrl(bodySampleId);
+  }
+
   const cameraOrigin =
     (evt.face_detections?.[0] as any)?.image_origin ||
-    evt.body_detections?.[0]?.image_origin;
+    evt.body_detections?.[0]?.image_origin ||
+    (evt as any).image_origin ||
+    (evt.detections?.[0] as any)?.image_origin;
+
   if (cameraOrigin) {
     frameUrl = resolveLunaSampleUrl(cameraOrigin);
   }
 
   sampleUrl = detectedFaceUrl || frameUrl;
+
 
   // Build descriptive name & attributes if no matched face identity
   if (evt.body_basic_attributes) {

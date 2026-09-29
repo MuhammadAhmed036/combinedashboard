@@ -260,5 +260,31 @@ export async function fetchLunaMedia(pathOrId: string) {
   });
 }
 
+export async function fetchLunaEventById(eventId: string) {
+  try {
+    const baseUrl = getLunaBaseUrl();
+    const targetUrl = `${baseUrl}/events/${eventId}`;
+
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      headers: {
+        ...getLunaHeaders(),
+        'Content-Type': 'application/json',
+      },
+      cache: 'force-cache',
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch (err: unknown) {
+    console.error(`Failed to fetch Luna event ${eventId}:`, err);
+    return null;
+  }
+}
+
 // Added this explicit alias in case VSCode is caching the old module signature
 export const getLunaMedia = fetchLunaMedia;
+

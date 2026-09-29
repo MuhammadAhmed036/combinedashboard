@@ -60,6 +60,9 @@ export function resolveDirectLunaImageUrl(rawUrlOrId?: string | null): string | 
     if (rawUrlOrId.includes('images')) {
       return `${directBase}/images/${uuidMatch[0]}`;
     }
+    if (rawUrlOrId.includes('bodies')) {
+      return `${directBase}/samples/bodies/${uuidMatch[0]}`;
+    }
     return `${directBase}/samples/faces/${uuidMatch[0]}`;
   }
 
@@ -69,11 +72,50 @@ export function resolveDirectLunaImageUrl(rawUrlOrId?: string | null): string | 
   if (rawUrlOrId.startsWith('/6/samples/faces/')) {
     return `${directBase}/samples/faces/${rawUrlOrId.replace('/6/samples/faces/', '')}`;
   }
+  if (rawUrlOrId.startsWith('/6/samples/bodies/')) {
+    return `${directBase}/samples/bodies/${rawUrlOrId.replace('/6/samples/bodies/', '')}`;
+  }
   if (rawUrlOrId.startsWith('/6/samples/')) {
     return `${directBase}/samples/faces/${rawUrlOrId.replace('/6/samples/', '')}`;
   }
 
   return rawUrlOrId;
+}
+
+const eventDetailsCache = new Map<string, LunaEvent>();
+
+/**
+ * Fetch a single event's full details (detections, sample_id, image_origin, etc.) from VisionLabs
+ */
+export async function directFetchLunaEvent(eventId: string): Promise<LunaEvent | null> {
+  if (!eventId) return null;
+  if (eventDetailsCache.has(eventId)) {
+    return eventDetailsCache.get(eventId)!;
+  }
+  try {
+    const baseUrl = await getDirectLunaBaseUrl();
+    const headers = await getDirectLunaHeaders();
+    let res = await fetch(`${baseUrl}/events/${eventId}`, {
+      headers,
+      cache: 'force-cache',
+    }).catch(() => null);
+
+    if (!res || !res.ok) {
+      // Proxy fallback via Next.js internal API
+      res = await fetch(`/api/luna/events/${eventId}`).catch(() => null);
+    }
+
+    if (!res || !res.ok) return null;
+    const data = await res.json();
+    if (data && (data.event_id || data.face_detections || data.detections)) {
+      eventDetailsCache.set(eventId, data);
+      return data;
+    }
+    return null;
+  } catch (err) {
+    console.warn('[Luna Direct] Failed to fetch event details for', eventId, err);
+    return null;
+  }
 }
 
 /**

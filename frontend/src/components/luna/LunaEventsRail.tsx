@@ -11,6 +11,7 @@ import {
   directFetchLunaEvents,
   directFetchLunaHandlers,
   directFetchLunaLists,
+  directFetchLunaEvent,
 } from '@/lib/lunaDirectClient';
 import { useUIStore } from '@/lib/store/useUIStore';
 import { useCustomizeWallStore } from '@/lib/store/useCustomizeWallStore';
@@ -76,8 +77,9 @@ interface LunaWebSocketPayload {
   id?: string;
 }
 
-function isLunaEvent(value: LunaEvent | LunaWebSocketPayload): value is LunaEvent {
-  return 'event_id' in value || 'create_time' in value;
+function isLunaEvent(value: any): value is LunaEvent {
+  if (!value || typeof value !== 'object') return false;
+  return 'event_id' in value || 'id' in value || 'create_time' in value || 'event-create-time' in value;
 }
 
 const DEFAULT_FILTERS: FilterState = {
@@ -954,41 +956,150 @@ export const LunaEventsRail: React.FC = () => {
     }
   }, []);
 
-  // WebSocket
+  // WebSocket - Target VisionLabs LUNA Platform official /6/ws
   const connectWsRef = useRef<() => Promise<void>>(async () => {});
 
   const connectWs = useCallback(async () => {
-    if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+
     try {
-      const config = await loadRuntimeConfig();
-      const wsUrl = config.lunaWsUrl || (typeof window !== 'undefined' ? `ws://${window.location.hostname}:8092` : 'ws://localhost:8092');
-      const ws = new WebSocket(wsUrl);
+      const config = await loadRuntimeConfig().catch(() => null);
+
+      // VisionLabs Official WebSocket Endpoint
+      // Primary: direct connection with basic auth credentials
+      const directLunaWs =
+        process.env.NEXT_PUBLIC_LUNA_WS_URL ||
+        config?.lunaWsUrl ||
+        "ws://root%40visionlabs.ai:root@192.168.18.71:5000/6/ws";
+
+      // Fallback local proxy in case browser security blocks user:pass in URL
+      const proxyWs =
+        typeof window !== 'undefined'
+          ? `ws://${window.location.hostname}:8092`
+          : 'ws://localhost:8092';
+
+      let currentWsUrl = directLunaWs;
+      console.log('[Luna WS] Initializing VisionLabs WebSocket:', currentWsUrl);
+
+      let ws: WebSocket;
+      try {
+        ws = new WebSocket(currentWsUrl);
+      } catch (err) {
+        console.warn('[Luna WS] Direct connection instantiation failed, using proxy fallback:', err);
+        currentWsUrl = proxyWs;
+        ws = new WebSocket(currentWsUrl);
+      }
+
       wsRef.current = ws;
-      ws.onopen = () => { setConnected(true); setError(null); };
-      ws.onmessage = (evt) => {
-        try {
-          const payload = JSON.parse(evt.data) as LunaEvent | LunaWebSocketPayload;
-          const newEvent = payload.event || (isLunaEvent(payload) ? payload : null);
-          if (!newEvent) return;
-          const id = newEvent.event_id || newEvent.id;
-          if (id) {
-            setLiveEvents((prev) => {
-              if (prev.some((e) => (e.event_id || e.id) === id)) return prev;
-              return [newEvent, ...prev.slice(0, 49)];
-            });
-          }
-        } catch { /* ignore */ }
-      };
-      ws.onerror = () => setConnected(false);
-      ws.onclose = () => {
-        setConnected(false);
+
+      const scheduleReconnect = () => {
+        if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = setTimeout(() => {
           if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
             connectWsRef.current();
           }
         }, 5000);
       };
-    } catch { setConnected(false); }
+
+      ws.onopen = () => {
+        console.log('[Luna WS] Connected to VisionLabs WebSocket at:', currentWsUrl);
+        setConnected(true);
+        setError(null);
+      };
+
+      ws.onmessage = (evt) => {
+        try {
+          const raw = JSON.parse(evt.data);
+          console.log('[Luna WS] Real-time Event Received:', raw);
+
+          // Support both direct VisionLabs event JSON and wrapped payload format
+          const payload = raw.event || (isLunaEvent(raw) ? raw : null);
+          if (!payload) return;
+
+          const id = payload.event_id || payload.id;
+          const createTime =
+            payload['event-create-time'] ||
+            payload.create_time ||
+            payload.event_create_time ||
+            new Date().toISOString();
+
+          const newEvent: LunaEvent = {
+            ...payload,
+            event_id: id || `luna-ws-${Date.now()}`,
+            create_time: createTime,
+          };
+
+          setLiveEvents((prev) => {
+            const eventKey = newEvent.event_id || newEvent.id;
+            if (eventKey && prev.some((e) => (e.event_id || e.id) === eventKey)) {
+              return prev;
+            }
+            return [newEvent, ...prev.slice(0, 49)]; // Keep last 50 live events
+          });
+
+          // Fetch full event details from Luna API to retrieve detected face sample crop & camera frame
+          if (id) {
+            directFetchLunaEvent(id)
+              .then((fullEvt) => {
+                if (fullEvt) {
+                  setLiveEvents((prev) =>
+                    prev.map((item) =>
+                      (item.event_id || item.id) === id
+                        ? { ...item, ...fullEvt, event_id: id }
+                        : item
+                    )
+                  );
+                }
+              })
+              .catch(() => {});
+          }
+        } catch (err) {
+          console.error('[Luna WS] Failed to parse message:', err);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.warn('[Luna WS] WebSocket connection error on', currentWsUrl, err);
+        // If direct connection errored (e.g. browser rejected URL basic auth), fallback to proxy
+        if (currentWsUrl !== proxyWs) {
+          console.log('[Luna WS] Switching to proxy fallback tunnel...');
+          try {
+            const fallbackWs = new WebSocket(proxyWs);
+            wsRef.current = fallbackWs;
+            fallbackWs.onopen = () => {
+              console.log('[Luna WS] Connected to VisionLabs via proxy fallback!');
+              setConnected(true);
+              setError(null);
+            };
+            fallbackWs.onmessage = ws.onmessage;
+            fallbackWs.onerror = () => setConnected(false);
+            fallbackWs.onclose = () => {
+              setConnected(false);
+              scheduleReconnect();
+            };
+            return;
+          } catch {
+            setConnected(false);
+          }
+        }
+        setConnected(false);
+      };
+
+      ws.onclose = () => {
+        console.log('[Luna WS] WebSocket Connection Closed');
+        setConnected(false);
+        scheduleReconnect();
+      };
+    } catch (e) {
+      console.error('[Luna WS] Init failed:', e);
+      setConnected(false);
+    }
   }, []);
 
   useEffect(() => {

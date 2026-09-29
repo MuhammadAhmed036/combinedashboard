@@ -15,7 +15,7 @@ export async function GET() {
       apiBase: process.env.DETECTION_API_BASE_URL ?? null,
       pollIntervalMs: Number(process.env.POLL_INTERVAL_MS) || 5000,
       personCountWsBase: process.env.PERSON_COUNT_WS_URL ?? null,
-      lunaWsUrl: process.env.NEXT_PUBLIC_LUNA_WS_URL || "ws://localhost:8092",
+      lunaWsUrl: process.env.NEXT_PUBLIC_LUNA_WS_URL || "ws://root%40visionlabs.ai:root@192.168.18.71:5000/6/ws",
       lunaApiUrl:
         process.env.NEXT_PUBLIC_LUNA_API_URL ||
         `http://${process.env.LUNA_HOST || "192.168.18.71"}:${process.env.LUNA_GATEWAY_PORT || "8080"}/api/lp5/6`,
