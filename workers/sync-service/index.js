@@ -748,8 +748,7 @@ async function evaluateAbsenceRules() {
     const alertNow = Date.now();
     const snapshot =
       recent.find((r) => hasImage(r) && !framePersonPresent(r, region)) ||
-      recent.find(hasImage) ||
-      (recent.length > 0 ? recent[0] : {
+      (recent.length > 0 && !framePersonPresent(recent[0], region) ? recent[0] : {
         event_id: `absence-${rule.camera_id}-${alertNow}`,
         detection_ts: new Date(alertNow).toISOString(),
         raw_image_path: null,
@@ -759,7 +758,7 @@ async function evaluateAbsenceRules() {
       alertId: rule.alert_id,
       eventId: `absence-${rule.camera_id}-${alertNow}`,
       cameraId: rule.camera_id,
-      detectionTs: snapshot.detection_ts || new Date(alertNow).toISOString(),
+      detectionTs: new Date(alertNow).toISOString(),
       personCountInside: 0,
       personCountOutside: 0,
       boundingBox: region ? JSON.stringify(rule.bounding_box) : null,

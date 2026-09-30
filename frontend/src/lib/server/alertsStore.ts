@@ -165,7 +165,7 @@ export async function listAlertEvents(alertId: string, limit = 100): Promise<Row
   const { rows } = await pool.query(
     `SELECT * FROM alert_events
      WHERE alert_id = $1
-     ORDER BY COALESCE(detection_ts::timestamptz, created_at) DESC
+     ORDER BY GREATEST(COALESCE(detection_ts::timestamptz, created_at), created_at) DESC, id DESC
      LIMIT $2`,
     [alertId, limit]
   );
@@ -196,7 +196,7 @@ export async function listAllAlertEvents(filters: ListAllAlertEventsFilters): Pr
   let paramIdx = 1;
 
   if (filters.alertId) {
-    query += ` AND e.alert_id = ${paramIdx++}`;
+    query += ` AND e.alert_id = $${paramIdx++}`;
     params.push(filters.alertId);
   }
   if (filters.cameraId) {
@@ -204,15 +204,15 @@ export async function listAllAlertEvents(filters: ListAllAlertEventsFilters): Pr
     params.push(filters.cameraId);
   }
   if (filters.dateFrom) {
-    query += ` AND COALESCE(e.detection_ts::timestamptz, e.created_at) >= $${paramIdx++}`;
+    query += ` AND GREATEST(COALESCE(e.detection_ts::timestamptz, e.created_at), e.created_at) >= $${paramIdx++}`;
     params.push(filters.dateFrom);
   }
   if (filters.dateTo) {
-    query += ` AND COALESCE(e.detection_ts::timestamptz, e.created_at) <= $${paramIdx++}`;
+    query += ` AND GREATEST(COALESCE(e.detection_ts::timestamptz, e.created_at), e.created_at) <= $${paramIdx++}`;
     params.push(filters.dateTo);
   }
 
-  query += ` ORDER BY COALESCE(e.detection_ts::timestamptz, e.created_at) DESC LIMIT $${paramIdx++}`;
+  query += ` ORDER BY GREATEST(COALESCE(e.detection_ts::timestamptz, e.created_at), e.created_at) DESC, e.id DESC LIMIT $${paramIdx++}`;
   params.push(filters.limit ?? 100);
 
   const { rows } = await pool.query(query, params);
