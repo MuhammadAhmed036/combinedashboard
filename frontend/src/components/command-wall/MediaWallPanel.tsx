@@ -11,6 +11,8 @@ import {
   Video,
   X,
   Maximize2,
+  Minimize2,
+  Scan,
   ShieldCheck,
   ShieldAlert,
 } from "lucide-react";
@@ -231,6 +233,26 @@ export function MediaWallPanel({
   const [hardwareGuard, setHardwareGuard] = useState<boolean>(true);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [enlargedCamera, setEnlargedCamera] = useState<Camera | null>(null);
+  const [isModalFullscreen, setIsModalFullscreen] = useState<boolean>(false);
+  const [modalFit, setModalFit] = useState<"contain" | "cover">("contain");
+
+  // Keyboard shortcut listener: Esc to close modal/fullscreen, F to toggle fullscreen
+  useEffect(() => {
+    if (!enlargedCamera) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (isModalFullscreen) {
+          setIsModalFullscreen(false);
+        } else {
+          setEnlargedCamera(null);
+        }
+      } else if (e.key === "f" || e.key === "F") {
+        setIsModalFullscreen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [enlargedCamera, isModalFullscreen]);
 
   const dims = gridDimensions(layout);
   const cellCount = dims * dims;
@@ -443,49 +465,104 @@ export function MediaWallPanel({
         {/* ── Focused 1080p Single Camera Focus Modal (VMS Full View) ── */}
         {enlargedCamera && (
           <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-md p-4"
-            onClick={() => setEnlargedCamera(null)}
+            className={cn(
+              "fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md transition-all duration-200",
+              isModalFullscreen ? "p-0" : "p-2 sm:p-4 lg:p-6"
+            )}
+            onClick={() => {
+              setIsModalFullscreen(false);
+              setEnlargedCamera(null);
+            }}
           >
             <div
-              className="relative flex flex-col w-full max-w-5xl h-[80vh] rounded-xl bg-[#060a14] border-2 border-cyan-400/80 shadow-[0_0_35px_rgba(6,182,212,0.6)] overflow-hidden"
+              className={cn(
+                "relative flex flex-col bg-[#060a14] overflow-hidden transition-all duration-200",
+                isModalFullscreen
+                  ? "w-screen h-screen rounded-none border-none shadow-none"
+                  : "w-full max-w-[96vw] xl:max-w-[1680px] h-[92vh] max-h-[96vh] rounded-xl border-2 border-cyan-400/80 shadow-[0_0_40px_rgba(6,182,212,0.6)]"
+              )}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Top Bar */}
-              <div className="flex h-11 shrink-0 items-center justify-between border-b border-cyan-500/30 bg-[#08101e] px-4">
-                <div className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="font-bold text-sm text-white">{enlargedCamera.name || enlargedCamera.code}</span>
-                  <span className="text-xs font-mono text-cyan-400">({enlargedCamera.zoneName})</span>
-                  <span className="rounded bg-cyan-950 px-1.5 py-0.5 text-[10px] font-mono text-cyan-300 border border-cyan-800">
+              <div className="flex h-12 shrink-0 items-center justify-between border-b border-cyan-500/30 bg-[#08101e] px-4">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="size-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span className="font-bold text-sm text-white truncate">{enlargedCamera.name || enlargedCamera.code}</span>
+                  {enlargedCamera.zoneName && (
+                    <span className="text-xs font-mono text-cyan-400 truncate">({enlargedCamera.zoneName})</span>
+                  )}
+                  <span className="hidden sm:inline-flex rounded bg-cyan-950 px-2 py-0.5 text-[10px] font-mono text-cyan-300 border border-cyan-800 shrink-0">
                     1080p Full Focus
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setEnlargedCamera(null)}
-                  className="flex size-7 items-center justify-center rounded-lg bg-white/10 hover:bg-destructive hover:text-white transition-colors"
-                >
-                  <X className="size-4" />
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Aspect Fit / Cover Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setModalFit((f) => (f === "contain" ? "cover" : "contain"))}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 transition-colors cursor-pointer"
+                    title="Toggle between Full Aspect Fit (100% Uncropped Feed) and Fill View"
+                  >
+                    <Scan className="size-3.5" />
+                    <span className="hidden sm:inline">{modalFit === "contain" ? "Fit: Full Frame" : "Fill: Cropped"}</span>
+                  </button>
+
+                  {/* Fullscreen Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsModalFullscreen((f) => !f)}
+                    className="flex size-8 items-center justify-center rounded-lg bg-white/10 hover:bg-cyan-500 hover:text-black text-white transition-colors cursor-pointer"
+                    title={isModalFullscreen ? "Exit Fullscreen (Esc / F)" : "Fullscreen (F)"}
+                    aria-label={isModalFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                  >
+                    {isModalFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+                  </button>
+
+                  {/* Close Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsModalFullscreen(false);
+                      setEnlargedCamera(null);
+                    }}
+                    className="flex size-8 items-center justify-center rounded-lg bg-white/10 hover:bg-destructive hover:text-white text-white transition-colors cursor-pointer"
+                    title="Close (Esc)"
+                    aria-label="Close modal"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Modal Video Player */}
-              <div className="flex-1 relative bg-black">
+              <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
                 <CameraThumbnail
                   seed={enlargedCamera.thumbnailSeed}
                   feedUrl={enlargedCamera.proxy_feed_url ?? enlargedCamera.proxyFeedUrl}
                   playerUrl={enlargedCamera.playerUrl}
                   offline={enlargedCamera.status === "offline"}
                   interactive={true}
+                  objectFit={modalFit}
                   className="size-full"
                 />
               </div>
 
               {/* Modal Footer */}
               <div className="flex h-9 shrink-0 items-center justify-between border-t border-cyan-500/20 bg-[#08101e] px-4 text-xs font-mono text-slate-400">
-                <span>Source: {enlargedCamera.sourceName}</span>
-                <span className="text-cyan-400">Click Close or outside to return to Media Wall</span>
+                <div className="flex items-center gap-3 truncate">
+                  <span>Source: <strong className="text-slate-200">{enlargedCamera.sourceName || enlargedCamera.name}</strong></span>
+                  <span className="hidden md:inline text-slate-600">•</span>
+                  <span className="hidden md:inline">
+                    Feed: <span className="text-cyan-400">{modalFit === "contain" ? "Full Uncropped Feed" : "Cover Zoom"}</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="hidden lg:inline text-slate-500">
+                    Press <kbd className="rounded bg-slate-800 px-1 text-slate-300">F</kbd> for Fullscreen, <kbd className="rounded bg-slate-800 px-1 text-slate-300">Esc</kbd> to return
+                  </span>
+                  <span className="text-cyan-400">Click Close or outside to return to Media Wall</span>
+                </div>
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
-import { Users, X } from "lucide-react";
+import { Users, X, Maximize2 } from "lucide-react";
 import type { Camera } from "@/lib/types";
 import { CameraThumbnail } from "@/components/cameras/CameraThumbnail";
 import { cn } from "@/lib/utils";
@@ -10,12 +10,14 @@ export function DroppableCell({
   index,
   camera,
   onClear,
+  onMaximize,
   hasAlert,
   livePeopleCount,
 }: {
   index: number;
   camera: Camera | null;
   onClear: () => void;
+  onMaximize?: (camera: Camera) => void;
   hasAlert?: boolean;
   /** Live person count from the detection API's people-count feed; `null`/`undefined` while no live reading has arrived yet. */
   livePeopleCount?: number | null;
@@ -25,10 +27,11 @@ export function DroppableCell({
   return (
     <div
       ref={setNodeRef}
+      onDoubleClick={() => camera && onMaximize?.(camera)}
       className={cn(
         "group relative flex h-full min-h-[90px] items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-surface-border bg-surface-2 transition-colors",
         isOver && "border-primary bg-primary/10",
-        camera && cn("border-solid ring-1 ring-surface-border", hasAlert && "ring-2 ring-destructive")
+        camera && cn("border-solid ring-1 ring-surface-border cursor-pointer", hasAlert && "ring-2 ring-destructive")
       )}
     >
       {!camera && (
@@ -73,6 +76,20 @@ export function DroppableCell({
               >
                 <Users className="size-3" /> {livePeopleCount ?? "—"}
               </div>
+            )}
+            {onMaximize && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMaximize(camera);
+                }}
+                className="flex size-6 items-center justify-center rounded-md bg-black/55 text-white opacity-0 transition-opacity hover:bg-cyan-500 hover:text-black group-hover:opacity-100 cursor-pointer"
+                title="Expand Camera Full Focus (1080p)"
+                aria-label="Maximize camera"
+              >
+                <Maximize2 className="size-3.5" />
+              </button>
             )}
             <button
               onClick={onClear}

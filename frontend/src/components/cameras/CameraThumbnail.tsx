@@ -13,6 +13,7 @@ export function CameraThumbnail({
   playing = true,
   interactive = false,
   isStandby = false,
+  objectFit = "cover",
   onActivate,
   className,
   children,
@@ -24,6 +25,7 @@ export function CameraThumbnail({
   playing?: boolean;
   interactive?: boolean;
   isStandby?: boolean;
+  objectFit?: "cover" | "contain" | "fill";
   onActivate?: () => void;
   className?: string;
   children?: React.ReactNode;
@@ -98,7 +100,8 @@ export function CameraThumbnail({
           muted
           playsInline
           className={cn(
-            "absolute inset-0 size-full bg-black object-cover",
+            "absolute inset-0 size-full bg-black",
+            objectFit === "contain" ? "object-contain" : objectFit === "fill" ? "object-fill" : "object-cover",
             interactive ? "pointer-events-auto" : "pointer-events-none"
           )}
         />
@@ -122,7 +125,10 @@ export function CameraThumbnail({
       {shouldRenderStream && !hasPlayer && !videoFailed && (
         <video
           src={feedUrl}
-          className="absolute inset-0 size-full bg-black object-cover"
+          className={cn(
+            "absolute inset-0 size-full bg-black",
+            objectFit === "contain" ? "object-contain" : objectFit === "fill" ? "object-fill" : "object-cover"
+          )}
           autoPlay
           muted
           playsInline
@@ -136,7 +142,10 @@ export function CameraThumbnail({
         <img
           src={feedUrl}
           alt=""
-          className="absolute inset-0 size-full bg-black object-cover"
+          className={cn(
+            "absolute inset-0 size-full bg-black",
+            objectFit === "contain" ? "object-contain" : objectFit === "fill" ? "object-fill" : "object-cover"
+          )}
           onError={() => setImageFailedUrl(feedUrl ?? null)}
         />
       )}
