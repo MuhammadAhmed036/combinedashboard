@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AlertBoundingBox } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -11,30 +11,75 @@ interface DragState {
   currentY: number;
 }
 
-export function RegionDrawCanvas({
-  imageUrl,
-  imageWidth,
-  imageHeight,
-  value,
-  onChange,
-  className,
-}: {
-  imageUrl: string;
-  imageWidth: number;
-  imageHeight: number;
+export interface RegionDrawCanvasProps {
+  imageUrl?: string | null;
+  videoStream?: MediaStream | null;
+  imageWidth?: number;
+  imageHeight?: number;
   value: AlertBoundingBox | null;
   onChange: (box: AlertBoundingBox) => void;
   className?: string;
-}) {
+  onDimensionsReady?: (dims: { width: number; height: number }) => void;
+}
+
+export function RegionDrawCanvas({
+  imageUrl,
+  videoStream,
+  imageWidth = 1920,
+  imageHeight = 1080,
+  value,
+  onChange,
+  className,
+  onDimensionsReady,
+}: RegionDrawCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
+  const [mediaDims, setMediaDims] = useState<{ width: number; height: number }>({
+    width: imageWidth || 1920,
+    height: imageHeight || 1080,
+  });
+
+  useEffect(() => {
+    if (imageWidth && imageHeight && imageWidth > 0 && imageHeight > 0) {
+      setMediaDims({ width: imageWidth, height: imageHeight });
+    }
+  }, [imageWidth, imageHeight]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (videoStream) {
+      if (video.srcObject !== videoStream) {
+        video.srcObject = videoStream;
+        video.play().catch(() => {});
+      }
+    } else {
+      video.srcObject = null;
+    }
+  }, [videoStream]);
+
+  const handleLoadedMetadata = () => {
+    if (videoRef.current) {
+      const vw = videoRef.current.videoWidth || 1920;
+      const vh = videoRef.current.videoHeight || 1080;
+      if (vw > 0 && vh > 0) {
+        setMediaDims({ width: vw, height: vh });
+        onDimensionsReady?.({ width: vw, height: vh });
+      }
+    }
+  };
+
+  const effectiveWidth = mediaDims.width || 1920;
+  const effectiveHeight = mediaDims.height || 1080;
 
   function clientToImagePixels(clientX: number, clientY: number) {
     const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
+    if (!rect || rect.width === 0 || rect.height === 0) return { x: 0, y: 0 };
     const fracX = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
     const fracY = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
-    return { x: fracX * imageWidth, y: fracY * imageHeight };
+    return { x: fracX * effectiveWidth, y: fracY * effectiveHeight };
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
@@ -76,30 +121,58 @@ export function RegionDrawCanvas({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       className={cn(
-        "relative aspect-video w-full touch-none overflow-hidden rounded-lg border border-surface-border bg-black select-none",
+        "relative aspect-video w-full touch-none overflow-hidden rounded-lg border border-surface-border bg-black select-none cursor-crosshair",
         className
       )}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- proxied JPEG snapshot, not a Next-optimizable static asset */}
-      <img
-        src={imageUrl}
-        alt="Camera snapshot for region drawing"
-        draggable={false}
-        className="pointer-events-none h-full w-full object-contain"
-      />
+      {videoStream ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          onLoadedMetadata={handleLoadedMetadata}
+          className="pointer-events-none h-full w-full object-contain"
+        />
+      ) : imageUrl ? (
+        /* eslint-disable-next-line @next/next/no-img-element -- proxied JPEG snapshot, not a Next-optimizable static asset */
+        <img
+          src={imageUrl}
+          alt="Camera snapshot for region drawing"
+          draggable={false}
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+              setMediaDims({ width: img.naturalWidth, height: img.naturalHeight });
+              onDimensionsReady?.({ width: img.naturalWidth, height: img.naturalHeight });
+            }
+          }}
+          className="pointer-events-none h-full w-full object-contain"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+          Waiting for live video feed or snapshot...
+        </div>
+      )}
+
       {box && (
         <div
           className="pointer-events-none absolute border-2 border-primary bg-primary/20"
           style={{
-            left: `${(box.x1 / imageWidth) * 100}%`,
-            top: `${(box.y1 / imageHeight) * 100}%`,
-            width: `${((box.x2 - box.x1) / imageWidth) * 100}%`,
-            height: `${((box.y2 - box.y1) / imageHeight) * 100}%`,
+            left: `${(box.x1 / effectiveWidth) * 100}%`,
+            top: `${(box.y1 / effectiveHeight) * 100}%`,
+            width: `${((box.x2 - box.x1) / effectiveWidth) * 100}%`,
+            height: `${((box.y2 - box.y1) / effectiveHeight) * 100}%`,
           }}
-        />
+        >
+          <div className="absolute -top-5 left-0 rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground shadow">
+            Alert Zone
+          </div>
+        </div>
       )}
+
       {!box && (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-white/70">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs font-medium text-white/80 drop-shadow">
           Click and drag to draw the alert zone
         </div>
       )}

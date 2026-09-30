@@ -18,9 +18,16 @@ import {
   Download,
   Copy,
   Maximize2,
+  User,
+  ExternalLink,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  ShieldAlert,
 } from "lucide-react";
 import { DetectionFrameImage } from "@/components/alerts/DetectionFrameImage";
 import { liveEventImageUrl } from "@/lib/hooks/useCameraLiveFeed";
+import { useSharedCameraStream } from "@/lib/webrtcStreamManager";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/lib/formatters";
 import {
@@ -81,6 +88,7 @@ function AlertEventItem({
           {event.eventId ? (
             <DetectionFrameImage
               eventId={event.eventId}
+              cameraId={event.cameraId}
               alt="Matched frame"
               className="absolute inset-0 h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
             />
@@ -193,7 +201,7 @@ function VirtualAlertEventList({
   );
 }
 
-// ─── Forensic Evidence Modal (High-Res Frame + Telemetry + Export) ─────────────
+// ─── Forensic Evidence Modal (Enterprise-Scale High-Res Forensics Suite) ───────
 
 function ForensicEvidenceModal({
   event,
@@ -203,6 +211,29 @@ function ForensicEvidenceModal({
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [useLiveStream, setUseLiveStream] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const cameraSnapshotUrl = event?.cameraId ? `/api/cameras/${encodeURIComponent(event.cameraId)}/snapshot` : null;
+
+  useEffect(() => {
+    setZoomLevel(1);
+    setUseLiveStream(false);
+    setImageSrc(event?.eventId ? liveEventImageUrl(event.eventId) : cameraSnapshotUrl);
+  }, [event?.eventId, cameraSnapshotUrl]);
+
+  const { stream: liveWebRtcStream } = useSharedCameraStream(
+    event?.cameraId && useLiveStream ? event.cameraId : ""
+  );
+
+  useEffect(() => {
+    if (useLiveStream && videoRef.current && liveWebRtcStream) {
+      videoRef.current.srcObject = liveWebRtcStream;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [useLiveStream, liveWebRtcStream]);
 
   if (!event) return null;
 
@@ -212,156 +243,349 @@ function ForensicEvidenceModal({
   const imageUrl = event.eventId ? liveEventImageUrl(event.eventId) : null;
 
   const handleDownload = () => {
-    if (!imageUrl) return;
+    const downloadUrl = imageSrc || imageUrl;
+    if (!downloadUrl) return;
     const link = document.createElement("a");
-    link.href = imageUrl;
-    link.download = `evidence_${event.cameraId}_${event.eventId || Date.now()}.jpg`;
+    link.href = downloadUrl;
+    link.download = `alert_${event.cameraId}_${event.eventId || Date.now()}.jpg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const handleCopyLog = () => {
-    const logData = JSON.stringify(
-      {
-        eventId: event.eventId,
-        ruleName: event.ruleName ?? event.alertId,
-        alertId: event.alertId,
-        cameraId: event.cameraId,
-        timestamp: ts,
-        primaryClass,
-        insideCount: event.personCountInside,
-        outsideCount: event.personCountOutside,
-        classCountsInside: event.classCountsInside,
-        classCountsOutside: event.classCountsOutside,
-        boundingBox: event.boundingBox,
-      },
-      null,
-      2
-    );
+    const logData = [
+      `Alert Rule: ${event.ruleName ?? event.ruleLabel ?? event.alertId}`,
+      `Camera: ${event.cameraId}`,
+      `Severity: ${CATEGORY_LABEL[event.category || "medium"]}`,
+      `Detected Target: ${primaryClass.toUpperCase()}`,
+      `Subjects Inside Zone: ${event.personCountInside ?? 0}`,
+      `Subjects Outside Zone: ${event.personCountOutside ?? 0}`,
+      `Recorded At: ${ts ? formatDateTime(ts) : "—"}`,
+    ].join("\n");
+
     navigator.clipboard.writeText(logData);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const ruleTitle = event.ruleName ?? event.ruleLabel ?? event.alertId;
+
   return (
     <Dialog open={Boolean(event)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl w-[92vw] p-0 overflow-hidden bg-surface-1 border-surface-border text-white">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-surface-border bg-surface-2">
-          <div className="flex items-center gap-2.5 min-w-0">
+      <DialogContent
+        showCloseButton={false}
+        className="w-[96vw] max-w-7xl sm:max-w-[95vw] md:max-w-6xl xl:max-w-7xl h-[88vh] max-h-[920px] p-0 flex flex-col overflow-hidden bg-[#060a12] border border-slate-800 text-white rounded-2xl shadow-2xl z-[100]"
+      >
+        {/* Enterprise Top Navigation & Status Bar */}
+        <div className="h-14 shrink-0 px-6 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 flex items-center justify-between z-20">
+          <div className="flex items-center gap-3.5 min-w-0">
             <span
-              className="h-2.5 w-2.5 rounded-full shrink-0 animate-ping"
-              style={{ backgroundColor: categoryColor }}
+              className="h-3 w-3 rounded-full shrink-0 shadow-lg animate-pulse"
+              style={{
+                backgroundColor: categoryColor,
+                boxShadow: `0 0 12px ${categoryColor}`,
+              }}
             />
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm text-white truncate">
-                  {event.ruleName ?? event.ruleLabel ?? event.alertId}
-                </h3>
-                <span
-                  className="rounded-[4px] px-1.5 py-0.5 text-[9px] font-bold text-white uppercase tracking-wider shrink-0"
-                  style={{ backgroundColor: categoryColor }}
-                >
-                  {CATEGORY_LABEL[event.category || "medium"]}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                <span className="flex items-center gap-1 text-cyan-400">
-                  <Camera className="size-3" />
-                  {event.cameraId}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="size-3" />
-                  {ts ? formatDateTime(ts) : "—"}
-                </span>
-              </div>
+            <div className="flex items-center gap-3 min-w-0">
+              <h2 className="font-extrabold text-base lg:text-lg text-white tracking-tight truncate">
+                {ruleTitle}
+              </h2>
+              <span
+                className="rounded-full px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider shrink-0 shadow-sm"
+                style={{ backgroundColor: categoryColor }}
+              >
+                {CATEGORY_LABEL[event.category || "medium"]}
+              </span>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-3 text-xs text-slate-400 pl-3 border-l border-slate-800">
+              <span className="flex items-center gap-1.5 text-cyan-400 font-semibold">
+                <Camera className="size-3.5" />
+                {event.cameraId}
+              </span>
+              <span className="text-slate-600">•</span>
+              <span className="flex items-center gap-1.5 text-slate-300">
+                <Clock className="size-3.5 text-slate-400" />
+                {ts ? formatDateTime(ts) : "—"}
+              </span>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
+            title="Close viewer"
+          >
+            <X className="size-5" />
+          </button>
         </div>
 
-        {/* Content Body */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-0">
-          {/* Main Visual Frame */}
-          <div className="md:col-span-2 relative aspect-video bg-black flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-surface-border">
-            {imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={imageUrl}
-                alt="Forensic Frame"
-                className="w-full h-full object-contain"
-              />
-            ) : (
-              <div className="text-muted-foreground text-xs">No forensic frame captured</div>
-            )}
-          </div>
+        {/* Forensic Canvas & Command Telemetry Grid */}
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+          {/* Main Visual Surveillance Canvas (Hero Area - 75% on desktop) */}
+          <div className="lg:col-span-8 xl:col-span-9 relative flex flex-col items-center justify-center bg-[#02050a] border-b lg:border-b-0 lg:border-r border-slate-800/80 overflow-hidden select-none">
+            {/* Top-left high-res indicator */}
+            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md border border-slate-800 text-[10.5px] text-cyan-300 font-mono shadow-lg">
+              <span className="size-2 rounded-full bg-cyan-400 animate-ping" />
+              <span>HIGH-RES DETECTION FRAME</span>
+            </div>
 
-          {/* Forensic Metadata & Export Panel */}
-          <div className="flex flex-col justify-between p-3.5 bg-surface-2/60 text-xs space-y-3">
-            <div className="space-y-3">
-              <div>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-                  Forensic Event ID
-                </span>
-                <p className="font-mono text-[11px] text-cyan-300 break-all select-all mt-0.5">
-                  {event.eventId || "N/A"}
-                </p>
-              </div>
+            {/* Top-right interactive image toolbar */}
+            <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5 px-2 py-1 rounded-xl bg-slate-950/85 backdrop-blur-md border border-slate-800 shadow-lg">
+              <button
+                type="button"
+                onClick={() => setZoomLevel((z) => Math.max(1, z - 0.25))}
+                disabled={zoomLevel <= 1}
+                className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-850 disabled:opacity-40 transition-colors"
+                title="Zoom Out"
+              >
+                <ZoomOut className="size-4" />
+              </button>
+              <span className="text-[11px] font-mono text-slate-300 px-1 font-semibold min-w-[42px] text-center">
+                {Math.round(zoomLevel * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={() => setZoomLevel((z) => Math.min(3, z + 0.25))}
+                disabled={zoomLevel >= 3}
+                className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-850 disabled:opacity-40 transition-colors"
+                title="Zoom In"
+              >
+                <ZoomIn className="size-4" />
+              </button>
+              {zoomLevel > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel(1)}
+                  className="p-1.5 rounded-lg text-amber-400 hover:text-amber-300 hover:bg-slate-850 transition-colors"
+                  title="Reset Zoom"
+                >
+                  <RotateCcw className="size-3.5" />
+                </button>
+              )}
+              {event.cameraId && (
+                <button
+                  type="button"
+                  onClick={() => setUseLiveStream(!useLiveStream)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ml-1",
+                    useLiveStream
+                      ? "border-emerald-500/50 bg-emerald-500/20 text-emerald-400"
+                      : "border-slate-800 bg-slate-900 text-slate-300 hover:text-white"
+                  )}
+                  title="Toggle real-time live camera stream"
+                >
+                  <Radio className={cn("size-3.5", useLiveStream ? "animate-pulse text-emerald-400" : "")} />
+                  <span>{useLiveStream ? "Live WebRTC" : "View Live Feed"}</span>
+                </button>
+              )}
+              {(imageSrc || imageUrl) && (
+                <a
+                  href={(imageSrc || imageUrl) || undefined}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-850 transition-colors ml-1 border-l border-slate-800 pl-2"
+                  title="Open high-res frame in new window"
+                >
+                  <ExternalLink className="size-4" />
+                </a>
+              )}
+            </div>
 
-              <div>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-                  Detection Summary
-                </span>
-                <div className="mt-1 space-y-1 bg-surface-3/70 rounded p-2 border border-white/5">
-                  <div className="flex justify-between items-center text-[11px]">
-                    <span className="text-muted-foreground">Primary Object:</span>
-                    <span className="font-semibold text-white capitalize">{primaryClass}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[11px]">
-                    <span className="text-muted-foreground">Inside Region:</span>
-                    <span className="font-bold text-amber-400">{event.personCountInside ?? 0}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-[11px]">
-                    <span className="text-muted-foreground">Outside Region:</span>
-                    <span className="font-semibold text-white">{event.personCountOutside ?? 0}</span>
-                  </div>
+            {/* Surveillance Frame Display */}
+            <div className="w-full h-full flex items-center justify-center p-4 lg:p-6 overflow-auto relative">
+              {useLiveStream ? (
+                <div className="relative w-full h-full max-h-[72vh] flex items-center justify-center">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    className="w-full h-full max-h-[72vh] object-contain rounded-xl shadow-2xl border border-slate-800/80"
+                  />
+                  {event.boundingBox && (
+                    <div
+                      className="pointer-events-none absolute border-2 border-primary bg-primary/20"
+                      style={{
+                        left: `${(Number(event.boundingBox.x1) / 1920) * 100}%`,
+                        top: `${(Number(event.boundingBox.y1) / 1080) * 100}%`,
+                        width: `${((Number(event.boundingBox.x2) - Number(event.boundingBox.x1)) / 1920) * 100}%`,
+                        height: `${((Number(event.boundingBox.y2) - Number(event.boundingBox.y1)) / 1080) * 100}%`,
+                      }}
+                    >
+                      <span className="absolute -top-5 left-0 rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground shadow">
+                        Alert Zone
+                      </span>
+                    </div>
+                  )}
                 </div>
-              </div>
-
-              {event.boundingBox && (
-                <div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-                    Bounding Box Coordinates
-                  </span>
-                  <div className="mt-1 font-mono text-[10px] text-muted-foreground bg-surface-3/70 rounded p-1.5 border border-white/5">
-                    [{event.boundingBox.x1}, {event.boundingBox.y1}] to [{event.boundingBox.x2}, {event.boundingBox.y2}]
-                  </div>
+              ) : (imageSrc || imageUrl) ? (
+                <div className="relative w-full h-full max-h-[72vh] flex items-center justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageSrc || imageUrl || undefined}
+                    alt="Surveillance Forensic Frame"
+                    onError={() => {
+                      if (cameraSnapshotUrl && imageSrc !== cameraSnapshotUrl) {
+                        setImageSrc(cameraSnapshotUrl);
+                      }
+                    }}
+                    style={{ transform: `scale(${zoomLevel})` }}
+                    className="w-full h-full max-h-[72vh] object-contain rounded-xl shadow-2xl border border-slate-800/80 transition-transform duration-200 ease-out"
+                  />
+                  {event.boundingBox && (
+                    <div
+                      className="pointer-events-none absolute border-2 border-primary bg-primary/20"
+                      style={{
+                        left: `${(Number(event.boundingBox.x1) / 1920) * 100}%`,
+                        top: `${(Number(event.boundingBox.y1) / 1080) * 100}%`,
+                        width: `${((Number(event.boundingBox.x2) - Number(event.boundingBox.x1)) / 1920) * 100}%`,
+                        height: `${((Number(event.boundingBox.y2) - Number(event.boundingBox.y1)) / 1080) * 100}%`,
+                      }}
+                    >
+                      <span className="absolute -top-5 left-0 rounded bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground shadow">
+                        Alert Zone
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center text-slate-500 text-sm gap-3">
+                  <Camera className="size-12 text-slate-600" />
+                  <span>No forensic frame available for this event</span>
                 </div>
               )}
             </div>
 
-            {/* Actions */}
-            <div className="space-y-2 pt-2 border-t border-surface-border">
+            {/* Bottom floating detection summary badge */}
+            <div className="absolute bottom-4 inset-x-auto z-10 flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md border border-slate-800 shadow-xl text-xs text-slate-300">
+              <span className="flex items-center gap-1.5 text-cyan-400 font-semibold">
+                <User className="size-3.5" />
+                Target: <span className="text-white capitalize">{primaryClass}</span>
+              </span>
+              <span className="text-slate-600">•</span>
+              <span className="text-amber-400 font-bold font-mono">
+                {event.personCountInside ?? 0} in zone
+              </span>
+              <span className="text-slate-600">•</span>
+              <span className="text-slate-400">
+                {event.personCountOutside ?? 0} outside
+              </span>
+            </div>
+          </div>
+
+          {/* Right Command & Telemetry Sidebar (25% on desktop) */}
+          <div className="lg:col-span-4 xl:col-span-3 bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-slate-950/95 p-6 flex flex-col justify-between overflow-y-auto space-y-5">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Activity className="size-3.5 text-cyan-400" />
+                  Telemetry & Insights
+                </span>
+                <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 border border-cyan-800/50 px-2 py-0.5 rounded-full">
+                  VERIFIED EVENT
+                </span>
+              </div>
+
+              {/* Target Classification KPI Card */}
+              <div className="rounded-xl bg-slate-950/70 border border-slate-800/80 p-4 shadow-sm">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">
+                  Detected Target
+                </span>
+                <div className="flex items-center justify-between mt-1">
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                      <User className="size-4" />
+                    </div>
+                    <span className="text-lg font-black text-white capitalize">
+                      {primaryClass}
+                    </span>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold flex items-center gap-1">
+                    <ShieldAlert className="size-3" />
+                    Triggered
+                  </span>
+                </div>
+              </div>
+
+              {/* Zone Activity Metrics (Inside vs Outside) */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 flex flex-col justify-between shadow-sm">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400/90">
+                    Inside Region
+                  </span>
+                  <span className="text-3xl font-black text-amber-300 font-mono my-1">
+                    {event.personCountInside ?? 0}
+                  </span>
+                  <span className="text-[10px] text-amber-400/80">
+                    Subjects in zone
+                  </span>
+                </div>
+
+                <div className="rounded-xl bg-slate-950/70 border border-slate-800/80 p-3.5 flex flex-col justify-between shadow-sm">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                    Outside Region
+                  </span>
+                  <span className="text-3xl font-black text-slate-200 font-mono my-1">
+                    {event.personCountOutside ?? 0}
+                  </span>
+                  <span className="text-[10px] text-slate-500">
+                    Perimeter subjects
+                  </span>
+                </div>
+              </div>
+
+              {/* Event Metadata Card */}
+              <div className="rounded-xl bg-slate-950/70 border border-slate-800/80 p-4 space-y-2.5 text-xs shadow-sm">
+                <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
+                  <span className="text-slate-400 text-[11px]">Camera Source</span>
+                  <span className="font-semibold text-white truncate max-w-[170px] text-right">
+                    {event.cameraId}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
+                  <span className="text-slate-400 text-[11px]">Severity Tier</span>
+                  <span
+                    className="font-bold text-[11px] uppercase tracking-wide"
+                    style={{ color: categoryColor }}
+                  >
+                    {CATEGORY_LABEL[event.category || "medium"]}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pt-0.5">
+                  <span className="text-slate-400 text-[11px]">Recorded At</span>
+                  <span className="font-mono text-slate-300 text-[11px]">
+                    {ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : "—"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Enterprise Action Center */}
+            <div className="space-y-3 pt-3 border-t border-slate-800/80">
               {imageUrl && (
-                <Button
+                <button
+                  type="button"
                   onClick={handleDownload}
-                  size="sm"
-                  className="w-full gap-1.5 h-8 text-xs bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
+                  className="w-full h-11 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:via-blue-500 hover:to-indigo-500 shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
-                  <Download className="size-3.5" />
-                  Download Frame (.JPG)
-                </Button>
+                  <Download className="size-4" />
+                  <span>Download Forensic Evidence (.JPG)</span>
+                </button>
               )}
 
-              <Button
+              <button
+                type="button"
                 onClick={handleCopyLog}
-                variant="outline"
-                size="sm"
-                className="w-full gap-1.5 h-8 text-xs border-surface-border hover:bg-surface-3"
+                className="w-full h-10 px-4 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-950/80 hover:bg-slate-800 border border-slate-800 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
-                {copied ? <Check className="size-3.5 text-green-400" /> : <Copy className="size-3.5" />}
-                {copied ? "Copied to Clipboard" : "Copy Forensic Log"}
-              </Button>
+                {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
+                <span>{copied ? "Copied Incident Summary!" : "Copy Incident Summary"}</span>
+              </button>
             </div>
           </div>
         </div>
@@ -387,6 +611,39 @@ function ConfiguredRuleItem({
 }) {
   const categoryColor = CATEGORY_ACCENT[rule.category || "medium"];
   const isActive = rule.status === "active";
+
+  const [camStatus, setCamStatus] = useState<"RUNNING" | "STOPPED" | "LOADING">("LOADING");
+  const [webrtcStatus, setWebrtcStatus] = useState<"ACTIVE" | "ERROR" | "LOADING">("LOADING");
+
+  useEffect(() => {
+    if (!rule.cameraId) return;
+    let isMounted = true;
+
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch(`/api/cameras/${encodeURIComponent(rule.cameraId)}/frame-status`);
+        if (!res.ok) throw new Error("Status fetch failed");
+        const data = await res.json();
+        if (isMounted) {
+          setCamStatus(data.cameraStatus === "RUNNING" ? "RUNNING" : "STOPPED");
+          setWebrtcStatus(data.webrtc?.isLive ? "ACTIVE" : "ERROR");
+        }
+      } catch {
+        if (isMounted) {
+          setCamStatus("STOPPED");
+          setWebrtcStatus("ERROR");
+        }
+      }
+    };
+
+    fetchStatus();
+    // Refresh every 1 minute (60 seconds)
+    const interval = setInterval(fetchStatus, 60000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [rule.cameraId]);
 
   return (
     <article
@@ -419,6 +676,67 @@ function ConfiguredRuleItem({
         >
           {CATEGORY_LABEL[rule.category || "medium"]}
         </span>
+      </div>
+
+      {/* Real-time Camera Status & WebRTC Stream Status Badges (1-min auto refresh) */}
+      <div className="flex items-center gap-1.5 my-1.5 flex-wrap">
+        {/* Symbol 1: Camera FFmpeg Status */}
+        <div
+          className={cn(
+            "inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 text-[9px] font-semibold border transition-all select-none",
+            camStatus === "RUNNING"
+              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+              : camStatus === "STOPPED"
+              ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
+              : "bg-surface-3 text-muted-foreground border-surface-border"
+          )}
+          title={
+            camStatus === "RUNNING"
+              ? "Camera feed (FFmpeg) is active and running"
+              : camStatus === "STOPPED"
+              ? "Camera feed (FFmpeg) is stopped / offline"
+              : "Checking camera status..."
+          }
+        >
+          <span
+            className={cn(
+              "size-1.5 rounded-full shrink-0",
+              camStatus === "RUNNING"
+                ? "bg-emerald-400 animate-pulse"
+                : camStatus === "STOPPED"
+                ? "bg-rose-500"
+                : "bg-slate-500"
+            )}
+          />
+          <span>CAM: {camStatus === "RUNNING" ? "Running" : camStatus === "STOPPED" ? "Offline" : "Checking..."}</span>
+        </div>
+
+        {/* Symbol 2: WebRTC Live Stream Status */}
+        <div
+          className={cn(
+            "inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 text-[9px] font-semibold border transition-all select-none",
+            webrtcStatus === "ACTIVE"
+              ? "bg-cyan-500/15 text-cyan-400 border-cyan-500/30"
+              : webrtcStatus === "ERROR"
+              ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+              : "bg-surface-3 text-muted-foreground border-surface-border"
+          )}
+          title={
+            webrtcStatus === "ACTIVE"
+              ? "WebRTC live video stream is healthy and active"
+              : webrtcStatus === "ERROR"
+              ? "WebRTC live stream connection error or offline"
+              : "Checking WebRTC stream..."
+          }
+        >
+          <Radio
+            className={cn(
+              "size-2.5 shrink-0",
+              webrtcStatus === "ACTIVE" ? "text-cyan-400 animate-pulse" : "text-amber-400"
+            )}
+          />
+          <span>STREAM: {webrtcStatus === "ACTIVE" ? "Live" : webrtcStatus === "ERROR" ? "Down" : "Checking..."}</span>
+        </div>
       </div>
 
       {/* Middle: Trigger Counts — clickable to view alerts for this rule */}

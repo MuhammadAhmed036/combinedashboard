@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 /**
  * Enterprise Ultra-Fast Detection Frame Image:
  * - Uses direct backend URL (60ms) when available with automatic proxied fallback.
+ * - If event frame is missing from YOLO backend (absence or WebRTC alert), falls back to live camera snapshot.
  * - Prevents black boxes with an integrated pulse skeleton loader.
  * - Zero artificial lazy-loading delay for virtualized visible alert items.
  */
@@ -16,41 +17,54 @@ export function DetectionFrameImage({
   eventId,
   alt,
   className,
+  cameraId,
 }: {
   eventId: string;
   alt: string;
   className?: string;
+  cameraId?: string;
 }) {
+  const isAbsenceOrLive = eventId.startsWith("absence-") || eventId.startsWith("live-") || eventId.startsWith("webrtc-");
   const proxiedUrl = `/api/ai/v2/events/${encodeURIComponent(eventId)}/image?kind=raw`;
-  const directUrl = directEventImageUrl(eventId);
+  const directUrl = isAbsenceOrLive ? null : directEventImageUrl(eventId);
+  const cameraSnapshotUrl = cameraId ? `/api/cameras/${encodeURIComponent(cameraId)}/snapshot` : null;
 
   const [src, setSrc] = useState(directUrl || proxiedUrl);
   const [isLoaded, setIsLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [triedFallback, setTriedFallback] = useState(false);
+  const [triedProxied, setTriedProxied] = useState(false);
+  const [triedCameraSnap, setTriedCameraSnap] = useState(false);
 
   useEffect(() => {
-    const direct = directEventImageUrl(eventId);
-    if (direct) {
-      setSrc(direct);
-    } else {
+    if (isAbsenceOrLive) {
       setSrc(proxiedUrl);
-      loadRuntimeConfig().then((cfg) => {
-        if (cfg?.apiBase) {
-          const base = cfg.apiBase.endsWith("/") ? cfg.apiBase : `${cfg.apiBase}/`;
-          setSrc(`${base}api/v2/events/${encodeURIComponent(eventId)}/image?kind=raw`);
-        }
-      });
+    } else {
+      const direct = directEventImageUrl(eventId);
+      if (direct) {
+        setSrc(direct);
+      } else {
+        setSrc(proxiedUrl);
+        loadRuntimeConfig().then((cfg) => {
+          if (cfg?.apiBase) {
+            const base = cfg.apiBase.endsWith("/") ? cfg.apiBase : `${cfg.apiBase}/`;
+            setSrc(`${base}api/v2/events/${encodeURIComponent(eventId)}/image?kind=raw`);
+          }
+        });
+      }
     }
     setIsLoaded(false);
     setFailed(false);
-    setTriedFallback(false);
-  }, [eventId, proxiedUrl]);
+    setTriedProxied(false);
+    setTriedCameraSnap(false);
+  }, [eventId, proxiedUrl, isAbsenceOrLive]);
 
   const handleError = () => {
-    if (!triedFallback && src !== proxiedUrl) {
-      setTriedFallback(true);
+    if (!triedProxied && src !== proxiedUrl) {
+      setTriedProxied(true);
       setSrc(proxiedUrl);
+    } else if (!triedCameraSnap && cameraSnapshotUrl && src !== cameraSnapshotUrl) {
+      setTriedCameraSnap(true);
+      setSrc(cameraSnapshotUrl);
     } else {
       setFailed(true);
     }
@@ -65,7 +79,7 @@ export function DetectionFrameImage({
         )}
       >
         <ImageOff className="size-4 shrink-0 text-muted-foreground/60" />
-        <span className="text-[9px] leading-tight">Frame expired</span>
+        <span className="text-[9px] leading-tight">No frame</span>
       </div>
     );
   }

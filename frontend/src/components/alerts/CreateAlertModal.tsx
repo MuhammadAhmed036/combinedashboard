@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bell, Loader2, Save } from "lucide-react";
+import { Bell, Camera as CameraIcon, Loader2, Radio, Save } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,7 @@ import { useCameraClasses, useCameraLocations, useCameraSnapshot } from "@/lib/h
 import { useCameras } from "@/lib/hooks/useCameras";
 import { useCreateAlertRule } from "@/lib/hooks/useAlertRules";
 import { liveEventImageUrl } from "@/lib/hooks/useCameraLiveFeed";
+import { useSharedCameraStream } from "@/lib/webrtcStreamManager";
 import { resolveDetectionCameraId } from "@/lib/streamToDetectionCameraId";
 import {
   ABSENCE_THRESHOLD_OPTIONS,
@@ -63,15 +64,14 @@ const CATEGORY_OPTIONS: { value: AlertCategory; label: string; activeClass: stri
   },
 ];
 
+const DEFAULT_DETECTION_CLASSES = ["person", "car", "motorcycle", "bicycle", "bus", "truck"];
+
 export function CreateAlertModal() {
   const isOpen = useUIStore((s) => s.isCreateAlertModalOpen);
   const setOpen = useUIStore((s) => s.setCreateAlertModalOpen);
   const prefilledCameraId = useUIStore((s) => s.selectedCameraId);
 
   const { data: registryCameras } = useCameraLocations();
-  // Same live-stream API the Cameras page uses — a camera only belongs in
-  // this dropdown while it's actually online, so alerts can never be
-  // created against an offline or since-removed camera.
   const { data: streamCameras } = useCameras();
   const createRule = useCreateAlertRule();
 
@@ -130,46 +130,79 @@ export function CreateAlertModal() {
   const [box, setBox] = useState<AlertBoundingBox | null>(null);
   const [absenceThreshold, setAbsenceThreshold] = useState(String(MIN_ABSENCE_THRESHOLD_SECONDS));
   const [selectedClasses, setSelectedClasses] = useState<string[]>(["person"]);
+  const [feedMode, setFeedMode] = useState<"auto" | "webrtc" | "snapshot">("auto");
+  const [streamDims, setStreamDims] = useState<{ width: number; height: number }>({
+    width: 1920,
+    height: 1080,
+  });
 
-  // Fetched for both kinds: region rules require it, and absence rules use
-  // it only to offer an OPTIONAL restricted-zone drawing step — a camera
-  // with no recent recorded events just won't get that option (handled as
-  // a soft, non-blocking message below, not a hard requirement).
-  const { data: snapshot, isLoading: snapshotLoading, error: snapshotError } = useCameraSnapshot(
+  const { data: snapshot, isLoading: snapshotLoading } = useCameraSnapshot(
     cameraId || null
   );
-  // Drives the class picker below — whatever the model actually reports for
-  // this camera, not a fixed list, so a new class shows up automatically.
-  const { data: cameraClasses } = useCameraClasses(alertKind === "region" ? cameraId || null : null);
+
+  const { data: cameraClasses, isLoading: cameraClassesLoading } = useCameraClasses(
+    alertKind === "region" ? cameraId || null : null
+  );
+
+  const selectedCamera = cameras?.find((c) => c.cameraId === cameraId) ?? null;
+  const streamCameraMatch = streamCameras?.find(
+    (c) =>
+      c.id.toLowerCase() === cameraId.toLowerCase() ||
+      c.code.toLowerCase() === cameraId.toLowerCase() ||
+      c.name.toLowerCase() === cameraId.toLowerCase()
+  );
+  const streamSourceName =
+    streamCameraMatch?.sourceName ||
+    streamCameraMatch?.name ||
+    selectedCamera?.cameraName ||
+    selectedCamera?.cameraId ||
+    cameraId;
+
+  // WebRTC Stream connection directly to MediaMTX
+  const { stream: liveStream, status: liveStreamStatus } = useSharedCameraStream(
+    isOpen && streamSourceName ? streamSourceName : ""
+  );
+
+  const availableClasses = useMemo(() => {
+    if (cameraClasses?.classNames && cameraClasses.classNames.length > 0) {
+      return cameraClasses.classNames;
+    }
+    return DEFAULT_DETECTION_CLASSES;
+  }, [cameraClasses]);
 
   useEffect(() => {
-    // Once this camera's real class list loads, default to "person" if it's
-    // among them and nothing is selected yet — preserves the old behavior
-    // for anyone who doesn't touch the picker, without hardcoding it.
-    if (alertKind !== "region" || !cameraClasses || selectedClasses.length > 0) return;
-    if (cameraClasses.classNames.includes("person")) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds the default selection once this camera's class list has loaded.
+    if (selectedClasses.length === 0) {
       setSelectedClasses(["person"]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraClasses, alertKind]);
+  }, [cameraId, selectedClasses.length]);
 
   useEffect(() => {
     if (isOpen && prefilledCameraId && !cameraId && cameras) {
       const match = cameras.find(
         (c) => c.cameraId.toLowerCase() === prefilledCameraId.toLowerCase()
       );
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- pre-fills the form only when the dialog opens from a camera context.
       if (match) setCameraId(match.cameraId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, prefilledCameraId, cameras]);
+  }, [isOpen, prefilledCameraId, cameras, cameraId]);
 
-  const selectedCamera = cameras?.find((c) => c.cameraId === cameraId) ?? null;
+  // Determine whether to show live WebRTC stream or DB snapshot
+  const activeFeedIsWebRTC =
+    feedMode === "webrtc" ||
+    (feedMode === "auto" && (!snapshot || liveStreamStatus === "connected"));
+
+  const hasVisualFeed = Boolean(snapshot || liveStream || liveStreamStatus === "connecting");
+
   const canSave =
     alertKind === "absence"
       ? Boolean(cameraId && name.trim() && category && Number(absenceThreshold) > 0)
-      : Boolean(cameraId && name.trim() && category && box && snapshot && selectedClasses.length > 0);
+      : Boolean(
+          cameraId &&
+            name.trim() &&
+            category &&
+            box &&
+            hasVisualFeed &&
+            selectedClasses.length > 0
+        );
 
   function resetForm() {
     setAlertKind("region");
@@ -180,16 +213,26 @@ export function CreateAlertModal() {
     setBox(null);
     setAbsenceThreshold(String(MIN_ABSENCE_THRESHOLD_SECONDS));
     setSelectedClasses(["person"]);
+    setFeedMode("auto");
   }
 
   function toggleClass(className: string) {
     setSelectedClasses((prev) =>
-      prev.includes(className) ? prev.filter((c) => c !== className) : [...prev, className]
+      prev.includes(className)
+        ? prev.length > 1
+          ? prev.filter((c) => c !== className)
+          : prev
+        : [...prev, className]
     );
   }
 
   async function handleSave() {
-    if (!category) return;
+    if (!category || !cameraId) return;
+
+    const refWidth = (!activeFeedIsWebRTC && snapshot?.imageWidth) ? snapshot.imageWidth : streamDims.width;
+    const refHeight = (!activeFeedIsWebRTC && snapshot?.imageHeight) ? snapshot.imageHeight : streamDims.height;
+    const sourceEvtId = (!activeFeedIsWebRTC && snapshot?.eventId) ? snapshot.eventId : undefined;
+
     if (alertKind === "absence") {
       await createRule.mutateAsync({
         kind: "absence",
@@ -199,31 +242,29 @@ export function CreateAlertModal() {
         label: "person",
         category,
         absenceThresholdSeconds: Number(absenceThreshold),
-        // Restricted zone is optional for this kind — only attach box/ref
-        // fields when the user actually drew one on a loaded snapshot.
-        ...(box && snapshot
+        ...(box
           ? {
-              sourceEventId: snapshot.eventId,
+              sourceEventId: sourceEvtId,
               boundingBox: box,
-              refImageWidth: snapshot.imageWidth,
-              refImageHeight: snapshot.imageHeight,
+              refImageWidth: refWidth,
+              refImageHeight: refHeight,
             }
           : {}),
       });
     } else {
-      if (!snapshot || !box || selectedClasses.length === 0) return;
+      if (!box || selectedClasses.length === 0) return;
       await createRule.mutateAsync({
         cameraId,
         zone: selectedCamera?.zone ?? undefined,
         name: name.trim(),
         label: formatClassNames(selectedClasses),
         category,
-        sourceEventId: snapshot.eventId,
+        sourceEventId: sourceEvtId,
         boundingBox: box,
         triggerInside: triggerMode === "enter",
         triggerOutside: triggerMode === "leave",
-        refImageWidth: snapshot.imageWidth,
-        refImageHeight: snapshot.imageHeight,
+        refImageWidth: refWidth,
+        refImageHeight: refHeight,
         classNames: selectedClasses,
       });
     }
@@ -242,7 +283,7 @@ export function CreateAlertModal() {
       <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 shadow-md">
               <Bell className="size-5 text-white" />
             </div>
             <div>
@@ -252,7 +293,7 @@ export function CreateAlertModal() {
               <DialogDescription>
                 {alertKind === "absence"
                   ? "Pick a camera and how long it must go without any person detected — the dashboard records an alert each time that window passes with the view still empty."
-                  : "Draw a zone on the camera's latest snapshot — an alert fires when a person's bounding box matches your trigger condition."}
+                  : "Draw a zone directly on the live WebRTC stream or latest snapshot — an alert fires when a target enters or leaves your zone."}
               </DialogDescription>
             </div>
           </div>
@@ -272,7 +313,7 @@ export function CreateAlertModal() {
                 className={cn(
                   "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                   alertKind === option.value
-                    ? "border-primary bg-primary/15 text-primary"
+                    ? "border-primary bg-primary/15 text-primary shadow-sm"
                     : "border-surface-border text-muted-foreground hover:bg-surface-3"
                 )}
               >
@@ -289,9 +330,7 @@ export function CreateAlertModal() {
             onValueChange={(value) => {
               setCameraId(value);
               setBox(null);
-              // Reset the picker — the new camera's own class list re-seeds
-              // it (defaulting to "person" if available) via the effect above.
-              setSelectedClasses([]);
+              setFeedMode("auto");
             }}
           >
             <SelectTrigger className="w-full">
@@ -310,89 +349,126 @@ export function CreateAlertModal() {
         {cameraId && alertKind === "region" && (
           <div className="space-y-1.5">
             <Label>
-              Detect <span className="text-destructive">*</span>
+              Detect Classes <span className="text-destructive">*</span>
             </Label>
-            {!cameraClasses && (
-              <p className="text-xs text-muted-foreground">Checking what this camera detects…</p>
+            {cameraClassesLoading && !cameraClasses && (
+              <p className="text-xs text-muted-foreground">Checking detection classes…</p>
             )}
-            {cameraClasses && cameraClasses.classNames.length === 0 && (
-              <p className="text-xs text-muted-foreground">
-                No recent detections for this camera yet — the class list will appear once it
-                reports some.
-              </p>
-            )}
-            {cameraClasses && cameraClasses.classNames.length > 0 && (
-              <>
-                <div className="flex flex-wrap gap-2">
-                  {/* Built from this camera's own recent detections, not a fixed
-                      list — a class the model has never reported here won't show
-                      up, and a brand-new one appears automatically once it does. */}
-                  {cameraClasses.classNames.map((className) => (
-                    <button
-                      key={className}
-                      type="button"
-                      onClick={() => toggleClass(className)}
-                      className={cn(
-                        "rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors",
-                        selectedClasses.includes(className)
-                          ? "border-primary bg-primary/15 text-primary"
-                          : "border-surface-border text-muted-foreground hover:bg-surface-3"
-                      )}
-                    >
-                      {className}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Fires if any selected class enters the drawn zone — pick as many as you need.
-                </p>
-              </>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {availableClasses.map((className) => (
+                <button
+                  key={className}
+                  type="button"
+                  onClick={() => toggleClass(className)}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                    selectedClasses.includes(className)
+                      ? "border-primary bg-primary/15 text-primary shadow-sm"
+                      : "border-surface-border text-muted-foreground hover:bg-surface-3"
+                  )}
+                >
+                  {className}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Fires when any selected class interacts with the drawn zone.
+            </p>
           </div>
         )}
 
         {cameraId && (
-          <div className="space-y-1.5">
-            <Label>
-              {alertKind === "absence" ? "Restricted Zone (optional)" : "Draw Alert Zone"}
-            </Label>
-            {snapshotLoading && <Skeleton className="aspect-video w-full rounded-lg" />}
-            {/* Covers both an actual fetch error AND a successful-but-empty
-                response (a camera with no recorded events yet) — without
-                this, a camera that's simply new/idle shows nothing at all
-                instead of an explanation, since a query that resolves to
-                `null` data has no `error` to key off of. */}
-            {!snapshotLoading &&
-              !snapshot &&
-              (alertKind === "absence" ? (
-                <p className="text-xs text-muted-foreground">
-                  No snapshot available yet for this camera, so a restricted zone can&apos;t be
-                  drawn right now — the alert will monitor the whole camera view instead. You can
-                  still save it as-is.
-                </p>
-              ) : (
-                <p className="text-xs text-destructive">
-                  {snapshotError
-                    ? "Could not load a snapshot for this camera — please try again."
-                    : "No snapshot available yet for this camera — it may not have any recorded events yet."}
-                </p>
-              ))}
-            {snapshot && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>
+                {alertKind === "absence" ? "Restricted Zone (optional)" : "Draw Alert Zone"}
+              </Label>
+              <div className="flex items-center gap-2">
+                {liveStream && (
+                  <button
+                    type="button"
+                    onClick={() => setFeedMode(activeFeedIsWebRTC && snapshot ? "snapshot" : "webrtc")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all shadow-sm",
+                      activeFeedIsWebRTC
+                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                        : "border-surface-border bg-surface-2 text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Radio className={cn("size-3", activeFeedIsWebRTC ? "animate-pulse text-emerald-400" : "")} />
+                    {activeFeedIsWebRTC ? "Live WebRTC Stream" : "Switch to Live WebRTC"}
+                  </button>
+                )}
+                {snapshot && (
+                  <button
+                    type="button"
+                    onClick={() => setFeedMode("snapshot")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all",
+                      !activeFeedIsWebRTC
+                        ? "border-primary/50 bg-primary/10 text-primary shadow-sm"
+                        : "border-surface-border bg-surface-2 text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <CameraIcon className="size-3" />
+                    Latest Snapshot
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Connecting state when no stream and no snapshot ready yet */}
+            {snapshotLoading && !liveStream && (
+              <div className="relative aspect-video w-full rounded-lg bg-surface-2 flex flex-col items-center justify-center gap-2 border border-surface-border">
+                <Loader2 className="size-6 animate-spin text-primary" />
+                <p className="text-xs text-muted-foreground">Connecting to camera WebRTC stream / snapshot...</p>
+              </div>
+            )}
+
+            {/* Visual Feed & Drawing Canvas */}
+            {(liveStream || snapshot) && (
               <RegionDrawCanvas
-                imageUrl={liveEventImageUrl(snapshot.eventId)}
-                imageWidth={snapshot.imageWidth}
-                imageHeight={snapshot.imageHeight}
+                videoStream={activeFeedIsWebRTC ? liveStream : null}
+                imageUrl={!activeFeedIsWebRTC && snapshot ? liveEventImageUrl(snapshot.eventId) : null}
+                imageWidth={!activeFeedIsWebRTC && snapshot ? snapshot.imageWidth : streamDims.width}
+                imageHeight={!activeFeedIsWebRTC && snapshot ? snapshot.imageHeight : streamDims.height}
                 value={box}
                 onChange={setBox}
+                onDimensionsReady={(dims) => setStreamDims(dims)}
               />
             )}
-            <p className="text-xs text-muted-foreground">
-              {alertKind === "absence"
-                ? box
-                  ? "Only this area is monitored — a person seen anywhere else in frame is ignored. Draw again to redo it, or leave it as-is to monitor the whole view."
-                  : "Click and drag on the image to require a person stay in a specific area. Leave it blank to monitor the whole camera view instead."
-                : "Click and drag on the image to draw the zone. Draw again to redo it."}
-            </p>
+
+            {!snapshotLoading && !snapshot && !liveStream && (
+              <div className="rounded-lg border border-surface-border bg-surface-2 p-4 text-center">
+                <p className="text-xs text-muted-foreground">
+                  Connecting to WebRTC live feed for <span className="font-semibold text-foreground">{streamSourceName}</span>...
+                </p>
+                <div className="mt-2 flex justify-center">
+                  <Loader2 className="size-4 animate-spin text-primary" />
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {alertKind === "absence"
+                  ? box
+                    ? "Only this area is monitored — a person seen elsewhere is ignored. Drag to redraw."
+                    : "Drag on the live feed/snapshot to restrict monitoring to an area. Leave blank for whole camera."
+                  : box
+                  ? "Zone drawn. Drag again to adjust or redraw."
+                  : "Click and drag directly on the camera view to draw the alert zone."}
+              </span>
+              {box && (
+                <button
+                  type="button"
+                  onClick={() => setBox(null)}
+                  className="text-[11px] text-destructive hover:underline"
+                >
+                  Clear Zone
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -423,20 +499,19 @@ export function CreateAlertModal() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Re-alerts every {formatAbsenceThreshold(Number(absenceThreshold))} while the view
-                stays empty.
+                Re-alerts every {formatAbsenceThreshold(Number(absenceThreshold))} while empty.
               </p>
             </div>
           ) : (
             <div className="space-y-1.5">
-              <Label>Trigger When</Label>
+              <Label>Trigger Condition</Label>
               <Select value={triggerMode} onValueChange={(v) => setTriggerMode(v as TriggerMode)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="enter">Person enters this zone</SelectItem>
-                  <SelectItem value="leave">Person is outside this zone</SelectItem>
+                  <SelectItem value="enter">Detected target enters zone</SelectItem>
+                  <SelectItem value="leave">Target is outside zone</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -445,7 +520,7 @@ export function CreateAlertModal() {
 
         <div className="space-y-1.5">
           <Label>
-            Alert Category <span className="text-destructive">*</span>
+            Alert Severity <span className="text-destructive">*</span>
           </Label>
           <div className="flex flex-wrap gap-2">
             {CATEGORY_OPTIONS.map((option) => (
@@ -464,14 +539,10 @@ export function CreateAlertModal() {
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">Required — choose how severe this alert is.</p>
         </div>
 
         <p className="rounded-lg border border-surface-border bg-surface-2 p-3 text-xs text-muted-foreground">
-          This rule is saved to the detection backend and continuously checked by this dashboard
-          while it&apos;s open in a browser (via the camera&apos;s live feed). For guaranteed
-          always-on detection even when no browser is open, this same check should also be
-          implemented in the C++/NATS detection worker.
+          This rule is continuously evaluated against camera detection events and live feeds.
         </p>
 
         <DialogFooter>
@@ -495,4 +566,3 @@ export function CreateAlertModal() {
     </Dialog>
   );
 }
-

@@ -539,6 +539,72 @@ async function insertAlertEventIfNew({
   }
 }
 
+let streamStatusCache = { expiresAt: 0, data: new Map() };
+
+async function getCameraFfmpegStatus(cameraName) {
+  const now = Date.now();
+  if (streamStatusCache.expiresAt < now) {
+    try {
+      const url = process.env.STREAMS_API_URL || "http://192.168.18.216:8000/api/streams/list";
+      const username = process.env.STREAMS_API_USERNAME || "admin";
+      const password = process.env.STREAMS_API_PASSWORD || "admin_123456";
+      const authHeader = "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
+      const res = await fetch(url, {
+        headers: { Authorization: authHeader, Accept: "application/json" },
+        signal: AbortSignal.timeout(4000),
+      });
+      if (res.ok) {
+        const payload = await res.json();
+        const rows = Array.isArray(payload) ? payload : Array.isArray(payload.rows) ? payload.rows : [];
+        const map = new Map();
+        for (const row of rows) {
+          if (row.name) {
+            map.set(String(row.name).toLowerCase(), String(row.ffmpeg || "").toLowerCase());
+          }
+        }
+        streamStatusCache = { expiresAt: now + 5000, data: map };
+      }
+    } catch (e) {
+      console.warn("[sync] getCameraFfmpegStatus fetch note:", e.message);
+    }
+  }
+  return streamStatusCache.data.get(String(cameraName).toLowerCase()) || "unknown";
+}
+
+const WHEP_PROBE_SDP = [
+  "v=0",
+  "o=- 0 0 IN IP4 127.0.0.1",
+  "s=-",
+  "t=0 0",
+  "m=video 9 UDP/TLS/RTP/SAVPF 96",
+  "c=IN IP4 0.0.0.0",
+  "a=rtpmap:96 H264/90000",
+  "a=sendrecv",
+  "a=setup:actpass",
+  "a=ice-ufrag:probe",
+  "a=ice-pwd:probeprobeprobeprobeprobe",
+  "",
+].join("\r\n");
+
+async function checkWebRtcHealth(cameraName) {
+  try {
+    const base = process.env.CAMERA_FEED_BASE_URL || "http://192.168.18.216:8889";
+    const whepUrl = `${base.replace(/\/+$/, "")}/${encodeURIComponent(cameraName)}/whep`;
+    const username = process.env.CAMERA_FEED_USERNAME || "admin";
+    const password = process.env.CAMERA_FEED_PASSWORD || "admin_123456";
+    const authHeader = "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
+    const res = await fetch(whepUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/sdp", Authorization: authHeader },
+      body: WHEP_PROBE_SDP,
+      signal: AbortSignal.timeout(4000),
+    });
+    return res.status !== 404;
+  } catch {
+    return false;
+  }
+}
+
 async function evaluateAbsenceRules() {
   const { rows: absenceRules } = await local.query(
     `SELECT alert_id, camera_id, name, bounding_box, conditions, metadata FROM alerts WHERE status = 'active' AND conditions->>'condition' = 'absence'`
@@ -546,15 +612,27 @@ async function evaluateAbsenceRules() {
   if (absenceRules.length === 0) return;
 
   for (const rule of absenceRules) {
+    // Step 1: Camera Status Rule - check Streams API ffmpeg status
+    const ffmpegStatus = await getCameraFfmpegStatus(rule.camera_id);
+    if (ffmpegStatus === "stopped") {
+      // CAMERA_OFFLINE: Do NOT mark person absent, do NOT start timer, do NOT create absence event
+      continue;
+    }
+
+    // Step 2: Live WebRTC Stream Health Check
+    const isWebRtcActive = await checkWebRtcHealth(rule.camera_id);
+    if (!isWebRtcActive && ffmpegStatus === "running") {
+      // STREAM_ERROR: Camera running but WebRTC stream dead. Do NOT fire false alarms.
+      continue;
+    }
+
     let conditions = rule.conditions || {};
     if (typeof conditions === "string") {
       try { conditions = JSON.parse(conditions); } catch { conditions = {}; }
     }
-    const thresholdSec = Number(conditions.absence_threshold_seconds) || 60;
+    const thresholdSec = Number(conditions.absence_threshold_seconds) || 10;
     const region = absenceRuleRegion(rule);
 
-    // Fetch enough recent frames to evaluate the absence threshold window.
-    // Standard workers emit approximately 1 detection event per second.
     const queryLimit = Math.max(120, Math.ceil(thresholdSec * 1.5));
     const { rows: recent } = await local.query(
       `SELECT event_id, detection_ts, created_at, detection_count, detections_json,
@@ -562,45 +640,53 @@ async function evaluateAbsenceRules() {
        FROM detection_events WHERE camera_id = $1 ORDER BY id DESC LIMIT $2`,
       [rule.camera_id, queryLimit]
     );
-    if (recent.length === 0) continue;
 
     const now = Date.now();
-    const latest = recent[0];
-    const latestMs = new Date(latest.created_at || latest.detection_ts).getTime();
-    const silentForSec = (now - latestMs) / 1000;
+    let personCurrentlyPresent = false;
+    let latestMs = now;
+    let lastPresentMs = null;
 
-    // If the camera feed stopped reporting altogether (> 120s), do not fire false "absence" alarms.
-    if (silentForSec > 120) continue;
+    if (recent.length > 0) {
+      const latest = recent[0];
+      latestMs = new Date(latest.created_at || latest.detection_ts).getTime();
+      const secondsAgo = (now - latestMs) / 1000;
 
-    // A person in the latest frame means person is currently present inside the zone!
-    if (framePersonPresent(latest, region)) {
-      // Close any active open absence episode since a person is present
+      // If latest frame is fresh (< 5s), check if person is inside the assigned ROI
+      if (secondsAgo <= 5) {
+        personCurrentlyPresent = framePersonPresent(latest, region);
+      }
+
+      const lastPresent = recent.find((r) => framePersonPresent(r, region));
+      if (lastPresent) {
+        lastPresentMs = new Date(lastPresent.created_at || lastPresent.detection_ts).getTime();
+      }
+    }
+
+    // Person is present in ROI -> close any active absence event
+    if (personCurrentlyPresent) {
       await closeAbsenceEvent(rule, latestMs);
       continue;
     }
 
-    // Person is NOT in the latest frame. Check when a person was last detected in this zone.
-    const lastPresent = recent.find((r) => framePersonPresent(r, region));
-
+    // Person is NOT inside ROI.
+    // If no recent YOLO frames exist, but camera is RUNNING and WebRTC is ACTIVE,
+    // this means no person is detected anywhere (empty scene). ROI is EMPTY.
     let absentSinceMs;
     let elapsedSec;
 
-    if (lastPresent) {
-      // Person was seen in recent history at this timestamp
-      const lastPresentMs = new Date(lastPresent.created_at || lastPresent.detection_ts).getTime();
-      elapsedSec = (now - lastPresentMs) / 1000;
+    if (lastPresentMs) {
       absentSinceMs = lastPresentMs;
-    } else {
-      // No person seen in any of the fetched recent frames.
-      // Use the oldest frame observed as our minimum verified absence start.
+      elapsedSec = (now - lastPresentMs) / 1000;
+    } else if (recent.length > 0) {
       const oldest = recent[recent.length - 1];
-      const oldestMs = new Date(oldest.created_at || oldest.detection_ts).getTime();
-      elapsedSec = (now - oldestMs) / 1000;
-      absentSinceMs = oldestMs;
+      absentSinceMs = new Date(oldest.created_at || oldest.detection_ts).getTime();
+      elapsedSec = (now - absentSinceMs) / 1000;
+    } else {
+      absentSinceMs = now - thresholdSec * 1000;
+      elapsedSec = thresholdSec;
     }
 
-    // CRITICAL: If person was seen recently and elapsed absence is LESS than the required threshold,
-    // DO NOT fire an alert! The zone must remain continuously unoccupied for at least thresholdSec.
+    // Grace period check
     if (elapsedSec < thresholdSec) {
       continue;
     }
@@ -611,18 +697,20 @@ async function evaluateAbsenceRules() {
       [rule.alert_id]
     );
     if (openRows.length > 0) {
-      // An alert has already been fired for this continuous absence period.
-      // Do NOT send duplicate alerts every polling cycle while the zone remains unoccupied.
       continue;
     }
 
     const absentSec = Math.round(elapsedSec);
-    const inZone = region ? " in zone" : "";
+    const inZone = region ? " in ROI" : "";
     const hasImage = (r) => r.raw_image_status === "available" && r.event_id;
     const snapshot =
       recent.find((r) => hasImage(r) && !framePersonPresent(r, region)) ||
       recent.find(hasImage) ||
-      latest;
+      (recent.length > 0 ? recent[0] : {
+        event_id: `absence-${rule.camera_id}-${now}`,
+        detection_ts: new Date(now).toISOString(),
+        raw_image_path: null,
+      });
 
     await insertAlertEventIfNew({
       alertId: rule.alert_id,
@@ -634,7 +722,7 @@ async function evaluateAbsenceRules() {
       boundingBox: region ? JSON.stringify(rule.bounding_box) : null,
       detectionsJson: JSON.stringify({ inside: 0, outside: 0 }),
       sourceRawImagePath: snapshot.raw_image_path || null,
-      note: `No person detected${inZone} for ~${Math.max(1, Math.round(absentSec / 60))}m (threshold ${Math.max(1, Math.round(thresholdSec / 60))}m)`,
+      note: `No person detected${inZone} for ~${absentSec}s (threshold ${thresholdSec}s)`,
     });
     await openAbsenceEvent(rule, snapshot, absentSinceMs);
   }

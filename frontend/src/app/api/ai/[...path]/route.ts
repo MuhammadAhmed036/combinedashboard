@@ -1,4 +1,6 @@
 import type { NextRequest } from "next/server";
+import { getPool } from "@/lib/server/db";
+import { getCameraSnapshot } from "@/lib/server/cameraSnapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,28 @@ function resolveUpstreamUrl(request: NextRequest, endpoint: string): URL {
   return upstreamUrl;
 }
 
+async function findCameraIdForEvent(eventId: string): Promise<string | null> {
+  const prefixMatch = eventId.match(/^(?:absence|live|webrtc)-([^-]+)-/);
+  if (prefixMatch && prefixMatch[1]) {
+    return prefixMatch[1];
+  }
+
+  try {
+    const pool = getPool();
+    const { rows } = await pool.query(
+      "SELECT camera_id FROM alert_events WHERE event_id = $1 LIMIT 1",
+      [eventId]
+    );
+    if (rows.length > 0 && rows[0].camera_id) {
+      return String(rows[0].camera_id);
+    }
+  } catch {
+    // best-effort DB lookup
+  }
+
+  return null;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
@@ -33,6 +57,9 @@ export async function GET(
   if (!isAllowed(endpoint, GET_ALLOWED_PREFIXES)) {
     return Response.json({ error: "Unknown AI API endpoint" }, { status: 404 });
   }
+
+  const imageMatch = endpoint.match(/^v2\/events\/([^/]+)\/image/);
+  const eventId = imageMatch ? decodeURIComponent(imageMatch[1]) : null;
 
   try {
     const upstreamUrl = resolveUpstreamUrl(request, endpoint);
@@ -46,21 +73,52 @@ export async function GET(
       signal: request.signal,
     });
 
-    if (!upstream.ok) {
-      return new Response(upstream.body, { status: upstream.status });
+    if (upstream.ok) {
+      const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
+      return new Response(upstream.body, {
+        status: upstream.status,
+        headers: {
+          "Content-Type": contentType,
+          "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800, immutable",
+        },
+      });
     }
 
-    const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
+    // Fallback: If upstream does not have the event frame (e.g. absence alert or camera without YOLO frames)
+    if (eventId) {
+      const cameraId = await findCameraIdForEvent(eventId);
+      if (cameraId) {
+        const liveSnap = await getCameraSnapshot(cameraId);
+        if (liveSnap) {
+          return new Response(new Uint8Array(liveSnap.buffer), {
+            status: 200,
+            headers: {
+              "Content-Type": liveSnap.contentType,
+              "Cache-Control": "public, max-age=5, stale-while-revalidate=10",
+            },
+          });
+        }
+      }
+    }
 
-    return new Response(upstream.body, {
-      status: upstream.status,
-      headers: {
-        "Content-Type": contentType,
-        // Immutable cache: Detection frame events never mutate, so cache in browser for 24h
-        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800, immutable",
-      },
-    });
+    return new Response(upstream.body, { status: upstream.status });
   } catch (error) {
+    if (eventId) {
+      const cameraId = await findCameraIdForEvent(eventId);
+      if (cameraId) {
+        const liveSnap = await getCameraSnapshot(cameraId);
+        if (liveSnap) {
+          return new Response(new Uint8Array(liveSnap.buffer), {
+            status: 200,
+            headers: {
+              "Content-Type": liveSnap.contentType,
+              "Cache-Control": "public, max-age=5, stale-while-revalidate=10",
+            },
+          });
+        }
+      }
+    }
+
     const message = error instanceof Error ? error.message : "AI API is unavailable";
     return Response.json({ error: message }, { status: 502 });
   }
