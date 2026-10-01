@@ -147,17 +147,6 @@ export async function checkWebRtcHealth(cameraName: string): Promise<boolean> {
     const pass = process.env.CAMERA_FEED_PASSWORD || "admin_123456";
     const auth = "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
 
-    const res = await fetch(whepUrl, {
-      method: "OPTIONS",
-      headers: { Authorization: auth },
-      signal: AbortSignal.timeout(2500),
-    });
-
-    if (res.status === 200 || res.status === 204 || res.status === 405) {
-      return true;
-    }
-
-    // Try SDP post
     const postRes = await fetch(whepUrl, {
       method: "POST",
       headers: {
@@ -165,9 +154,10 @@ export async function checkWebRtcHealth(cameraName: string): Promise<boolean> {
         "Content-Type": "application/sdp",
       },
       body: WHEP_PROBE_SDP,
-      signal: AbortSignal.timeout(2500),
+      signal: AbortSignal.timeout(3000),
     });
-    return postRes.status === 201 || postRes.status === 200 || postRes.status === 400;
+    // MediaMTX returns 201/200/400 when stream is publishing, and 404/502/504 when stopped/unreachable
+    return postRes.status !== 404 && postRes.status !== 502 && postRes.status !== 504;
   } catch {
     return false;
   }

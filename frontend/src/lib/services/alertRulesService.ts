@@ -111,6 +111,11 @@ function normalizeAlertRule(raw: unknown): AlertRuleV2 {
     createdAt: asString(record.created_at),
     updatedAt: asString(record.updated_at),
     eventCount: asNumber(record.event_count) ?? 0,
+    metadata,
+    streamingStatus: (asString(metadata.streaming_status) as any) ?? "unknown",
+    webRtcStatus: (asString(metadata.webrtc_status) as any) ?? "unknown",
+    diagnosticCode: asString(metadata.diagnostic_code) ?? undefined,
+    diagnosticMessage: asString(metadata.diagnostic_message) ?? undefined,
   };
 }
 

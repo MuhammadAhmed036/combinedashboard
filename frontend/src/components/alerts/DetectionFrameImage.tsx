@@ -62,7 +62,7 @@ export function DetectionFrameImage({
     if (!triedProxied && src !== proxiedUrl) {
       setTriedProxied(true);
       setSrc(proxiedUrl);
-    } else if (!triedCameraSnap && cameraSnapshotUrl && src !== cameraSnapshotUrl) {
+    } else if (!isAbsenceOrLive && !triedCameraSnap && cameraSnapshotUrl && src !== cameraSnapshotUrl) {
       setTriedCameraSnap(true);
       setSrc(cameraSnapshotUrl);
     } else {

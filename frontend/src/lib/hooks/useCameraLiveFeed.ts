@@ -36,6 +36,9 @@ export function directEventImageUrl(eventId: string): string | null {
 }
 
 export function liveEventImageUrl(eventId: string): string {
+  if (eventId.startsWith("absence-") || eventId.startsWith("live-") || eventId.startsWith("webrtc-")) {
+    return `/api/ai/v2/events/${encodeURIComponent(eventId)}/image?kind=raw`;
+  }
   const direct = directEventImageUrl(eventId);
   if (direct) return direct;
   return `/api/ai/v2/events/${encodeURIComponent(eventId)}/image?kind=raw`;

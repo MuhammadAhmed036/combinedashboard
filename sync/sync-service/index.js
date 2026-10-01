@@ -605,27 +605,92 @@ async function checkWebRtcHealth(cameraName) {
   }
 }
 
+let clockSkewMs = 0;
+let lastClockSkewUpdateMs = 0;
+let lastDetectionSyncErrorMs = 0;
+
+async function syncClockSkew() {
+  const now = Date.now();
+  if (now - lastClockSkewUpdateMs < 15000) return;
+  try {
+    const start = Date.now();
+    const { rows } = await team.query("SELECT clock_timestamp() as db_time");
+    const rtt = Date.now() - start;
+    const dbTime = new Date(rows[0].db_time).getTime();
+    clockSkewMs = Date.now() - (dbTime + rtt / 2);
+    lastClockSkewUpdateMs = now;
+  } catch {
+    // best-effort
+  }
+}
+
+async function updateRuleDiagnostic(alertId, diag) {
+  try {
+    await local.query(
+      `UPDATE alerts
+       SET metadata = metadata || $2::jsonb,
+           updated_at = now()
+       WHERE alert_id = $1`,
+      [alertId, JSON.stringify({
+        ...diag,
+        last_check_at: new Date().toISOString(),
+      })]
+    );
+  } catch (err) {
+    console.warn(`[sync] failed to update diagnostic for alert ${alertId}:`, err.message);
+  }
+}
+
 async function evaluateAbsenceRules() {
+  if (Date.now() - lastDetectionSyncErrorMs < 60000) {
+    // Avoid false alarms if YOLO DB sync has recent connection errors
+    return;
+  }
+
+  await syncClockSkew();
+  // Normalize current time to match remote YOLO detection server's clock
+  const now = Date.now() - clockSkewMs;
+
   const { rows: absenceRules } = await local.query(
-    `SELECT alert_id, camera_id, name, bounding_box, conditions, metadata FROM alerts WHERE status = 'active' AND conditions->>'condition' = 'absence'`
+    `SELECT alert_id, camera_id, name, bounding_box, conditions, metadata, created_at FROM alerts WHERE status = 'active' AND conditions->>'condition' = 'absence'`
   );
   if (absenceRules.length === 0) return;
 
   for (const rule of absenceRules) {
-    // Step 1: Camera Status Rule - check Streams API ffmpeg status
+    // Step 1: Camera Status Rule - check Streaming Server API ffmpeg status
     const ffmpegStatus = await getCameraFfmpegStatus(rule.camera_id);
-    if (ffmpegStatus === "stopped") {
-      // CAMERA_OFFLINE: Do NOT mark person absent, do NOT start timer, do NOT create absence event
+    const isCameraRunning = String(ffmpegStatus).toLowerCase() === "running";
+
+    if (!isCameraRunning) {
+      // Camera is stopped on the Streaming Server side.
+      // Inform about the actual issue directly through the rule!
+      await updateRuleDiagnostic(rule.alert_id, {
+        streaming_status: "stopped",
+        webrtc_status: "unknown",
+        diagnostic_code: "CAMERA_STOPPED",
+        diagnostic_message: `Camera is stopped on Streaming Server (ffmpeg ${ffmpegStatus})`,
+      });
+      // Do NOT declare person absent or fire false alert when camera is stopped!
       continue;
     }
 
     // Step 2: Live WebRTC Stream Health Check
     const isWebRtcActive = await checkWebRtcHealth(rule.camera_id);
-    if (!isWebRtcActive && ffmpegStatus === "running") {
-      // STREAM_ERROR: Camera running but WebRTC stream dead. Do NOT fire false alarms.
+    if (!isWebRtcActive) {
+      // Streaming Server is running, but WebRTC has an error / unreachable.
+      // Inform about the actual issue directly through the rule!
+      await updateRuleDiagnostic(rule.alert_id, {
+        streaming_status: "running",
+        webrtc_status: "error",
+        diagnostic_code: "WEBRTC_ERROR",
+        diagnostic_message: "WebRTC stream error / unreachable on media gateway",
+      });
+      // Do NOT declare person absent or fire false alert when WebRTC fails!
       continue;
     }
 
+    // Step 3 & 4: Only when Streaming Server is RUNNING and WebRTC is WORKING:
+    // Apply normal detection / absence logic with YOLO and Bounding Box validation.
     let conditions = rule.conditions || {};
     if (typeof conditions === "string") {
       try { conditions = JSON.parse(conditions); } catch { conditions = {}; }
@@ -637,11 +702,10 @@ async function evaluateAbsenceRules() {
     const { rows: recent } = await local.query(
       `SELECT event_id, detection_ts, created_at, detection_count, detections_json,
               image_width, image_height, raw_image_path, raw_image_status
-       FROM detection_events WHERE camera_id = $1 ORDER BY id DESC LIMIT $2`,
+       FROM detection_events WHERE LOWER(TRIM(camera_id)) = LOWER(TRIM($1)) ORDER BY id DESC LIMIT $2`,
       [rule.camera_id, queryLimit]
     );
 
-    const now = Date.now();
     let personCurrentlyPresent = false;
     let latestMs = now;
     let lastPresentMs = null;
@@ -651,9 +715,13 @@ async function evaluateAbsenceRules() {
       latestMs = new Date(latest.created_at || latest.detection_ts).getTime();
       const secondsAgo = (now - latestMs) / 1000;
 
-      // If latest frame is fresh (< 5s), check if person is inside the assigned ROI
-      if (secondsAgo <= 5) {
-        personCurrentlyPresent = framePersonPresent(latest, region);
+      const isLatestInRoi = framePersonPresent(latest, region);
+      // Seated / motionless person tolerance: if the latest frame has person in ROI,
+      // allow stillness up to 30s or 50% of threshold without declaring absence.
+      if (isLatestInRoi && secondsAgo <= Math.max(30, thresholdSec * 0.5)) {
+        personCurrentlyPresent = true;
+      } else if (secondsAgo <= 5) {
+        personCurrentlyPresent = isLatestInRoi;
       }
 
       const lastPresent = recent.find((r) => framePersonPresent(r, region));
@@ -662,17 +730,24 @@ async function evaluateAbsenceRules() {
       }
     }
 
-    // Person is present in ROI -> close any active absence event
+    // Person is PRESENT in ROI -> close any active absence event
     if (personCurrentlyPresent) {
+      await updateRuleDiagnostic(rule.alert_id, {
+        streaming_status: "running",
+        webrtc_status: "active",
+        diagnostic_code: "PRESENT",
+        diagnostic_message: region ? "Person present in ROI" : "Person present",
+      });
       await closeAbsenceEvent(rule, latestMs);
       continue;
     }
 
-    // Person is NOT inside ROI.
-    // If no recent YOLO frames exist, but camera is RUNNING and WebRTC is ACTIVE,
-    // this means no person is detected anywhere (empty scene). ROI is EMPTY.
+    // Person is NOT inside ROI (or YOLO is not receiving any detections).
+    // Calculate total continuous absence duration:
     let absentSinceMs;
     let elapsedSec;
+
+    const ruleCreatedMs = new Date(rule.created_at || now).getTime();
 
     if (lastPresentMs) {
       absentSinceMs = lastPresentMs;
@@ -682,40 +757,86 @@ async function evaluateAbsenceRules() {
       absentSinceMs = new Date(oldest.created_at || oldest.detection_ts).getTime();
       elapsedSec = (now - absentSinceMs) / 1000;
     } else {
-      absentSinceMs = now - thresholdSec * 1000;
-      elapsedSec = thresholdSec;
-    }
-
-    // Grace period check
-    if (elapsedSec < thresholdSec) {
-      continue;
-    }
-
-    // Check if an absence event is ALREADY OPEN for this rule
-    const { rows: openRows } = await local.query(
-      `SELECT id FROM absence_events WHERE alert_id = $1 AND ended_at IS NULL LIMIT 1`,
-      [rule.alert_id]
-    );
-    if (openRows.length > 0) {
-      continue;
+      absentSinceMs = ruleCreatedMs;
+      elapsedSec = (now - ruleCreatedMs) / 1000;
     }
 
     const absentSec = Math.round(elapsedSec);
     const inZone = region ? " in ROI" : "";
-    const hasImage = (r) => r.raw_image_status === "available" && r.event_id;
-    const snapshot =
-      recent.find((r) => hasImage(r) && !framePersonPresent(r, region)) ||
-      (recent.length > 0 && !framePersonPresent(recent[0], region) ? recent[0] : {
-        event_id: `absence-${rule.camera_id}-${now}`,
-        detection_ts: new Date(now).toISOString(),
-        raw_image_path: null,
+
+    // Grace period check: has the threshold elapsed since absence started?
+    if (elapsedSec < thresholdSec) {
+      await updateRuleDiagnostic(rule.alert_id, {
+        streaming_status: "running",
+        webrtc_status: "active",
+        diagnostic_code: "ABSENT_MONITORING",
+        diagnostic_message: `No person detected${inZone} for ~${absentSec}s (threshold ${thresholdSec}s)`,
       });
+      continue;
+    }
+
+    await updateRuleDiagnostic(rule.alert_id, {
+      streaming_status: "running",
+      webrtc_status: "active",
+      diagnostic_code: "ABSENT_ALERTING",
+      diagnostic_message: `Absence alert: No person detected${inZone} for ~${absentSec}s`,
+    });
+
+    // Check repeat cadence:
+    // When was the last alert event generated for this rule?
+    const { rows: latestEvents } = await local.query(
+      `SELECT id, detection_ts, created_at FROM alert_events WHERE alert_id = $1 ORDER BY id DESC LIMIT 1`,
+      [rule.alert_id]
+    );
+
+    const lastAlertMs = latestEvents.length > 0
+      ? new Date(latestEvents[0].created_at).getTime()
+      : 0;
+
+    if (lastAlertMs > 0) {
+      const timeSinceLastAlertSec = (Date.now() - lastAlertMs) / 1000;
+      if (timeSinceLastAlertSec < thresholdSec) {
+        // Repeat alert not due yet (wait for full threshold interval, e.g. 60s)
+        continue;
+      }
+    }
+
+    // Step 5: Absence Alert Trigger & Evidence Image
+    // STRICT REQUIREMENT: The attached image MUST always come from the YOLO frame.
+    const hasImage = (r) => r.raw_image_status === "available" && r.event_id;
+    const alertNow = Date.now();
+
+    // 1. Try finding a recent YOLO frame where person is NOT in ROI with available image
+    let yoloCandidate = recent.find((r) => hasImage(r) && !framePersonPresent(r, region));
+    // 2. If none, any recent frame with available image
+    if (!yoloCandidate) {
+      yoloCandidate = recent.find((r) => hasImage(r));
+    }
+    // 3. If none in recent batch, query detection_events for the latest available YOLO frame for this camera
+    if (!yoloCandidate) {
+      const { rows: yoloDb } = await local.query(
+        `SELECT event_id, detection_ts, raw_image_path, raw_image_status
+         FROM detection_events
+         WHERE LOWER(TRIM(camera_id)) = LOWER(TRIM($1)) AND raw_image_status = 'available'
+         ORDER BY id DESC LIMIT 1`,
+        [rule.camera_id]
+      );
+      if (yoloDb.length > 0) {
+        yoloCandidate = yoloDb[0];
+      }
+    }
+
+    const snapshot = yoloCandidate || (recent.length > 0 ? recent[0] : {
+      event_id: `absence-${rule.camera_id}-${alertNow}`,
+      detection_ts: new Date(alertNow).toISOString(),
+      raw_image_path: null,
+    });
 
     await insertAlertEventIfNew({
       alertId: rule.alert_id,
-      eventId: snapshot.event_id,
+      eventId: `absence-${rule.camera_id}-${alertNow}`,
       cameraId: rule.camera_id,
-      detectionTs: new Date(now).toISOString(),
+      detectionTs: new Date(alertNow).toISOString(),
       personCountInside: 0,
       personCountOutside: 0,
       boundingBox: region ? JSON.stringify(rule.bounding_box) : null,

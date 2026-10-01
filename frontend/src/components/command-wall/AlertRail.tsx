@@ -428,7 +428,8 @@ function ForensicEvidenceModal({
                     src={imageSrc || imageUrl || undefined}
                     alt="Surveillance Forensic Frame"
                     onError={() => {
-                      if (cameraSnapshotUrl && imageSrc !== cameraSnapshotUrl) {
+                      const isAbsence = event?.eventId?.startsWith("absence-") || event?.eventId?.startsWith("live-");
+                      if (!isAbsence && cameraSnapshotUrl && imageSrc !== cameraSnapshotUrl) {
                         setImageSrc(cameraSnapshotUrl);
                       }
                     }}

@@ -244,6 +244,11 @@ export interface AlertRuleV2 {
   createdAt: string | null;
   updatedAt: string | null;
   eventCount: number;
+  metadata?: Record<string, unknown>;
+  streamingStatus?: "running" | "stopped" | "unknown";
+  webRtcStatus?: "active" | "error" | "unknown";
+  diagnosticCode?: string;
+  diagnosticMessage?: string;
 }
 
 /** One matched-detection row from an alert rule's `/events` history. */

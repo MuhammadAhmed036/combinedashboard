@@ -76,6 +76,8 @@ export async function GET(
   try {
     const acceptHeader = request.headers.get("accept") || "image/jpeg,image/*,*/*";
 
+    const isAbsenceEvent = Boolean(eventId && (eventId.startsWith("absence-") || eventId.startsWith("live-")));
+
     // 1. For absence or synthetic alert events, resolve the recorded historical frame from database:
     let underlyingEventId: string | null = null;
     let savedImagePath: string | null = null;
@@ -93,6 +95,23 @@ export async function GET(
           cameraId = rows[0].camera_id ? String(rows[0].camera_id) : null;
           if (rows[0].source_raw_image_path) {
             underlyingEventId = extractEventIdFromPath(String(rows[0].source_raw_image_path));
+          }
+        }
+
+        // If this is an absence alert and underlyingEventId wasn't found in alert_events,
+        // look up the latest available YOLO frame for this camera from detection_events:
+        if (isAbsenceEvent && !underlyingEventId) {
+          const resolvedCamId = cameraId || (await findCameraIdForEvent(eventId));
+          if (resolvedCamId) {
+            const { rows: yoloRows } = await pool.query(
+              `SELECT event_id, raw_image_path FROM detection_events
+               WHERE LOWER(TRIM(camera_id)) = LOWER(TRIM($1)) AND raw_image_status = 'available'
+               ORDER BY id DESC LIMIT 1`,
+              [resolvedCamId]
+            );
+            if (yoloRows.length > 0) {
+              underlyingEventId = yoloRows[0].event_id;
+            }
           }
         }
       } catch (err) {
@@ -137,22 +156,18 @@ export async function GET(
       });
     }
 
-    // 4. Fallback if upstream does not have the frame (e.g. camera without YOLO frames like UNV):
-    // Capture snapshot from the camera, and PERMANENTLY FREEZE it into saved_image_path for this alert event!
+    // For absence alerts: NEVER fallback to live WebRTC/RTSP stream/snapshot.
+    // The forensic image MUST strictly come from the YOLO frame.
+    if (isAbsenceEvent) {
+      return Response.json({ error: "No YOLO detection frame available for this absence alert" }, { status: 404 });
+    }
+
+    // 4. Fallback if upstream does not have the frame (only for generic non-absence camera queries)
     if (eventId) {
       const resolvedCamId = cameraId || (await findCameraIdForEvent(eventId));
       if (resolvedCamId) {
         const liveSnap = await getCameraSnapshot(resolvedCamId);
         if (liveSnap) {
-          try {
-            const pool = getPool();
-            const base64Data = `data:${liveSnap.contentType};base64,${Buffer.from(liveSnap.buffer).toString("base64")}`;
-            await pool.query(
-              "UPDATE alert_events SET saved_image_path = $1 WHERE event_id = $2 AND saved_image_path IS NULL",
-              [base64Data, eventId]
-            );
-          } catch {}
-
           return new Response(new Uint8Array(liveSnap.buffer), {
             status: 200,
             headers: {
@@ -166,31 +181,6 @@ export async function GET(
 
     return new Response(upstream.body, { status: upstream.status });
   } catch (error) {
-    if (eventId) {
-      const resolvedCamId = await findCameraIdForEvent(eventId);
-      if (resolvedCamId) {
-        const liveSnap = await getCameraSnapshot(resolvedCamId);
-        if (liveSnap) {
-          try {
-            const pool = getPool();
-            const base64Data = `data:${liveSnap.contentType};base64,${Buffer.from(liveSnap.buffer).toString("base64")}`;
-            await pool.query(
-              "UPDATE alert_events SET saved_image_path = $1 WHERE event_id = $2 AND saved_image_path IS NULL",
-              [base64Data, eventId]
-            );
-          } catch {}
-
-          return new Response(new Uint8Array(liveSnap.buffer), {
-            status: 200,
-            headers: {
-              "Content-Type": liveSnap.contentType,
-              "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800, immutable",
-            },
-          });
-        }
-      }
-    }
-
     const message = error instanceof Error ? error.message : "AI API is unavailable";
     return Response.json({ error: message }, { status: 502 });
   }
