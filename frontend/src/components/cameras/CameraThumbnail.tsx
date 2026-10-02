@@ -161,23 +161,16 @@ export function CameraThumbnail({
           {/* Subtle CCTV grid scanline overlay */}
           <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_50%,rgba(0,0,0,0.5)_51%)] bg-[length:100%_4px] opacity-30 pointer-events-none" />
 
-          {/* Tactical Crosshair Background */}
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-15">
-            <div className="w-12 h-px bg-cyan-400" />
-            <div className="h-12 w-px bg-cyan-400 absolute" />
-          </div>
-
-          {/* Live Radar Pulse Icon */}
+          {/* CCTV Play Trigger Icon */}
           <div className="relative flex items-center justify-center z-10 transition-transform duration-200 group-hover/standby:scale-110">
-            <div className="size-7 rounded-full border border-cyan-500/40 animate-ping opacity-30" />
-            <div className="absolute size-6 rounded-full bg-cyan-950/80 border border-cyan-400/60 flex items-center justify-center group-hover/standby:bg-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)]">
-              <Play className="size-2.5 text-cyan-300 group-hover/standby:text-black fill-current ml-0.5 transition-colors" />
+            <div className="size-7 rounded-full bg-[#1e2330] border border-slate-600/80 flex items-center justify-center group-hover/standby:bg-amber-400 group-hover/standby:border-amber-400 shadow-md">
+              <Play className="size-3 text-slate-200 group-hover/standby:text-black fill-current ml-0.5 transition-colors" />
             </div>
           </div>
 
-          <div className="mt-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/75 border border-cyan-500/30 text-[8px] font-mono text-cyan-300/90 z-10 shadow-sm">
-            <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="tracking-wider">HOVER TO STREAM</span>
+          <div className="mt-2 flex items-center gap-1.5 px-2 py-0.5 rounded bg-black/80 border border-white/10 text-[8.5px] font-mono text-slate-300 z-10">
+            <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="tracking-wider">LIVE FEED</span>
           </div>
         </div>
       )}

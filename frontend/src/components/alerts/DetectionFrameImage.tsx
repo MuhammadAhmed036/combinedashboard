@@ -88,7 +88,7 @@ export function DetectionFrameImage({
     <div className={cn("relative overflow-hidden bg-surface-3/50", className)}>
       {!isLoaded && (
         <div className="absolute inset-0 bg-surface-3 flex items-center justify-center animate-pulse">
-          <Loader2 className="size-3.5 animate-spin text-cyan-400/70" />
+          <Loader2 className="size-3.5 animate-spin text-slate-400" />
         </div>
       )}
 

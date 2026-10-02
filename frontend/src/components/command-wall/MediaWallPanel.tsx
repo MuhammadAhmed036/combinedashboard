@@ -104,32 +104,26 @@ function DroppableMediaTile({
       onMouseEnter={onActivate}
       onDoubleClick={() => camera && onMaximize(camera)}
       className={cn(
-        "group relative flex size-full overflow-hidden rounded-[6px] transition-all duration-200 select-none",
+        "group relative flex size-full overflow-hidden rounded-[4px] transition-all duration-150 select-none",
         dims <= 3 ? "min-h-0" : "aspect-video min-h-[85px]",
-        "bg-[#060a14] border border-cyan-500/25",
-        isOver && "border-cyan-300 ring-2 ring-cyan-400 shadow-[0_0_25px_rgba(6,182,212,0.8)] bg-cyan-950/60 scale-[0.99] z-20",
-        camera && "hover:border-cyan-400/60 hover:shadow-[0_0_12px_rgba(6,182,212,0.18)]",
-        !camera && "border-dashed border-cyan-500/20 bg-cyan-950/10 hover:border-cyan-400/40"
+        "bg-black border border-[#232733]",
+        isOver && "border-amber-400 ring-2 ring-amber-400/50 bg-[#1a1d26] scale-[0.99] z-20",
+        camera && "hover:border-amber-400/80",
+        !camera && "border-dashed border-[#2d3342] bg-[#10131a] hover:border-slate-500"
       )}
     >
-      {/* Tactical Corner Accents */}
-      <div className="pointer-events-none absolute left-0 top-0 size-2 border-l-2 border-t-2 border-cyan-400/80 z-20" />
-      <div className="pointer-events-none absolute right-0 top-0 size-2 border-r-2 border-t-2 border-cyan-400/80 z-20" />
-      <div className="pointer-events-none absolute bottom-0 left-0 size-2 border-b-2 border-l-2 border-cyan-400/80 z-20" />
-      <div className="pointer-events-none absolute bottom-0 right-0 size-2 border-b-2 border-r-2 border-cyan-400/80 z-20" />
-
       {!camera ? (
         <div className="flex size-full flex-col items-center justify-center gap-1.5 p-2 text-center pointer-events-none">
           <div
             className={cn(
               "flex size-7 items-center justify-center rounded-full transition-colors",
-              isOver ? "bg-cyan-400 text-black shadow-[0_0_15px_rgba(6,182,212,1)]" : "bg-cyan-500/10 text-cyan-400"
+              isOver ? "bg-amber-400 text-black" : "bg-[#1c202b] text-slate-400"
             )}
           >
             <Video className="size-3.5" />
           </div>
-          <span className="font-mono text-[10px] font-semibold text-cyan-300/80">Slot #{index + 1}</span>
-          <span className={cn("text-[9px]", isOver ? "font-semibold text-cyan-300" : "text-muted-foreground")}>
+          <span className="font-mono text-[10px] font-semibold text-slate-300">Slot #{index + 1}</span>
+          <span className={cn("text-[9px]", isOver ? "font-semibold text-amber-300" : "text-slate-500")}>
             {isOver ? "Release to assign" : "Drag camera here"}
           </span>
         </div>
@@ -172,7 +166,7 @@ function DroppableMediaTile({
                 e.stopPropagation();
                 onMaximize(camera);
               }}
-              className="flex size-5 items-center justify-center rounded-[4px] bg-black/80 text-white/80 hover:bg-cyan-500 hover:text-black transition-all shadow-md cursor-pointer opacity-0 group-hover:opacity-100"
+              className="flex size-5 items-center justify-center rounded-[4px] bg-black/80 text-white/80 hover:bg-slate-700 hover:text-white transition-all shadow-md cursor-pointer opacity-0 group-hover:opacity-100"
               title="Expand Camera Fullscreen (1080p Focus)"
               aria-label="Maximize Camera"
             >
@@ -369,7 +363,7 @@ export function MediaWallPanel({
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-surface-border bg-surface-2 px-3">
           <div className="flex items-center gap-2 min-w-0">
             <span className="truncate text-sm font-semibold text-white">Media Wall</span>
-            <span className="rounded bg-cyan-950/60 px-1.5 py-0.5 font-mono text-[10px] font-bold text-cyan-400 border border-cyan-500/30">
+            <span className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-300 border border-slate-700">
               {layout}
             </span>
             <span className="truncate text-[11px] text-muted-foreground hidden sm:inline">
@@ -384,8 +378,8 @@ export function MediaWallPanel({
                 className={cn(
                   "flex items-center gap-1.5 px-2 py-0.5 rounded-[5px] text-[10px] font-mono border transition-all cursor-pointer shadow-sm",
                   hardwareGuard
-                    ? "bg-emerald-950/80 border-emerald-500/60 text-emerald-300 hover:bg-emerald-900/60 shadow-[0_0_10px_rgba(16,185,129,0.25)]"
-                    : "bg-amber-950/80 border-amber-500/60 text-amber-300 hover:bg-amber-900/60 shadow-[0_0_10px_rgba(245,158,11,0.25)]"
+                    ? "bg-emerald-950/80 border-emerald-600/70 text-emerald-300 hover:bg-emerald-900/60"
+                    : "bg-amber-950/80 border-amber-600/70 text-amber-300 hover:bg-amber-900/60"
                 )}
                 title={
                   hardwareGuard
@@ -479,20 +473,20 @@ export function MediaWallPanel({
                 "relative flex flex-col bg-[#060a14] overflow-hidden transition-all duration-200",
                 isModalFullscreen
                   ? "w-screen h-screen rounded-none border-none shadow-none"
-                  : "w-full max-w-[96vw] xl:max-w-[1680px] h-[92vh] max-h-[96vh] rounded-xl border-2 border-cyan-400/80 shadow-[0_0_40px_rgba(6,182,212,0.6)]"
+                  : "w-full max-w-[96vw] xl:max-w-[1680px] h-[92vh] max-h-[96vh] rounded-xl border border-slate-700 shadow-2xl"
               )}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Top Bar */}
-              <div className="flex h-12 shrink-0 items-center justify-between border-b border-cyan-500/30 bg-[#08101e] px-4">
+              <div className="flex h-12 shrink-0 items-center justify-between border-b border-slate-800 bg-[#161922] px-4">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="size-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span className="size-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                   <span className="font-bold text-sm text-white truncate">{enlargedCamera.name || enlargedCamera.code}</span>
                   {enlargedCamera.zoneName && (
-                    <span className="text-xs font-mono text-cyan-400 truncate">({enlargedCamera.zoneName})</span>
+                    <span className="text-xs font-mono text-slate-400 truncate">({enlargedCamera.zoneName})</span>
                   )}
-                  <span className="hidden sm:inline-flex rounded bg-cyan-950 px-2 py-0.5 text-[10px] font-mono text-cyan-300 border border-cyan-800 shrink-0">
-                    1080p Full Focus
+                  <span className="hidden sm:inline-flex rounded bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-slate-300 border border-slate-700 shrink-0">
+                    1080p Stream
                   </span>
                 </div>
 
@@ -501,7 +495,7 @@ export function MediaWallPanel({
                   <button
                     type="button"
                     onClick={() => setModalFit((f) => (f === "contain" ? "cover" : "contain"))}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono bg-cyan-950/80 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors cursor-pointer"
                     title="Toggle between Full Aspect Fit (100% Uncropped Feed) and Fill View"
                   >
                     <Scan className="size-3.5" />
@@ -512,7 +506,7 @@ export function MediaWallPanel({
                   <button
                     type="button"
                     onClick={() => setIsModalFullscreen((f) => !f)}
-                    className="flex size-8 items-center justify-center rounded-lg bg-white/10 hover:bg-cyan-500 hover:text-black text-white transition-colors cursor-pointer"
+                    className="flex size-8 items-center justify-center rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors cursor-pointer"
                     title={isModalFullscreen ? "Exit Fullscreen (Esc / F)" : "Fullscreen (F)"}
                     aria-label={isModalFullscreen ? "Exit Fullscreen" : "Fullscreen"}
                   >
@@ -526,7 +520,7 @@ export function MediaWallPanel({
                       setIsModalFullscreen(false);
                       setEnlargedCamera(null);
                     }}
-                    className="flex size-8 items-center justify-center rounded-lg bg-white/10 hover:bg-destructive hover:text-white text-white transition-colors cursor-pointer"
+                    className="flex size-8 items-center justify-center rounded-md bg-slate-800 hover:bg-red-600 hover:text-white text-slate-300 transition-colors cursor-pointer"
                     title="Close (Esc)"
                     aria-label="Close modal"
                   >
@@ -549,19 +543,19 @@ export function MediaWallPanel({
               </div>
 
               {/* Modal Footer */}
-              <div className="flex h-9 shrink-0 items-center justify-between border-t border-cyan-500/20 bg-[#08101e] px-4 text-xs font-mono text-slate-400">
+              <div className="flex h-9 shrink-0 items-center justify-between border-t border-slate-800 bg-[#161922] px-4 text-xs font-mono text-slate-400">
                 <div className="flex items-center gap-3 truncate">
                   <span>Source: <strong className="text-slate-200">{enlargedCamera.sourceName || enlargedCamera.name}</strong></span>
                   <span className="hidden md:inline text-slate-600">•</span>
                   <span className="hidden md:inline">
-                    Feed: <span className="text-cyan-400">{modalFit === "contain" ? "Full Uncropped Feed" : "Cover Zoom"}</span>
+                    Feed: <span className="text-slate-300">{modalFit === "contain" ? "Full Uncropped Feed" : "Cover Zoom"}</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="hidden lg:inline text-slate-500">
                     Press <kbd className="rounded bg-slate-800 px-1 text-slate-300">F</kbd> for Fullscreen, <kbd className="rounded bg-slate-800 px-1 text-slate-300">Esc</kbd> to return
                   </span>
-                  <span className="text-cyan-400">Click Close or outside to return to Media Wall</span>
+                  <span className="text-slate-300">Click Close or outside to return to Media Wall</span>
                 </div>
               </div>
             </div>

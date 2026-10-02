@@ -283,7 +283,7 @@ export function CreateAlertModal() {
       <DialogContent className="max-h-[88vh] w-full max-w-2xl overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 shadow-md">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#2563eb] text-white shadow-sm">
               <Bell className="size-5 text-white" />
             </div>
             <div>
@@ -552,7 +552,7 @@ export function CreateAlertModal() {
           <Button
             onClick={handleSave}
             disabled={!canSave || createRule.isPending}
-            className="gap-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90"
+            className="gap-1.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold"
           >
             {createRule.isPending ? (
               <Loader2 className="size-4 animate-spin" />

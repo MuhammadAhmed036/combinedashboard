@@ -37,7 +37,7 @@ export function GridLayoutSwitch({
           <span className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground">
             Presets
           </span>
-          <span className="text-[9px] font-mono text-cyan-400/80">
+          <span className="text-[9px] font-mono text-slate-300">
             {currentDim * currentDim} slots active
           </span>
         </div>
@@ -48,9 +48,9 @@ export function GridLayoutSwitch({
               type="button"
               onClick={() => onChange(key)}
               className={cn(
-                "rounded-[4px] py-1 text-[11px] font-mono font-medium transition-all text-center",
+                "rounded-[4px] py-1 text-[11px] font-mono font-medium transition-all text-center cursor-pointer",
                 value === key
-                  ? "bg-cyan-500 text-black font-bold shadow-[0_0_8px_rgba(6,182,212,0.4)]"
+                  ? "bg-[#c01823] text-white font-bold shadow-xs"
                   : "bg-surface-3 text-muted-foreground hover:bg-surface-border hover:text-white"
               )}
             >
@@ -66,7 +66,7 @@ export function GridLayoutSwitch({
           <span className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground">
             Custom Grid
           </span>
-          <span className="inline-flex items-center gap-1 rounded bg-cyan-950/90 px-2 py-0.5 font-mono text-[11px] font-bold text-cyan-300 border border-cyan-500/40 shadow-sm">
+          <span className="inline-flex items-center gap-1 rounded bg-[#252a36] px-2 py-0.5 font-mono text-[11px] font-bold text-slate-200 border border-slate-700 shadow-sm">
             {currentDim}x{currentDim}
             <span className="text-white/60 text-[10px]">({currentDim * currentDim} cams)</span>
           </span>

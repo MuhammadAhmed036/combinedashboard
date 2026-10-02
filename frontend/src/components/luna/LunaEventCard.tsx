@@ -133,37 +133,38 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   const hasMatchedAvatar = Boolean(avatarUrl && !avatarError);
 
   // Dynamic color palette per wireframe (Green >= 80%, Yellow 60-79%, Red < 60%)
+  // Rule indicator colors strictly preserved (Red, Green, Yellow) with solid enterprise CCTV styling
   const sim = info.similarity;
-  let cardBorder = 'border-2 border-rose-500/90 shadow-[0_0_14px_rgba(244,63,94,0.18)]';
-  let cardBg = 'bg-gradient-to-r from-slate-950 via-slate-900 to-rose-950/30';
-  let badgeStyle = 'bg-rose-500 text-white border-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.4)]';
-  let nameBlock = 'bg-slate-800/90 text-rose-200 border-slate-700/70';
-  let camBlock = 'bg-slate-800/70 text-slate-300 border-slate-700/50';
-  let listBlock = 'bg-rose-950/40 text-rose-300 border-rose-800/50';
-  let matchBorder = 'border-2 border-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.5)]';
-  let traceBtn = 'bg-rose-600/30 hover:bg-rose-500/50 text-rose-200 border-rose-500/60';
-  let dotColor = 'bg-rose-400';
+  let cardBorder = 'border border-rose-600/80';
+  let cardBg = 'bg-[#181b23] hover:bg-[#1f242e]';
+  let badgeStyle = 'bg-rose-600 text-white font-semibold';
+  let nameBlock = 'bg-[#222733] text-rose-200 border-slate-700/70';
+  let camBlock = 'bg-[#222733] text-slate-300 border-slate-700/50';
+  let listBlock = 'bg-rose-950/60 text-rose-300 border-rose-800/50';
+  let matchBorder = 'border-2 border-rose-500';
+  let traceBtn = 'bg-rose-950/80 hover:bg-rose-900 text-rose-200 border-rose-700/60';
+  let dotColor = 'bg-rose-500';
 
   if (sim >= 80) {
-    cardBorder = 'border-2 border-emerald-500/90 shadow-[0_0_14px_rgba(16,185,129,0.18)]';
-    cardBg = 'bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-950/30';
-    badgeStyle = 'bg-emerald-500 text-slate-950 border-emerald-300 shadow-[0_0_8px_rgba(16,185,129,0.4)]';
-    nameBlock = 'bg-slate-800/90 text-emerald-200 border-slate-700/70';
-    camBlock = 'bg-slate-800/70 text-slate-300 border-slate-700/50';
-    listBlock = 'bg-emerald-950/40 text-emerald-300 border-emerald-800/50';
-    matchBorder = 'border-2 border-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]';
-    traceBtn = 'bg-emerald-600/30 hover:bg-emerald-500/50 text-emerald-200 border-emerald-500/60';
-    dotColor = 'bg-emerald-400';
+    cardBorder = 'border border-emerald-600/80';
+    cardBg = 'bg-[#181b23] hover:bg-[#1f242e]';
+    badgeStyle = 'bg-emerald-600 text-white font-semibold';
+    nameBlock = 'bg-[#222733] text-emerald-200 border-slate-700/70';
+    camBlock = 'bg-[#222733] text-slate-300 border-slate-700/50';
+    listBlock = 'bg-emerald-950/60 text-emerald-300 border-emerald-800/50';
+    matchBorder = 'border-2 border-emerald-500';
+    traceBtn = 'bg-emerald-950/80 hover:bg-emerald-900 text-emerald-200 border-emerald-700/60';
+    dotColor = 'bg-emerald-500';
   } else if (sim >= 60) {
-    cardBorder = 'border-2 border-amber-400/90 shadow-[0_0_14px_rgba(245,158,11,0.18)]';
-    cardBg = 'bg-gradient-to-r from-slate-950 via-slate-900 to-amber-950/30';
-    badgeStyle = 'bg-amber-400 text-slate-950 border-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.4)]';
-    nameBlock = 'bg-slate-800/90 text-amber-200 border-slate-700/70';
-    camBlock = 'bg-slate-800/70 text-slate-300 border-slate-700/50';
-    listBlock = 'bg-amber-950/40 text-amber-300 border-amber-800/50';
-    matchBorder = 'border-2 border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.5)]';
-    traceBtn = 'bg-amber-600/30 hover:bg-amber-500/50 text-amber-200 border-amber-500/60';
-    dotColor = 'bg-amber-400';
+    cardBorder = 'border border-amber-500/80';
+    cardBg = 'bg-[#181b23] hover:bg-[#1f242e]';
+    badgeStyle = 'bg-amber-500 text-black font-semibold';
+    nameBlock = 'bg-[#222733] text-amber-200 border-slate-700/70';
+    camBlock = 'bg-[#222733] text-slate-300 border-slate-700/50';
+    listBlock = 'bg-amber-950/60 text-amber-300 border-amber-800/50';
+    matchBorder = 'border-2 border-amber-500';
+    traceBtn = 'bg-amber-950/80 hover:bg-amber-900 text-amber-200 border-amber-700/60';
+    dotColor = 'bg-amber-500';
   }
 
   return (
@@ -173,7 +174,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
         className={`group relative flex items-stretch rounded-xl p-2 shadow-lg transition-all duration-200 hover:brightness-105 cursor-pointer text-xs select-none mt-2.5 overflow-visible ${cardBorder} ${cardBg}`}
       >
         {/* ── Left Area: Large Camera Detected Image (Blue in wireframe) ── */}
-        <div className="relative shrink-0 w-24 h-28 flex items-center justify-center">
+        <div className="relative shrink-0 w-22 h-28 flex items-center justify-center">
           <div
             onClick={(e) => {
               e.stopPropagation();
@@ -208,7 +209,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
             )}
 
             {/* Sub-label badge */}
-            <span className="absolute bottom-0 inset-x-0 bg-slate-950/90 text-[7px] text-cyan-300 font-mono text-center py-0.5 border-t border-slate-800 pointer-events-none">
+            <span className="absolute bottom-0 inset-x-0 bg-slate-950/90 text-[7px] text-slate-400 font-mono text-center py-0.5 border-t border-slate-800 pointer-events-none">
               DETECTED
             </span>
           </div>
@@ -227,7 +228,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
                 });
               }
             }}
-            className={`group/match absolute -top-2.5 left-[74px] z-20 w-11 h-14 rounded-lg bg-slate-950 ${matchBorder} flex items-center justify-center overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-110`}
+            className={`group/match absolute -top-2.5 left-[64px] z-20 w-11 h-14 rounded-lg bg-slate-950 ${matchBorder} flex items-center justify-center overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-110`}
             title="Click to view original match photo"
           >
             <img
@@ -251,7 +252,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
         <div className="flex-1 min-w-0 pl-2.5 flex flex-col justify-between py-0.5">
           {/* Top Row: Category tag on left & Similarity Score on Top-Right */}
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[8px] uppercase tracking-wider text-slate-400 font-mono pl-4">
+            <span className="text-[8px] uppercase tracking-wider text-slate-400 font-mono pl-3">
               {hasMatchedAvatar ? 'MATCH' : 'ALERT'}
             </span>
             <div
@@ -276,7 +277,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
             className={`px-1.5 py-0.5 rounded border text-[10px] truncate flex items-center gap-1.5 ${camBlock}`}
             title={`Camera: ${info.cameraName}`}
           >
-            <Camera className="w-3 h-3 text-cyan-400 shrink-0" />
+            <Camera className="w-3 h-3 text-slate-400 shrink-0" />
             <span className="truncate font-medium">{info.cameraName}</span>
           </div>
 
@@ -285,18 +286,27 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
             className={`px-1.5 py-0.5 rounded border text-[10px] truncate flex items-center gap-1.5 ${listBlock}`}
             title={`Watchlist: ${info.listName}`}
           >
-            <Tag className="w-2.5 h-2.5 text-cyan-400 shrink-0" />
+            <Tag className="w-2.5 h-2.5 text-slate-400 shrink-0" />
             <span className="truncate font-medium">{info.listName}</span>
           </div>
 
-          {/* Row 4: ListTD / Timestamp + Trace Button */}
-          <div className="flex items-center justify-between gap-1 pt-0.5">
+          {/* Row 4: ListTD / Timestamp (Time & Date) + Trace Button */}
+          <div className="flex items-center justify-between gap-1.5 pt-1 mt-0.5 border-t border-slate-800/70 min-w-0">
             <div
-              className="flex items-center gap-1 text-[9px] text-slate-400 font-mono truncate"
+              className="flex items-center gap-1.5 min-w-0 flex-1 text-slate-300 font-mono"
               title={dateTimeLabel}
             >
-              <Clock className="w-2.5 h-2.5 text-slate-500 shrink-0" />
-              <span className="truncate">{info.timeFormatted}</span>
+              <Clock className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+              <div className="flex flex-col min-w-0 leading-tight">
+                <span className="text-[9.5px] font-semibold text-slate-100 whitespace-nowrap">
+                  {info.timeFormatted}
+                </span>
+                {info.dateFormatted && (
+                  <span className="text-[8px] text-slate-400 whitespace-nowrap">
+                    {info.dateFormatted}
+                  </span>
+                )}
+              </div>
             </div>
 
             <button
@@ -306,9 +316,9 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
                 onTraceClick(event, info);
               }}
               title="Trace Person Movement"
-              className={`flex items-center gap-1 px-2 py-0.5 rounded border text-[9px] font-bold transition-all shadow-sm shrink-0 ${traceBtn}`}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded border text-[9.5px] font-bold transition-all shadow-sm shrink-0 cursor-pointer ${traceBtn}`}
             >
-              <Navigation className="w-2.5 h-2.5 rotate-45" />
+              <Navigation className="w-2.5 h-2.5 rotate-45 shrink-0" />
               <span>Trace</span>
             </button>
           </div>

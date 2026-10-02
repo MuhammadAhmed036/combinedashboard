@@ -64,7 +64,7 @@ export function Sidebar() {
           sidebarCollapsed && "justify-center px-2"
         )}
       >
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#c01823] shadow-sm">
           <ShieldCheck className="size-5 text-white" />
         </div>
         {!sidebarCollapsed && (

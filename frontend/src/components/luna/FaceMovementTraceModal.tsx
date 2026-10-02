@@ -8,6 +8,7 @@ import { LunaEvent, MovementTracePoint, ParsedLunaPersonInfo } from './types';
 import { resolveLunaSampleUrl } from './lunaHelpers';
 import { directFetchLunaEvents } from '@/lib/lunaDirectClient';
 import { useCameraLocations } from '@/lib/hooks/useCameraLocations';
+import { useCustomizeWallStore } from '@/lib/store/useCustomizeWallStore';
 import { FaceMovementTraceMapLoader } from './FaceMovementTraceMapLoader';
 import {
   X,
@@ -74,10 +75,18 @@ export const FaceMovementTraceModal: React.FC<FaceMovementTraceModalProps> = ({
   const [timePreset, setTimePreset] = useState<'1h' | '6h' | '24h' | '7d' | 'custom'>('24h');
   const [isMapMaximized, setIsMapMaximized] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const setIsTraceModalOpen = useCustomizeWallStore((s) => s.setIsTraceModalOpen);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setIsTraceModalOpen(isOpen);
+    return () => {
+      setIsTraceModalOpen(false);
+    };
+  }, [isOpen, setIsTraceModalOpen]);
 
   // Start Date/Time and End Date/Time states (default to 24h past)
   const [startTime, setStartTime] = useState<string>(() => {

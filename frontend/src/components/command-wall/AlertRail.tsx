@@ -100,7 +100,7 @@ function AlertEventItem({
 
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
             <span className="rounded bg-black/80 px-1.5 py-0.5 text-[9px] font-medium text-white shadow flex items-center gap-1">
-              <Maximize2 className="size-2.5 text-cyan-400" />
+              <Maximize2 className="size-2.5 text-slate-300" />
               Forensic
             </span>
           </div>
@@ -120,7 +120,7 @@ function AlertEventItem({
           </div>
 
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Camera className="size-2.5 shrink-0 text-cyan-400" />
+            <Camera className="size-2.5 shrink-0 text-slate-400" />
             <span className="truncate">{event.cameraId}</span>
           </div>
 
@@ -300,8 +300,8 @@ function ForensicEvidenceModal({
             </div>
 
             <div className="hidden sm:flex items-center gap-3 text-xs text-slate-400 pl-3 border-l border-slate-800">
-              <span className="flex items-center gap-1.5 text-cyan-400 font-semibold">
-                <Camera className="size-3.5" />
+              <span className="flex items-center gap-1.5 text-slate-200 font-semibold">
+                <Camera className="size-3.5 text-slate-400" />
                 {event.cameraId}
               </span>
               <span className="text-slate-600">•</span>
@@ -325,10 +325,10 @@ function ForensicEvidenceModal({
         {/* Forensic Canvas & Command Telemetry Grid */}
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
           {/* Main Visual Surveillance Canvas (Hero Area - 75% on desktop) */}
-          <div className="lg:col-span-8 xl:col-span-9 relative flex flex-col items-center justify-center bg-[#02050a] border-b lg:border-b-0 lg:border-r border-slate-800/80 overflow-hidden select-none">
+          <div className="lg:col-span-8 xl:col-span-9 relative flex flex-col items-center justify-center bg-[#0e1117] border-b lg:border-b-0 lg:border-r border-slate-800/80 overflow-hidden select-none">
             {/* Top-left high-res indicator */}
-            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md border border-slate-800 text-[10.5px] text-cyan-300 font-mono shadow-lg">
-              <span className="size-2 rounded-full bg-cyan-400 animate-ping" />
+            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#161922]/90 backdrop-blur-md border border-slate-700/80 text-[10.5px] text-slate-200 font-mono shadow-md">
+              <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>HIGH-RES DETECTION FRAME</span>
             </div>
 
@@ -461,9 +461,9 @@ function ForensicEvidenceModal({
             </div>
 
             {/* Bottom floating detection summary badge */}
-            <div className="absolute bottom-4 inset-x-auto z-10 flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-slate-950/85 backdrop-blur-md border border-slate-800 shadow-xl text-xs text-slate-300">
-              <span className="flex items-center gap-1.5 text-cyan-400 font-semibold">
-                <User className="size-3.5" />
+            <div className="absolute bottom-4 inset-x-auto z-10 flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#161922]/90 backdrop-blur-md border border-slate-700/80 shadow-md text-xs text-slate-300">
+              <span className="flex items-center gap-1.5 text-slate-200 font-semibold">
+                <User className="size-3.5 text-slate-400" />
                 Target: <span className="text-white capitalize">{primaryClass}</span>
               </span>
               <span className="text-slate-600">•</span>
@@ -478,26 +478,26 @@ function ForensicEvidenceModal({
           </div>
 
           {/* Right Command & Telemetry Sidebar (25% on desktop) */}
-          <div className="lg:col-span-4 xl:col-span-3 bg-gradient-to-b from-slate-900/95 via-slate-900/80 to-slate-950/95 p-6 flex flex-col justify-between overflow-y-auto space-y-5">
+          <div className="lg:col-span-4 xl:col-span-3 bg-[#161922] border-l border-[#282e3b] p-6 flex flex-col justify-between overflow-y-auto space-y-5">
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <Activity className="size-3.5 text-cyan-400" />
+                  <Activity className="size-3.5 text-slate-400" />
                   Telemetry & Insights
                 </span>
-                <span className="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 border border-cyan-800/50 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-mono text-slate-300 bg-slate-800/80 border border-slate-700 px-2 py-0.5 rounded-full">
                   VERIFIED EVENT
                 </span>
               </div>
 
               {/* Target Classification KPI Card */}
-              <div className="rounded-xl bg-slate-950/70 border border-slate-800/80 p-4 shadow-sm">
+              <div className="rounded-xl bg-[#1c202b] border border-slate-800/80 p-4 shadow-sm">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">
                   Detected Target
                 </span>
                 <div className="flex items-center justify-between mt-1">
                   <div className="flex items-center gap-2">
-                    <div className="size-8 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                    <div className="size-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">
                       <User className="size-4" />
                     </div>
                     <span className="text-lg font-black text-white capitalize">
@@ -572,7 +572,7 @@ function ForensicEvidenceModal({
                 <button
                   type="button"
                   onClick={handleDownload}
-                  className="w-full h-11 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:via-blue-500 hover:to-indigo-500 shadow-xl shadow-cyan-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="w-full h-11 px-4 rounded-xl text-xs font-bold text-white bg-[#2563eb] hover:bg-[#1d4ed8] shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Download className="size-4" />
                   <span>Download Forensic Evidence (.JPG)</span>
@@ -661,11 +661,11 @@ function ConfiguredRuleItem({
           className="min-w-0 flex-1 cursor-pointer group"
           title="Click to view alerts for this rule"
         >
-          <div className="truncate text-xs font-bold text-white leading-tight group-hover:text-cyan-400 transition-colors">
+          <div className="truncate text-xs font-bold text-white leading-tight group-hover:text-slate-200 transition-colors">
             {rule.name || rule.label || rule.alertId}
           </div>
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-            <Camera className="size-2.5 text-cyan-400" />
+            <Camera className="size-2.5 text-slate-400" />
             <span className="truncate">{rule.cameraId}</span>
           </div>
         </div>
@@ -717,7 +717,7 @@ function ConfiguredRuleItem({
           className={cn(
             "inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 text-[9px] font-semibold border transition-all select-none",
             webrtcStatus === "ACTIVE"
-              ? "bg-cyan-500/15 text-cyan-400 border-cyan-500/30"
+              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
               : webrtcStatus === "ERROR"
               ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
               : "bg-surface-3 text-muted-foreground border-surface-border"
@@ -733,7 +733,7 @@ function ConfiguredRuleItem({
           <Radio
             className={cn(
               "size-2.5 shrink-0",
-              webrtcStatus === "ACTIVE" ? "text-cyan-400 animate-pulse" : "text-amber-400"
+              webrtcStatus === "ACTIVE" ? "text-emerald-400 animate-pulse" : "text-amber-400"
             )}
           />
           <span>STREAM: {webrtcStatus === "ACTIVE" ? "Live" : webrtcStatus === "ERROR" ? "Down" : "Checking..."}</span>
@@ -744,11 +744,11 @@ function ConfiguredRuleItem({
       <button
         type="button"
         onClick={() => onViewAlerts(rule)}
-        className="my-2 w-full rounded-[5px] bg-black/40 px-2 py-1.5 flex items-center justify-between text-[11px] border border-white/5 hover:border-cyan-500/40 hover:bg-black/60 transition-all group cursor-pointer text-left"
+        className="my-2 w-full rounded-[5px] bg-[#111319] px-2 py-1.5 flex items-center justify-between text-[11px] border border-slate-800/80 hover:border-slate-700 hover:bg-[#181c24] transition-all group cursor-pointer text-left"
         title="Click to view alerts for this rule"
       >
-        <div className="flex items-center gap-1.5 text-muted-foreground group-hover:text-cyan-300 transition-colors">
-          <Activity className="size-3 text-cyan-400" />
+        <div className="flex items-center gap-1.5 text-muted-foreground group-hover:text-slate-200 transition-colors">
+          <Activity className="size-3 text-slate-400" />
           <span>Total Alerts:</span>
           <span className="font-bold font-mono text-white text-xs">{rule.eventCount}</span>
         </div>
@@ -758,7 +758,7 @@ function ConfiguredRuleItem({
               +{rule.unseenCount} new
             </span>
           )}
-          <span className="text-[10px] text-cyan-400 font-semibold flex items-center gap-0.5 group-hover:underline">
+          <span className="text-[10px] text-blue-400 font-semibold flex items-center gap-0.5 group-hover:underline">
             View Alerts →
           </span>
         </div>
@@ -785,7 +785,7 @@ function ConfiguredRuleItem({
           {/* Edit Button */}
           <button
             onClick={() => onEdit(rule)}
-            className="flex size-6 items-center justify-center rounded-[4px] bg-surface-3 text-muted-foreground hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors"
+            className="flex size-6 items-center justify-center rounded-[4px] bg-surface-3 text-muted-foreground hover:bg-slate-700 hover:text-white transition-colors"
             title="Edit rule name and category"
           >
             <Pencil className="size-3" />
@@ -940,7 +940,7 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
               <button
                 type="button"
                 onClick={handleBackToRules}
-                className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 text-[11px] font-medium shrink-0 transition-colors"
+                className="flex items-center gap-1 text-slate-300 hover:text-white text-[11px] font-medium shrink-0 transition-colors"
                 title="Back to Rules"
               >
                 <SlidersHorizontal className="size-3" />
@@ -979,7 +979,7 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
                 <Button
                   variant={hasActiveFilters ? "default" : "ghost"}
                   size="icon"
-                  className={cn("h-7 w-7 rounded-[5px]", hasActiveFilters && "bg-cyan-500 text-black hover:bg-cyan-400")}
+                  className={cn("h-7 w-7 rounded-[5px]", hasActiveFilters && "bg-[#2563eb] text-white hover:bg-[#1d4ed8]")}
                   title="Filter alert history"
                 >
                   <Filter className="size-3.5" />
@@ -1031,7 +1031,7 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
                     <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 text-xs">
                       Clear
                     </Button>
-                    <Button size="sm" onClick={handleApplyFilter} className="h-7 text-xs gap-1.5">
+                    <Button size="sm" onClick={handleApplyFilter} className="h-7 text-xs gap-1.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white">
                       <Search className="size-3.5" /> Apply
                     </Button>
                   </div>
@@ -1063,26 +1063,26 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
         <button
           onClick={() => setActiveTab("live")}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 rounded-[5px] py-1 text-xs font-semibold transition-all",
+            "flex-1 flex items-center justify-center gap-1.5 rounded-[5px] py-1 text-xs font-semibold transition-all cursor-pointer",
             activeTab === "live"
-              ? "bg-surface-3 text-white shadow-xs border border-white/10"
+              ? "bg-[#c01823] text-white shadow-xs"
               : "text-muted-foreground hover:text-white"
           )}
         >
-          <Radio className="size-3 text-cyan-400" />
+          <Radio className="size-3" />
           <span>{hasActiveFilters ? "History" : "Live Alerts"}</span>
         </button>
 
         <button
           onClick={() => setActiveTab("rules")}
           className={cn(
-            "flex-1 flex items-center justify-center gap-1.5 rounded-[5px] py-1 text-xs font-semibold transition-all",
+            "flex-1 flex items-center justify-center gap-1.5 rounded-[5px] py-1 text-xs font-semibold transition-all cursor-pointer",
             activeTab === "rules"
-              ? "bg-surface-3 text-white shadow-xs border border-white/10"
+              ? "bg-[#c01823] text-white shadow-xs"
               : "text-muted-foreground hover:text-white"
           )}
         >
-          <SlidersHorizontal className="size-3 text-cyan-400" />
+          <SlidersHorizontal className="size-3" />
           <span>Rules ({rules?.length ?? 0})</span>
         </button>
       </div>
@@ -1091,14 +1091,14 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
       {activeTab === "live" && (
         <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
           {selectedRuleForAlerts && (
-            <div className="flex items-center justify-between px-2.5 py-1.5 bg-cyan-950/70 border-b border-cyan-800/50 text-[11px] text-cyan-200 shrink-0">
+            <div className="flex items-center justify-between px-2.5 py-1.5 bg-[#182030] border-b border-[#283550] text-[11px] text-slate-200 shrink-0">
               <span className="truncate">
                 Rule: <strong className="text-white">{selectedRuleForAlerts.name || selectedRuleForAlerts.label}</strong> ({events?.length ?? 0} alerts)
               </span>
               <button
                 type="button"
                 onClick={handleBackToRules}
-                className="text-[10px] text-cyan-400 hover:text-white underline font-semibold shrink-0 ml-2"
+                className="text-[10px] text-blue-400 hover:text-white underline font-semibold shrink-0 ml-2"
               >
                 ← Back to Rules
               </button>
@@ -1215,7 +1215,7 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
               size="sm"
               onClick={handleSaveEdit}
               disabled={updateDetailsMutation.isPending}
-              className="h-8 text-xs gap-1.5 bg-cyan-600 hover:bg-cyan-500 text-white"
+              className="h-8 text-xs gap-1.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white"
             >
               <Check className="size-3.5" />
               <span>{updateDetailsMutation.isPending ? "Saving..." : "Save Changes"}</span>

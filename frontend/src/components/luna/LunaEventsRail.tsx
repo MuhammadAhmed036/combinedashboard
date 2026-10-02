@@ -32,6 +32,7 @@ import {
   ChevronDown,
   Filter,
   ArrowLeftRight,
+  LayoutGrid,
 } from 'lucide-react';
 
 // ─── Filter State ──────────────────────────────────────────────────────────────
@@ -234,7 +235,7 @@ function Section({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between py-3 text-left text-[12px] font-semibold text-slate-200 tracking-wide hover:text-cyan-400 transition-colors"
+        className="flex w-full items-center justify-between py-3 text-left text-[12px] font-semibold text-slate-200 tracking-wide hover:text-white transition-colors"
       >
         <span>{title}</span>
         <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
@@ -260,7 +261,7 @@ function Section({
 
 // ─── Field helpers ────────────────────────────────────────────────────────────
 function Label({ children }: { children: React.ReactNode }) {
-  return <span className="text-[10px] font-medium text-cyan-500 uppercase tracking-wider">{children}</span>;
+  return <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{children}</span>;
 }
 
 function SelectField({
@@ -281,7 +282,7 @@ function SelectField({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-[11px] text-slate-200 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
+          className="w-full appearance-none bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-colors"
         >
           {options.map((o) => (
             <option key={o.value} value={o.value}>
@@ -314,7 +315,7 @@ function TextField({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
+        className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-colors"
       />
     </div>
   );
@@ -340,7 +341,7 @@ function RangeField({ label, fromValue, toValue, onFromChange, onToChange, place
           placeholder={placeholder?.from || 'From'}
           value={fromValue}
           onChange={(e) => onFromChange(e.target.value)}
-          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
+          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-colors"
         />
         <span className="text-slate-600 text-[10px]">–</span>
         <input
@@ -348,7 +349,7 @@ function RangeField({ label, fromValue, toValue, onFromChange, onToChange, place
           placeholder={placeholder?.to || 'To'}
           value={toValue}
           onChange={(e) => onToChange(e.target.value)}
-          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
+          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-colors"
         />
       </div>
     </div>
@@ -370,7 +371,7 @@ function SimilaritySlider({
     <div className="flex flex-col gap-1.5 w-full">
       <div className="flex items-center justify-between">
         <Label>Similarity, %</Label>
-        <span className="text-[10px] text-cyan-400 font-mono font-semibold">
+        <span className="text-[10px] text-slate-200 font-mono font-semibold">
           {Math.round(min * 100)}% – {Math.round(max * 100)}%
         </span>
       </div>
@@ -382,14 +383,14 @@ function SimilaritySlider({
           value={Math.round(min * 100)}
           onChange={(e) => onMinChange(Math.min(Number(e.target.value) / 100, max - 0.01))}
           placeholder="0"
-          className="w-12 shrink-0 bg-slate-900 border border-slate-700 rounded-md px-1 py-1.5 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 text-center transition-colors font-mono"
+          className="w-12 shrink-0 bg-slate-900 border border-slate-700 rounded-md px-1 py-1.5 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 text-center transition-colors font-mono"
         />
         <div className="flex-1 min-w-[50px] relative h-5 flex items-center">
           {/* Track */}
           <div className="absolute inset-x-0 h-1 bg-slate-700 rounded-full" />
           {/* Filled range */}
           <div
-            className="absolute h-1 bg-cyan-500 rounded-full"
+            className="absolute h-1 bg-blue-600 rounded-full"
             style={{ left: `${min * 100}%`, right: `${(1 - max) * 100}%` }}
           />
           {/* Min thumb */}
@@ -416,11 +417,11 @@ function SimilaritySlider({
           />
           {/* Thumb visuals */}
           <div
-            className="absolute w-3.5 h-3.5 rounded-full bg-cyan-400 border-2 border-slate-950 shadow-md pointer-events-none"
+            className="absolute w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-slate-950 shadow-md pointer-events-none"
             style={{ left: `calc(${min * 100}% - 7px)` }}
           />
           <div
-            className="absolute w-3.5 h-3.5 rounded-full bg-cyan-400 border-2 border-slate-950 shadow-md pointer-events-none"
+            className="absolute w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-slate-950 shadow-md pointer-events-none"
             style={{ left: `calc(${max * 100}% - 7px)` }}
           />
         </div>
@@ -431,7 +432,7 @@ function SimilaritySlider({
           value={Math.round(max * 100)}
           onChange={(e) => onMaxChange(Math.max(Number(e.target.value) / 100, min + 0.01))}
           placeholder="100"
-          className="w-12 shrink-0 bg-slate-900 border border-slate-700 rounded-md px-1 py-1.5 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 text-center transition-colors font-mono"
+          className="w-12 shrink-0 bg-slate-900 border border-slate-700 rounded-md px-1 py-1.5 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 text-center transition-colors font-mono"
         />
       </div>
     </div>
@@ -492,7 +493,7 @@ function FilterPanel({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex items-center gap-1 px-1.5 py-1 rounded-md text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors"
+                  className="flex items-center gap-1 px-1.5 py-1 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
                   title="Back to events"
                 >
                   <ChevronLeft className="w-4 h-4 shrink-0" />
@@ -500,10 +501,10 @@ function FilterPanel({
                 </button>
                 <span className="text-slate-600">|</span>
                 <div className="flex items-center gap-1.5 truncate">
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                   <span className="text-[12px] font-bold text-slate-100 tracking-wide truncate">Filters</span>
                   {countActiveFilters(filters) > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-cyan-600 text-white shrink-0">
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-[#c01823] text-white shrink-0">
                       {countActiveFilters(filters)}
                     </span>
                   )}
@@ -876,7 +877,7 @@ function FilterPanel({
                 type="button"
                 onClick={onApply}
                 whileTap={{ scale: 0.95 }}
-                className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-[11px] transition-colors shadow-md shadow-cyan-500/20 truncate"
+                className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold text-[11px] transition-colors shadow-sm truncate"
               >
                 <Filter className="w-3 h-3 shrink-0" />
                 <span className="truncate">Apply</span>
@@ -893,6 +894,7 @@ function FilterPanel({
 export const LunaEventsRail: React.FC = () => {
   const isCustomizingWall = useCustomizeWallStore((s) => s.isCustomizingWall);
   const toggleCustomizingWall = useCustomizeWallStore((s) => s.toggleCustomizingWall);
+  const isTraceModalOpen = useCustomizeWallStore((s) => s.isTraceModalOpen);
   const { data: cameras } = useCameras();
   const [mode, setMode] = useState<'live' | 'history'>('live');
   const [liveEvents, setLiveEvents] = useState<LunaEvent[]>([]);
@@ -1204,27 +1206,43 @@ export const LunaEventsRail: React.FC = () => {
         {/* Title row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <Radio className="w-3.5 h-3.5 text-slate-300 shrink-0" />
             <h2 className="text-[12px] font-bold uppercase tracking-wider text-slate-100 truncate">
-              {mode === 'live' ? 'Luna Live Stream' : 'Luna History'}
+              {isCustomizingWall ? 'Customize Wall' : mode === 'live' ? 'Luna Live Stream' : 'Luna History'}
             </h2>
           </div>
 
-          {mode === 'live' && (
-            <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-semibold shrink-0 ${
-                connected
-                  ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-800/60'
-                  : 'bg-amber-950/70 text-amber-400 border border-amber-800/60'
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleCustomizingWall}
+              className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold border transition-colors cursor-pointer ${
+                isCustomizingWall
+                  ? 'bg-[#c01823] text-white border-[#c01823]'
+                  : 'bg-slate-900 text-slate-300 border-slate-700/80 hover:text-white hover:border-slate-500'
               }`}
+              title={isCustomizingWall ? 'Back to Luna Stream' : 'Switch to Customize Wall'}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-              {connected ? `LIVE ${liveEvents.length}/50` : 'STANDBY'}
-            </span>
-          )}
+              <ArrowLeftRight className="size-3 text-slate-300" />
+              <span>{isCustomizingWall ? 'Stream' : 'Switcher'}</span>
+            </button>
+
+            {!isCustomizingWall && mode === 'live' && (
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-semibold shrink-0 ${
+                  connected
+                    ? 'bg-emerald-950/70 text-emerald-400 border border-emerald-800/60'
+                    : 'bg-amber-950/70 text-amber-400 border border-amber-800/60'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                {connected ? `LIVE ${liveEvents.length}/50` : 'STANDBY'}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Live / History Mode Tabs + Filters Button Row (Search and Wall buttons removed per request) */}
+        {/* Live / History Mode Tabs + Filters Button Row (Clean enterprise tabs) */}
         <div className="flex items-center justify-between gap-2 min-w-0">
           {/* Live / History Pill Switch */}
           <div className="flex rounded-lg bg-slate-950 p-0.5 border border-slate-800 shrink-0">
@@ -1233,8 +1251,8 @@ export const LunaEventsRail: React.FC = () => {
                 key={m}
                 type="button"
                 onClick={() => setMode(m)}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-semibold transition-colors ${
-                  mode === m ? 'bg-cyan-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-semibold transition-colors cursor-pointer ${
+                  mode === m ? 'bg-[#c01823] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {m === 'live' ? <Radio className="w-3 h-3" /> : <History className="w-3 h-3" />}
@@ -1248,16 +1266,16 @@ export const LunaEventsRail: React.FC = () => {
             type="button"
             whileTap={{ scale: 0.94 }}
             onClick={() => setShowFilterPanel(true)}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[11px] font-semibold transition-colors shrink-0 mr-2 ${
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[11px] font-semibold transition-colors shrink-0 mr-2 cursor-pointer ${
               activeFilterCount > 0
-                ? 'bg-cyan-950 text-cyan-300 border-cyan-700/60 ring-1 ring-cyan-500/30'
+                ? 'bg-slate-800 text-white border-slate-600'
                 : 'bg-slate-900 text-slate-300 border-slate-800 hover:text-white hover:border-slate-700'
             }`}
           >
             <Filter className="w-3.5 h-3.5" />
             <span>Filters</span>
             {activeFilterCount > 0 && (
-              <span className="flex items-center justify-center w-4 h-4 rounded-full bg-cyan-600 text-[8px] font-bold text-white">
+              <span className="flex items-center justify-center w-4 h-4 rounded-full bg-[#c01823] text-[8px] font-bold text-white">
                 {activeFilterCount}
               </span>
             )}
@@ -1322,7 +1340,7 @@ export const LunaEventsRail: React.FC = () => {
                 setFilter('similarityTier', 'all');
                 if (mode === 'history') fetchHistoryEvents(1, { ...filters, similarityTier: 'all' }, pageSize);
               }}
-              className="text-[9px] text-cyan-400 hover:text-cyan-200 underline font-mono"
+              className="text-[9px] text-slate-300 hover:text-white underline font-mono"
             >
               Reset Tier
             </button>
@@ -1337,7 +1355,7 @@ export const LunaEventsRail: React.FC = () => {
         <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-800/60 bg-slate-950 shrink-0">
           <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono">
             <span>Page {currentPage}</span>
-            {loading && <RefreshCw className="w-2.5 h-2.5 animate-spin text-cyan-500" />}
+            {loading && <RefreshCw className="w-2.5 h-2.5 animate-spin text-slate-400" />}
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -1364,7 +1382,7 @@ export const LunaEventsRail: React.FC = () => {
       <div className="flex-1 overflow-y-auto overflow-x-visible p-2 pt-3.5 space-y-3.5 min-h-0">
         {loading && historyEvents.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-slate-500 text-xs gap-2">
-            <RefreshCw className="w-5 h-5 animate-spin text-cyan-500" />
+            <RefreshCw className="w-5 h-5 animate-spin text-slate-400" />
             <span>Loading Luna events...</span>
           </div>
         )}
@@ -1389,7 +1407,7 @@ export const LunaEventsRail: React.FC = () => {
                 <span className="text-slate-400">No events found</span>
                 <button
                   onClick={() => { setFilters(DEFAULT_FILTERS); fetchHistoryEvents(1, DEFAULT_FILTERS, pageSize); }}
-                  className="text-[11px] text-cyan-400 underline underline-offset-2 hover:text-cyan-300"
+                  className="text-[11px] text-blue-400 underline underline-offset-2 hover:text-blue-300"
                 >
                   Clear filters & reload
                 </button>
@@ -1416,7 +1434,10 @@ export const LunaEventsRail: React.FC = () => {
       {/* Trace modal */}
       <FaceMovementTraceModal
         isOpen={traceModalOpen}
-        onClose={() => setTraceModalOpen(false)}
+        onClose={() => {
+          setTraceModalOpen(false);
+          useCustomizeWallStore.getState().setIsTraceModalOpen(false);
+        }}
         event={selectedEventForTrace}
         personInfo={selectedPersonForTrace}
       />
@@ -1426,22 +1447,22 @@ export const LunaEventsRail: React.FC = () => {
       </div>
 
       {/* ── Floating Tactical Switch Button on Rail Edge (<->) ───────────────── */}
-      {!traceModalOpen && (
+      {!traceModalOpen && !isTraceModalOpen && (
         <motion.button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             toggleCustomizingWall();
           }}
-          whileHover={{ scale: 1.18, boxShadow: '0 0 20px rgba(6,182,212,0.9)' }}
-          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.12 }}
+          whileTap={{ scale: 0.92 }}
           style={{
             position: 'absolute',
             right: '-14px',
             top: '40%',
             zIndex: 40,
           }}
-          className="flex size-7 items-center justify-center rounded-full bg-[#060a14] border-2 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.7)] hover:border-cyan-300 hover:text-white cursor-pointer pointer-events-auto"
+          className="flex size-7 items-center justify-center rounded-full bg-[#111318] border border-slate-700 text-slate-300 shadow-md hover:border-slate-500 hover:text-white hover:bg-[#181b23] cursor-pointer pointer-events-auto transition-colors"
           title={isCustomizingWall ? 'Switch back to Luna Stream' : 'Switch to Customize Wall'}
           aria-label="Toggle Customize Wall Panel"
         >
@@ -1453,7 +1474,7 @@ export const LunaEventsRail: React.FC = () => {
             {isCustomizingWall ? (
               <Radio className="size-3.5 text-emerald-400" />
             ) : (
-              <ArrowLeftRight className="size-3.5 text-cyan-400" />
+              <ArrowLeftRight className="size-3.5 text-slate-300" />
             )}
           </motion.div>
         </motion.button>
@@ -1465,5 +1486,6 @@ export const LunaEventsRail: React.FC = () => {
     setSelectedEventForTrace(event);
     setSelectedPersonForTrace(info);
     setTraceModalOpen(true);
+    useCustomizeWallStore.getState().setIsTraceModalOpen(true);
   }
 };

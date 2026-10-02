@@ -125,44 +125,44 @@
 }
 
 .dark {
-  --background: #0a0e17;
-  --foreground: #e5e7eb;
-  --card: #0f1626;
-  --card-foreground: #e5e7eb;
-  --popover: #111a2e;
-  --popover-foreground: #e5e7eb;
-  --primary: #3b82f6;
-  --primary-foreground: #f8fafc;
-  --secondary: #1a2235;
-  --secondary-foreground: #e5e7eb;
-  --muted: #141d31;
-  --muted-foreground: #8b95a8;
-  --accent: #1a2235;
-  --accent-foreground: #e5e7eb;
+  --background: #111317;
+  --foreground: #e2e8f0;
+  --card: #181b22;
+  --card-foreground: #e2e8f0;
+  --popover: #181b22;
+  --popover-foreground: #e2e8f0;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #1f232d;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1f232d;
+  --muted-foreground: #94a3b8;
+  --accent: #1f232d;
+  --accent-foreground: #e2e8f0;
   --destructive: #ef4444;
-  --border: #1f2a40;
-  --input: #1a2235;
-  --ring: #3b82f6;
-  --chart-1: #3b82f6;
+  --border: #282e3b;
+  --input: #1f232d;
+  --ring: #2563eb;
+  --chart-1: #2563eb;
   --chart-2: #22c55e;
   --chart-3: #f59e0b;
-  --chart-4: #a855f7;
+  --chart-4: #8b5cf6;
   --chart-5: #ef4444;
-  --radius: 0.625rem;
-  --sidebar: #080c15;
+  --radius: 0.5rem;
+  --sidebar: #13151b;
   --sidebar-foreground: #cbd5e1;
-  --sidebar-primary: #3b82f6;
-  --sidebar-primary-foreground: #f8fafc;
-  --sidebar-accent: #141d31;
-  --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: #1a2235;
-  --sidebar-ring: #3b82f6;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1b1e26;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #262a35;
+  --sidebar-ring: #2563eb;
 
-  --surface-0: #05070d;
-  --surface-1: #0a0e17;
-  --surface-2: #0f1626;
-  --surface-3: #141d31;
-  --surface-border: #1f2a40;
+  --surface-0: #0d0f13;
+  --surface-1: #13151b;
+  --surface-2: #191c24;
+  --surface-3: #222631;
+  --surface-border: #2c3240;
 
   --severity-critical: #ef4444;
   --severity-high: #f97316;
@@ -175,7 +175,7 @@
   --status-resolved: #6b7280;
   --status-closed: #6b7280;
 
-  --accent-blue: #3b82f6;
+  --accent-blue: #2563eb;
   --accent-purple: #7c3aed;
 }
 

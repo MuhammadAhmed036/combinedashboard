@@ -153,8 +153,9 @@ export function parseLunaEvent(event: LunaEvent): ParsedLunaPersonInfo {
   let dateTimeFormatted = '';
   try {
     const d = new Date(timestamp);
-    timeFormatted = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    dateFormatted = d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    const pad = (n: number) => String(n).padStart(2, '0');
+    timeFormatted = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    dateFormatted = d.toLocaleDateString([], { month: 'short', day: '2-digit', year: 'numeric' });
     dateTimeFormatted = `${dateFormatted} ${timeFormatted}`;
   } catch {
     timeFormatted = timestamp;

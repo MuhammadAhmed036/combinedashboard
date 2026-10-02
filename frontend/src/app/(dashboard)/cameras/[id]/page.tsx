@@ -87,7 +87,7 @@ export default function CameraDetailPage() {
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            className="gap-1.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90"
+            className="gap-1.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold"
             onClick={() => {
               setSelectedCameraId(registryCameraId);
               setCreateAlertModalOpen(true);

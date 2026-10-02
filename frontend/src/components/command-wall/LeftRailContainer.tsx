@@ -104,18 +104,18 @@ export function CustomizeWallContent({ cameras = [] }: { cameras?: Camera[] }) {
   };
 
   return (
-    <div className="flex h-full w-full flex-col border-r border-cyan-500/20 bg-slate-950 text-slate-200 select-none overflow-hidden">
+    <div className="flex h-full w-full flex-col border-r border-border bg-[#13151b] text-slate-200 select-none overflow-hidden">
       {/* Header */}
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-surface-border px-3 bg-surface-2/60">
         <div className="flex items-center gap-2">
-          <SlidersHorizontal className="size-4 text-cyan-400" />
+          <SlidersHorizontal className="size-4 text-slate-300" />
           <span className="text-xs font-bold uppercase tracking-wider text-slate-100">Customize Wall</span>
         </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={toggleCustomizingWall}
-          className="h-7 px-2 text-[11px] text-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/40 gap-1.5"
+          className="h-7 px-2 text-[11px] text-slate-300 hover:text-white hover:bg-surface-3 gap-1.5"
           title="Return to Luna Stream"
         >
           <ArrowLeftRight className="size-3" />
@@ -143,7 +143,7 @@ export function CustomizeWallContent({ cameras = [] }: { cameras?: Camera[] }) {
           <Button
             variant="outline"
             size="sm"
-            className="h-7 text-[11px] text-cyan-300 hover:text-cyan-200 border-cyan-500/30 hover:border-cyan-400 bg-cyan-950/30 gap-1.5 justify-center"
+            className="h-7 text-[11px] text-slate-200 hover:text-white border-slate-700 bg-slate-900 gap-1.5 justify-center"
             onClick={handleAutoFill}
             title="Auto-fill all slots sequentially"
           >
@@ -173,7 +173,7 @@ export function CustomizeWallContent({ cameras = [] }: { cameras?: Camera[] }) {
         <div className="flex items-center gap-2 pt-0.5">
           <Button
             size="sm"
-            className="flex-1 h-7 text-[11px] gap-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
+            className="flex-1 h-7 text-[11px] gap-1.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium shadow-sm"
             onClick={handleSaveConfig}
           >
             {saveToast ? <Check className="size-3.5 text-green-300" /> : <Save className="size-3.5" />}
@@ -243,38 +243,6 @@ export function LeftRailContainer({
           )}
         </AnimatePresence>
       </div>
-
-      {/* ── Floating Tactical Switch Button on Rail Edge (<->) ───────────────── */}
-      <motion.button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          toggleCustomizingWall();
-        }}
-        whileHover={{ scale: 1.18, boxShadow: "0 0 20px rgba(6,182,212,0.9)" }}
-        whileTap={{ scale: 0.9 }}
-        style={{
-          position: "absolute",
-          right: "-14px",
-          top: "40%",
-          zIndex: 40,
-        }}
-        className="flex size-7 items-center justify-center rounded-full bg-[#060a14] border-2 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.7)] hover:border-cyan-300 hover:text-white cursor-pointer pointer-events-auto"
-        title={isCustomizingWall ? "Switch back to Luna Stream" : "Switch to Customize Wall"}
-        aria-label="Toggle Customize Wall Panel"
-      >
-        <motion.div
-          animate={{ rotate: isCustomizingWall ? 180 : 0 }}
-          transition={{ type: "spring", stiffness: 280, damping: 20 }}
-          className="flex items-center justify-center"
-        >
-          {isCustomizingWall ? (
-            <Radio className="size-3.5 text-emerald-400" />
-          ) : (
-            <ArrowLeftRight className="size-3.5 text-cyan-400" />
-          )}
-        </motion.div>
-      </motion.button>
     </div>
   );
 }

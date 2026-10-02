@@ -79,7 +79,7 @@ export function CommandWallDashboard() {
       onDragEnd={handleDragEnd}
     >
       <div className="h-screen overflow-hidden bg-surface-1">
-        <div className="grid size-full grid-rows-[minmax(220px,1fr)_minmax(220px,1fr)_minmax(220px,1fr)] lg:grid-cols-[15fr_70fr_15fr] lg:grid-rows-1">
+        <div className="grid size-full grid-rows-[minmax(220px,1fr)_minmax(220px,1fr)_minmax(220px,1fr)] lg:grid-cols-[minmax(310px,17fr)_66fr_minmax(280px,17fr)] lg:grid-rows-1">
           <LunaEventsRail />
           <MediaWallPanel
             cameras={cameras}
@@ -93,19 +93,19 @@ export function CommandWallDashboard() {
       {/* Floating Drag Overlay */}
       <DragOverlay dropAnimation={null} zIndex={99999}>
         {activeDragCamera ? (
-          <div className="flex w-56 items-center gap-2.5 rounded-lg border-2 border-cyan-400 bg-[#060a14]/95 p-2.5 shadow-[0_0_25px_rgba(6,182,212,0.85)] backdrop-blur-md pointer-events-none cursor-grabbing">
+          <div className="flex w-56 items-center gap-2.5 rounded-lg border-2 border-amber-400 bg-[#161922]/95 p-2.5 shadow-2xl backdrop-blur-md pointer-events-none cursor-grabbing">
             <CameraThumbnail
               seed={activeDragCamera.thumbnailSeed}
               feedUrl={activeDragCamera.proxy_feed_url ?? activeDragCamera.proxyFeedUrl}
               playerUrl={activeDragCamera.playerUrl}
               offline={activeDragCamera.status === "offline"}
-              className="size-9 shrink-0 rounded border border-cyan-400/50"
+              className="size-9 shrink-0 rounded border border-amber-400/60"
             />
             <div className="flex flex-col min-w-0">
-              <span className="truncate text-xs font-bold text-cyan-200">
+              <span className="truncate text-xs font-bold text-white">
                 {activeDragCamera.name}
               </span>
-              <span className="text-[10px] font-mono text-cyan-400">
+              <span className="text-[10px] font-mono text-amber-400 font-semibold">
                 Drop to place on tile
               </span>
             </div>
