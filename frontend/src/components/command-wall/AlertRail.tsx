@@ -37,7 +37,10 @@ import {
   useDeleteAlertRule,
   useUpdateAlertRuleStatus,
   useUpdateAlertRuleDetails,
+  useMarkAlertSeen,
 } from "@/lib/hooks/useAlertRules";
+import { useAlertSeenBaselineStore } from "@/lib/store/useAlertSeenBaselineStore";
+import { effectiveUnseenCount } from "@/lib/alertUnseen";
 import type { AlertMatchEvent, AlertRuleV2, AlertCategory, Camera as CameraType } from "@/lib/types";
 import { CATEGORY_ACCENT, CATEGORY_LABEL, classAccent, classLabel } from "./alertVisuals";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -612,6 +615,9 @@ function ConfiguredRuleItem({
 }) {
   const categoryColor = CATEGORY_ACCENT[rule.category || "medium"];
   const isActive = rule.status === "active";
+  const markSeen = useMarkAlertSeen();
+  const baseline = useAlertSeenBaselineStore((s) => s.baselines[rule.alertId] ?? 0);
+  const unseen = effectiveUnseenCount(rule, baseline);
 
   const [camStatus, setCamStatus] = useState<"RUNNING" | "STOPPED" | "LOADING">("LOADING");
   const [webrtcStatus, setWebrtcStatus] = useState<"ACTIVE" | "ERROR" | "LOADING">("LOADING");
@@ -741,36 +747,53 @@ function ConfiguredRuleItem({
       </div>
 
       {/* Middle: Trigger Counts — clickable to view alerts for this rule */}
-      <button
-        type="button"
-        onClick={() => onViewAlerts(rule)}
-        className="my-2 w-full rounded-[5px] bg-[#111319] px-2 py-1.5 flex items-center justify-between text-[11px] border border-slate-800/80 hover:border-slate-700 hover:bg-[#181c24] transition-all group cursor-pointer text-left"
-        title="Click to view alerts for this rule"
+      <div
+        className="my-2 w-full rounded-[6px] bg-[#111319] p-2 flex flex-col gap-1.5 border border-slate-800/80 hover:border-slate-700 hover:bg-[#181c24] transition-all group select-none text-left"
       >
-        <div className="flex items-center gap-1.5 text-muted-foreground group-hover:text-slate-200 transition-colors">
-          <Activity className="size-3 text-slate-400" />
-          <span>Total Alerts:</span>
-          <span className="font-bold font-mono text-white text-xs">{rule.eventCount}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {rule.unseenCount > 0 && (
-            <span className="rounded bg-destructive/80 px-1 py-0.2 text-[9px] font-bold text-white">
-              +{rule.unseenCount} new
-            </span>
-          )}
-          <span className="text-[10px] text-blue-400 font-semibold flex items-center gap-0.5 group-hover:underline">
+        <div
+          onClick={() => {
+            onViewAlerts(rule);
+            if (unseen > 0) markSeen.mutate({ alertId: rule.alertId });
+          }}
+          className="flex items-center justify-between cursor-pointer"
+          title="Click to view alerts for this rule"
+        >
+          <div className="flex items-center gap-1.5 text-muted-foreground group-hover:text-slate-200 transition-colors">
+            <Activity className="size-3 text-slate-400 shrink-0" />
+            <span className="text-[11px] whitespace-nowrap">Total Alerts:</span>
+            <span className="font-bold font-mono text-white text-xs">{rule.eventCount}</span>
+          </div>
+
+          <span className="text-[10px] text-blue-400 font-semibold flex items-center gap-0.5 group-hover:underline whitespace-nowrap">
             View Alerts →
           </span>
         </div>
-      </button>
 
-      {/* Bottom: Action buttons (Status toggle, Edit, Delete) */}
+        {unseen > 0 && (
+          <div className="flex items-center justify-between pt-1 border-t border-slate-800/60">
+            <span className="text-[10px] text-rose-400/90 font-medium">New Matches:</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                markSeen.mutate({ alertId: rule.alertId });
+              }}
+              title="Click to mark seen and reset counter"
+              className="rounded bg-rose-600 hover:bg-rose-500 px-2 py-0.5 text-[9.5px] font-bold text-white whitespace-nowrap cursor-pointer transition-colors shadow-sm"
+            >
+              +{unseen} new
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom: Action buttons (Status toggle, Edit, Delete, Mark Seen) */}
       <div className="flex items-center justify-between pt-1 border-t border-white/5">
         {/* Status Toggle */}
         <button
           onClick={() => onToggleStatus(rule)}
           className={cn(
-            "flex items-center gap-1 rounded-[4px] px-2 py-0.5 text-[10px] font-medium transition-colors",
+            "flex items-center gap-1 rounded-[4px] px-2 py-0.5 text-[10px] font-medium transition-colors cursor-pointer",
             isActive
               ? "bg-green-500/15 text-green-400 hover:bg-green-500/25 border border-green-500/30"
               : "bg-surface-3 text-muted-foreground hover:bg-surface-3/80 border border-surface-border"
@@ -782,10 +805,24 @@ function ConfiguredRuleItem({
         </button>
 
         <div className="flex items-center gap-1">
+          {/* Mark Seen Button when new alerts exist */}
+          {unseen > 0 && (
+            <button
+              type="button"
+              disabled={markSeen.isPending}
+              onClick={() => markSeen.mutate({ alertId: rule.alertId })}
+              className="flex items-center gap-1 rounded-[4px] bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-1.5 py-0.5 text-[9.5px] font-medium transition-colors cursor-pointer"
+              title="Mark all as seen (reset counter)"
+            >
+              <Check className="size-2.5 text-emerald-400" />
+              <span>Mark Seen</span>
+            </button>
+          )}
+
           {/* Edit Button */}
           <button
             onClick={() => onEdit(rule)}
-            className="flex size-6 items-center justify-center rounded-[4px] bg-surface-3 text-muted-foreground hover:bg-slate-700 hover:text-white transition-colors"
+            className="flex size-6 items-center justify-center rounded-[4px] bg-surface-3 text-muted-foreground hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
             title="Edit rule name and category"
           >
             <Pencil className="size-3" />
@@ -794,7 +831,7 @@ function ConfiguredRuleItem({
           {/* Delete Button */}
           <button
             onClick={() => onDelete(rule)}
-            className="flex size-6 items-center justify-center rounded-[4px] bg-surface-3 text-muted-foreground hover:bg-destructive hover:text-white transition-colors"
+            className="flex size-6 items-center justify-center rounded-[4px] bg-surface-3 text-muted-foreground hover:bg-destructive hover:text-white transition-colors cursor-pointer"
             title="Delete this alert rule"
           >
             <Trash2 className="size-3" />

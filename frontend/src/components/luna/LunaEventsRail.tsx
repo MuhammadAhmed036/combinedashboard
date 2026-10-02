@@ -1213,20 +1213,6 @@ export const LunaEventsRail: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={toggleCustomizingWall}
-              className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold border transition-colors cursor-pointer ${
-                isCustomizingWall
-                  ? 'bg-[#c01823] text-white border-[#c01823]'
-                  : 'bg-slate-900 text-slate-300 border-slate-700/80 hover:text-white hover:border-slate-500'
-              }`}
-              title={isCustomizingWall ? 'Back to Luna Stream' : 'Switch to Customize Wall'}
-            >
-              <ArrowLeftRight className="size-3 text-slate-300" />
-              <span>{isCustomizingWall ? 'Stream' : 'Switcher'}</span>
-            </button>
-
             {!isCustomizingWall && mode === 'live' && (
               <span
                 className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-semibold shrink-0 ${
@@ -1280,73 +1266,6 @@ export const LunaEventsRail: React.FC = () => {
               </span>
             )}
           </motion.button>
-        </div>
-
-        {/* Quick Similarity Filter Dots (Red: 0-59%, Green: 80-100%, Yellow: 60-79%) as requested in user diagram */}
-        <div className="flex items-center justify-between px-0.5 pt-1 border-t border-slate-800/40">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-400 font-mono tracking-tight">Match Tier:</span>
-            {/* Red Circle (0-59%) */}
-            <button
-              type="button"
-              onClick={() => {
-                const newTier = filters.similarityTier === 'red' ? 'all' : 'red';
-                setFilter('similarityTier', newTier);
-                if (mode === 'history') fetchHistoryEvents(1, { ...filters, similarityTier: newTier }, pageSize);
-              }}
-              className={`w-3.5 h-3.5 rounded-full bg-rose-500 transition-all ${
-                filters.similarityTier === 'red'
-                  ? 'ring-2 ring-white scale-125 shadow-md shadow-rose-500/80'
-                  : 'opacity-70 hover:opacity-100 hover:scale-110'
-              }`}
-              title="Red: 0% - 59% (Low / Unmatched)"
-            />
-            {/* Green Circle (80-100%) */}
-            <button
-              type="button"
-              onClick={() => {
-                const newTier = filters.similarityTier === 'green' ? 'all' : 'green';
-                setFilter('similarityTier', newTier);
-                if (mode === 'history') fetchHistoryEvents(1, { ...filters, similarityTier: newTier }, pageSize);
-              }}
-              className={`w-3.5 h-3.5 rounded-full bg-emerald-500 transition-all ${
-                filters.similarityTier === 'green'
-                  ? 'ring-2 ring-white scale-125 shadow-md shadow-emerald-500/80'
-                  : 'opacity-70 hover:opacity-100 hover:scale-110'
-              }`}
-              title="Green: 80% - 100% (High Match)"
-            />
-            {/* Yellow Circle (60-79%) */}
-            <button
-              type="button"
-              onClick={() => {
-                const newTier = filters.similarityTier === 'yellow' ? 'all' : 'yellow';
-                setFilter('similarityTier', newTier);
-                if (mode === 'history') fetchHistoryEvents(1, { ...filters, similarityTier: newTier }, pageSize);
-              }}
-              className={`w-3.5 h-3.5 rounded-full bg-amber-400 transition-all ${
-                filters.similarityTier === 'yellow'
-                  ? 'ring-2 ring-white scale-125 shadow-md shadow-amber-400/80'
-                  : 'opacity-70 hover:opacity-100 hover:scale-110'
-              }`}
-              title="Yellow: 60% - 79% (Medium Match)"
-            />
-          </div>
-
-          {filters.similarityTier !== 'all' ? (
-            <button
-              type="button"
-              onClick={() => {
-                setFilter('similarityTier', 'all');
-                if (mode === 'history') fetchHistoryEvents(1, { ...filters, similarityTier: 'all' }, pageSize);
-              }}
-              className="text-[9px] text-slate-300 hover:text-white underline font-mono"
-            >
-              Reset Tier
-            </button>
-          ) : (
-            <span className="text-[9px] text-slate-500 font-mono">All Tiers</span>
-          )}
         </div>
       </div>
 
