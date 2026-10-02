@@ -257,7 +257,7 @@ export function LeftRailContainer({
           position: "absolute",
           right: "-14px",
           top: "40%",
-          zIndex: 9999,
+          zIndex: 40,
         }}
         className="flex size-7 items-center justify-center rounded-full bg-[#060a14] border-2 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.7)] hover:border-cyan-300 hover:text-white cursor-pointer pointer-events-auto"
         title={isCustomizingWall ? "Switch back to Luna Stream" : "Switch to Customize Wall"}

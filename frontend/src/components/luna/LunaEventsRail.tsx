@@ -1426,36 +1426,38 @@ export const LunaEventsRail: React.FC = () => {
       </div>
 
       {/* ── Floating Tactical Switch Button on Rail Edge (<->) ───────────────── */}
-      <motion.button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          toggleCustomizingWall();
-        }}
-        whileHover={{ scale: 1.18, boxShadow: '0 0 20px rgba(6,182,212,0.9)' }}
-        whileTap={{ scale: 0.9 }}
-        style={{
-          position: 'absolute',
-          right: '-14px',
-          top: '40%',
-          zIndex: 9999,
-        }}
-        className="flex size-7 items-center justify-center rounded-full bg-[#060a14] border-2 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.7)] hover:border-cyan-300 hover:text-white cursor-pointer pointer-events-auto"
-        title={isCustomizingWall ? 'Switch back to Luna Stream' : 'Switch to Customize Wall'}
-        aria-label="Toggle Customize Wall Panel"
-      >
-        <motion.div
-          animate={{ rotate: isCustomizingWall ? 180 : 0 }}
-          transition={{ type: 'spring', stiffness: 280, damping: 20 }}
-          className="flex items-center justify-center"
+      {!traceModalOpen && (
+        <motion.button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleCustomizingWall();
+          }}
+          whileHover={{ scale: 1.18, boxShadow: '0 0 20px rgba(6,182,212,0.9)' }}
+          whileTap={{ scale: 0.9 }}
+          style={{
+            position: 'absolute',
+            right: '-14px',
+            top: '40%',
+            zIndex: 40,
+          }}
+          className="flex size-7 items-center justify-center rounded-full bg-[#060a14] border-2 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.7)] hover:border-cyan-300 hover:text-white cursor-pointer pointer-events-auto"
+          title={isCustomizingWall ? 'Switch back to Luna Stream' : 'Switch to Customize Wall'}
+          aria-label="Toggle Customize Wall Panel"
         >
-          {isCustomizingWall ? (
-            <Radio className="size-3.5 text-emerald-400" />
-          ) : (
-            <ArrowLeftRight className="size-3.5 text-cyan-400" />
-          )}
-        </motion.div>
-      </motion.button>
+          <motion.div
+            animate={{ rotate: isCustomizingWall ? 180 : 0 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 20 }}
+            className="flex items-center justify-center"
+          >
+            {isCustomizingWall ? (
+              <Radio className="size-3.5 text-emerald-400" />
+            ) : (
+              <ArrowLeftRight className="size-3.5 text-cyan-400" />
+            )}
+          </motion.div>
+        </motion.button>
+      )}
     </div>
   );
 

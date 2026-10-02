@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { LunaEvent, MovementTracePoint, ParsedLunaPersonInfo } from './types';
 import { resolveLunaSampleUrl } from './lunaHelpers';
 import { directFetchLunaEvents } from '@/lib/lunaDirectClient';
@@ -72,6 +73,11 @@ export const FaceMovementTraceModal: React.FC<FaceMovementTraceModalProps> = ({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [timePreset, setTimePreset] = useState<'1h' | '6h' | '24h' | '7d' | 'custom'>('24h');
   const [isMapMaximized, setIsMapMaximized] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Start Date/Time and End Date/Time states (default to 24h past)
   const [startTime, setStartTime] = useState<string>(() => {
@@ -338,8 +344,8 @@ export const FaceMovementTraceModal: React.FC<FaceMovementTraceModalProps> = ({
     document.body.removeChild(link);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in duration-150">
+  const modalContent = (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in duration-150">
       <div className="relative flex flex-col w-full max-w-[1580px] h-[94vh] max-h-[940px] bg-[#090d16] border border-slate-800 rounded-xl shadow-2xl overflow-hidden text-slate-200">
         {/* Top Header (Clean Enterprise Navbar - No Gradients) */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800 bg-[#0c1220]">
@@ -735,4 +741,7 @@ export const FaceMovementTraceModal: React.FC<FaceMovementTraceModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return mounted ? createPortal(modalContent, document.body) : modalContent;
 };
