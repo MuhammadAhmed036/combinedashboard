@@ -123,11 +123,17 @@ export function parseLunaEvent(event: LunaEvent): ParsedLunaPersonInfo {
 
 
   // Build descriptive name & attributes if no matched face identity
-  if (evt.body_basic_attributes) {
-    const gender = evt.body_basic_attributes.apparent_gender === 1 ? 'Male' : 'Female';
-    const age = evt.body_basic_attributes.apparent_age;
+  if (evt.gender !== undefined && evt.gender !== null) {
+    const gender = evt.gender === 1 ? 'Male' : 'Female';
+    const age = evt.age ? `, ~${evt.age}y` : '';
     if (!name) {
-      name = `${gender}, ~${age}y`;
+      name = `${gender}${age}`;
+    }
+  } else if (evt.body_basic_attributes) {
+    const gender = evt.body_basic_attributes.apparent_gender === 1 ? 'Male' : 'Female';
+    const age = evt.body_basic_attributes.apparent_age ? `, ~${evt.body_basic_attributes.apparent_age}y` : '';
+    if (!name) {
+      name = `${gender}${age}`;
     }
   }
 

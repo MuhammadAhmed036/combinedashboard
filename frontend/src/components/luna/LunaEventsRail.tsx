@@ -130,33 +130,43 @@ function buildParams(f: FilterState, page: number, pageSize: number): URLSearchP
   } else if (f.similarityTier === 'red') {
     p.set('top_similar_object_similarity__lt', '0.50');
   } else {
-    if (f.minSimilarity > 0) p.set('top_similar_object_similarity__gte', f.minSimilarity.toFixed(2));
-    if (f.maxSimilarity < 1.0) p.set('top_similar_object_similarity__lt', (f.maxSimilarity + 0.01).toFixed(2));
+    if (f.minSimilarity > 0) p.set('top_similar_object_similarity__gte', parseFloat(f.minSimilarity.toFixed(2)).toString());
+    if (f.maxSimilarity < 1.0) {
+      p.set('top_similar_object_similarity__lte', parseFloat(f.maxSimilarity.toFixed(2)).toString());
+    } else if (f.minSimilarity > 0) {
+      // Matches Vision Lab's query format
+      p.set('top_similar_object_similarity__lt', '1');
+    }
   }
 
   if (f.matchLabel.trim()) p.set('top_matching_candidates_label', f.matchLabel.trim());
   if (f.handlerIds.trim()) p.set('handler_ids', f.handlerIds.trim());
   if (f.sources.trim()) p.set('sources', f.sources.trim());
   if (f.faceIds.trim()) p.set('face_ids', f.faceIds.trim());
-  // Gender filter: In Luna Platform, body detections use `apparent_gender: 1/0`.
-  // When user filters Male/Female, pass apparent_gender so body detection events are matched.
+
+  // Face Gender filter: In Luna Platform, face events use `gender: 0 (Female) / 1 (Male)`
+  if (f.gender !== '') {
+    p.set('gender', f.gender);
+  }
+  // Body Gender filter: In Luna Platform, body detections use `apparent_gender: 0 (Female) / 1 (Male)`
   if (f.apparentGender !== '') {
     p.set('apparent_gender', f.apparentGender);
-  } else if (f.gender !== '') {
-    p.set('apparent_gender', f.gender);
   }
 
-  // Age filter
+  // Face Age filter: In Luna Platform, face events use `age__gte` and `age__lt`
+  if (f.minAge) {
+    p.set('age__gte', f.minAge);
+  }
+  if (f.maxAge) {
+    p.set('age__lt', f.maxAge);
+  }
+
+  // Body Age filter: In Luna Platform, body detections use `apparent_age__gte` and `apparent_age__lt`
   if (f.minApparentAge) {
     p.set('apparent_age__gte', f.minApparentAge);
-  } else if (f.minAge) {
-    p.set('apparent_age__gte', f.minAge);
   }
-
   if (f.maxApparentAge) {
     p.set('apparent_age__lt', f.maxApparentAge);
-  } else if (f.maxAge) {
-    p.set('apparent_age__lt', f.maxAge);
   }
 
   if (f.liveness !== '') p.set('liveness', f.liveness);
@@ -572,9 +582,8 @@ function FilterPanel({
 
                 <SelectField
                   label="Gender"
-                  value={filters.apparentGender || filters.gender}
+                  value={filters.gender}
                   onChange={(v) => {
-                    setFilter('apparentGender', v);
                     setFilter('gender', v);
                   }}
                   options={[
@@ -699,10 +708,9 @@ function FilterPanel({
               <Section title="Face Attributes & Properties">
                 <SelectField
                   label="Face Gender"
-                  value={filters.gender || filters.apparentGender}
+                  value={filters.gender}
                   onChange={(v) => {
                     setFilter('gender', v);
-                    setFilter('apparentGender', v);
                   }}
                   options={[
                     { value: '', label: 'Select...' },
@@ -783,10 +791,9 @@ function FilterPanel({
               <Section title="Body Attributes & Properties">
                 <SelectField
                   label="Gender (Body)"
-                  value={filters.apparentGender || filters.gender}
+                  value={filters.apparentGender}
                   onChange={(v) => {
                     setFilter('apparentGender', v);
-                    setFilter('gender', v);
                   }}
                   options={[
                     { value: '', label: 'Select...' },
@@ -1152,6 +1159,14 @@ export const LunaEventsRail: React.FC = () => {
     if (mode === 'live') {
       timeoutId = setTimeout(() => {
         connectWs();
+        // Seed liveEvents with latest events from LP5 so user immediately sees recent results
+        directFetchLunaEvents(buildParams(DEFAULT_FILTERS, 1, 30))
+          .then(({ events }) => {
+            if (events && events.length > 0) {
+              setLiveEvents((prev) => (prev.length === 0 ? events : prev));
+            }
+          })
+          .catch(() => {});
       }, 0);
     } else {
       if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
@@ -1170,6 +1185,7 @@ export const LunaEventsRail: React.FC = () => {
   }, [mode]);
 
   const handleApply = useCallback(() => {
+    setMode('history');
     setCurrentPage(1);
     fetchHistoryEvents(1, filters, pageSize);
     setShowFilterPanel(false);

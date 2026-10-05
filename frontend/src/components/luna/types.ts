@@ -33,6 +33,14 @@ export interface LunaEvent {
   source?: string;
   handler_id?: string;
   stream_id?: string;
+  face_id?: string;
+  gender?: number; // 0 = female, 1 = male
+  age?: number;
+  emotion?: number;
+  mask?: number;
+  ethnic_group?: number;
+  liveness?: number;
+  deepfake?: number;
   top_match?: LunaTopMatch;
   matches?: LunaMatch[];
   match_result?: LunaMatch[];

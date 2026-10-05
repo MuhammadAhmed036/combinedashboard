@@ -47,47 +47,7 @@ export async function fetchLunaEvents(searchParams: URLSearchParams) {
       'Content-Type': 'application/json',
     };
 
-    const gender = searchParams.get('gender');
-    const apparentGender = searchParams.get('apparent_gender');
-
-    // Luna API uses `apparent_gender` for body detections and `gender` for face detections.
-    // If both are passed together with the same value, Luna performs an AND operation,
-    // which drops all body-only events where face `gender` is null.
-    // In that case, keep `apparent_gender` so body detections are matched.
-    const resolvedParams = new URLSearchParams(searchParams);
-    if (gender !== null && apparentGender !== null && gender === apparentGender) {
-      resolvedParams.delete('gender');
-    }
-
-    // If only `gender` was provided (user selected Gender in UI), in deployments with
-    // body detections, Luna returns 0 unless `apparent_gender` is queried.
-    // Query with `apparent_gender` first:
-    if (gender !== null && apparentGender === null) {
-      const pBody = new URLSearchParams(searchParams);
-      pBody.delete('gender');
-      pBody.set('apparent_gender', gender);
-      if (searchParams.has('age__gte') && !searchParams.has('apparent_age__gte')) {
-        pBody.set('apparent_age__gte', searchParams.get('age__gte')!);
-      }
-      if (searchParams.has('age__lt') && !searchParams.has('apparent_age__lt')) {
-        pBody.set('apparent_age__lt', searchParams.get('age__lt')!);
-      }
-
-      const bodyRes = await fetch(`${baseUrl}/events?${pBody.toString()}`, {
-        method: 'GET',
-        headers,
-        cache: 'no-store',
-      });
-
-      if (bodyRes.ok) {
-        const bodyData = await bodyRes.json();
-        if (bodyData.events && bodyData.events.length > 0) {
-          return bodyData;
-        }
-      }
-    }
-
-    const qs = resolvedParams.toString();
+    const qs = searchParams.toString();
     const targetUrl = `${baseUrl}/events${qs ? `?${qs}` : ''}`;
 
     const response = await fetch(targetUrl, {
