@@ -167,9 +167,47 @@ function DroppableMediaTile({
             </span>
           </div>
 
-          {/* Top-right: Alert Indicator + Occupancy count + Maximize + Delete 'X' button */}
+          {/* Top-right: Occupancy count + Maximize + Delete 'X' button + Alert Indicator (Bilkul right corner) */}
           <div className="absolute right-1.5 top-1.5 flex items-center gap-1.5 z-10">
-            {/* Small 1-second blinking circle dot (Red for Critical/High, Yellow for Medium, Blue for Low) */}
+            {camera.status === "online" && (
+              <span className="inline-flex items-center gap-1 rounded-[4px] bg-black/75 px-1.5 py-0.5 text-[9px] font-bold text-white border border-white/10 shadow-sm pointer-events-none">
+                <Users className="size-2.5" />
+                {livePeopleCount ?? "--"}
+              </span>
+            )}
+
+            {/* Maximize Focus Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMaximize(camera);
+              }}
+              className="hidden group-hover:flex size-5 items-center justify-center rounded-[4px] bg-black/80 text-white/80 hover:bg-slate-700 hover:text-white transition-all shadow-md cursor-pointer"
+              title="Expand Camera Fullscreen (1080p Focus)"
+              aria-label="Maximize Camera"
+            >
+              <Maximize2 className="size-2.5" />
+            </button>
+
+            {/* Delete 'X' button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClear();
+              }}
+              className={cn(
+                "size-5 items-center justify-center rounded-[4px] bg-black/80 text-white/80 hover:bg-destructive hover:text-white transition-all shadow-md cursor-pointer",
+                isCustomizing ? "flex" : "hidden group-hover:flex"
+              )}
+              title="Remove camera from this slot"
+              aria-label="Remove camera"
+            >
+              <X className="size-3" />
+            </button>
+
+            {/* Small 1-second blinking circle dot (Bilkul Right Corner) */}
             {activeAlert && camera.status === "online" && (
               <div
                 onClick={(e) => {
@@ -205,44 +243,6 @@ function DroppableMediaTile({
                 />
               </div>
             )}
-
-            {camera.status === "online" && (
-              <span className="inline-flex items-center gap-1 rounded-[4px] bg-black/75 px-1.5 py-0.5 text-[9px] font-bold text-white border border-white/10 shadow-sm pointer-events-none">
-                <Users className="size-2.5" />
-                {livePeopleCount ?? "--"}
-              </span>
-            )}
-
-            {/* Maximize Focus Button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMaximize(camera);
-              }}
-              className="flex size-5 items-center justify-center rounded-[4px] bg-black/80 text-white/80 hover:bg-slate-700 hover:text-white transition-all shadow-md cursor-pointer opacity-0 group-hover:opacity-100"
-              title="Expand Camera Fullscreen (1080p Focus)"
-              aria-label="Maximize Camera"
-            >
-              <Maximize2 className="size-2.5" />
-            </button>
-
-            {/* Delete 'X' button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClear();
-              }}
-              className={cn(
-                "flex size-5 items-center justify-center rounded-[4px] bg-black/80 text-white/80 hover:bg-destructive hover:text-white transition-all shadow-md cursor-pointer",
-                isCustomizing ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-              )}
-              title="Remove camera from this slot"
-              aria-label="Remove camera"
-            >
-              <X className="size-3" />
-            </button>
           </div>
 
           {/* Bottom Bar: Camera name and zone */}

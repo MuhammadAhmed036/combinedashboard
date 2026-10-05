@@ -77,7 +77,41 @@ export function DroppableCell({
             )}
           </div>
           <div className="absolute right-2 top-2 flex items-center gap-1.5 z-10">
-            {/* Small 1-second blinking circle dot (Red for Critical/High, Yellow for Medium, Blue for Low) */}
+            {camera.status === "online" && (
+              <div
+                className={cn(
+                  "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-white transition-colors",
+                  livePeopleCount !== null && livePeopleCount !== undefined && livePeopleCount >= 5
+                    ? "bg-destructive shadow-md animate-pulse"
+                    : "bg-black/55 text-white"
+                )}
+              >
+                <Users className="size-3" /> {livePeopleCount ?? "—"}
+              </div>
+            )}
+            {onMaximize && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMaximize(camera);
+                }}
+                className="hidden group-hover:flex size-6 items-center justify-center rounded-md bg-black/55 text-white transition-opacity hover:bg-cyan-500 hover:text-black cursor-pointer"
+                title="Expand Camera Full Focus (1080p)"
+                aria-label="Maximize camera"
+              >
+                <Maximize2 className="size-3.5" />
+              </button>
+            )}
+            <button
+              onClick={onClear}
+              className="hidden group-hover:flex size-6 items-center justify-center rounded-md bg-black/55 text-white transition-opacity hover:bg-black/70"
+              aria-label="Remove camera"
+            >
+              <X className="size-3.5" />
+            </button>
+
+            {/* Small 1-second blinking circle dot (Bilkul Right Corner) */}
             {activeAlert && camera.status === "online" && (
               <div
                 onClick={(e) => {
@@ -113,40 +147,6 @@ export function DroppableCell({
                 />
               </div>
             )}
-
-            {camera.status === "online" && (
-              <div
-                className={cn(
-                  "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-white transition-colors",
-                  livePeopleCount !== null && livePeopleCount !== undefined && livePeopleCount >= 5
-                    ? "bg-destructive shadow-md animate-pulse"
-                    : "bg-black/55 text-white"
-                )}
-              >
-                <Users className="size-3" /> {livePeopleCount ?? "—"}
-              </div>
-            )}
-            {onMaximize && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onMaximize(camera);
-                }}
-                className="flex size-6 items-center justify-center rounded-md bg-black/55 text-white opacity-0 transition-opacity hover:bg-cyan-500 hover:text-black group-hover:opacity-100 cursor-pointer"
-                title="Expand Camera Full Focus (1080p)"
-                aria-label="Maximize camera"
-              >
-                <Maximize2 className="size-3.5" />
-              </button>
-            )}
-            <button
-              onClick={onClear}
-              className="flex size-6 items-center justify-center rounded-md bg-black/55 text-white opacity-0 transition-opacity hover:bg-black/70 group-hover:opacity-100"
-              aria-label="Remove camera"
-            >
-              <X className="size-3.5" />
-            </button>
           </div>
           <div className="absolute bottom-2 left-2 right-2 truncate text-[11px] font-medium text-white/90">
             {camera.code} · {camera.zoneName}
