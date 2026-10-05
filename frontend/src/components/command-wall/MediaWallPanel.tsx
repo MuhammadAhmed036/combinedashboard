@@ -15,6 +15,7 @@ import {
   Scan,
   ShieldCheck,
   ShieldAlert,
+  AlertTriangle,
 } from "lucide-react";
 import { CameraThumbnail } from "@/components/cameras/CameraThumbnail";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,13 @@ import { gridDimensions } from "@/components/media-wall/GridLayoutSwitch";
 import { useUIStore } from "@/lib/store/useUIStore";
 import { useCustomizeWallStore } from "@/lib/store/useCustomizeWallStore";
 import { resolveDetectionCameraId } from "@/lib/streamToDetectionCameraId";
+import { useAllAlertEvents } from "@/lib/hooks/useAlertRules";
+import {
+  buildCameraAlertLookup,
+  findCameraActiveAlert,
+  type ActiveCameraAlert,
+} from "@/lib/cameraAlertsLookup";
+import { CATEGORY_LABEL } from "./alertVisuals";
 import { cn } from "@/lib/utils";
 import type { Camera, GridLayoutKey } from "@/lib/types";
 
@@ -80,6 +88,7 @@ function DroppableMediaTile({
   camera,
   onClear,
   livePeopleCount,
+  activeAlert,
   isCustomizing,
   dims,
   isStandby,
@@ -90,6 +99,7 @@ function DroppableMediaTile({
   camera: Camera | null;
   onClear: () => void;
   livePeopleCount: number | null;
+  activeAlert?: ActiveCameraAlert | null;
   isCustomizing: boolean;
   dims: number;
   isStandby: boolean;
@@ -106,9 +116,16 @@ function DroppableMediaTile({
       className={cn(
         "group relative flex size-full overflow-hidden rounded-[4px] transition-all duration-150 select-none",
         dims <= 3 ? "min-h-0" : "aspect-video min-h-[85px]",
-        "bg-black border border-[#232733]",
+        "bg-black border",
+        activeAlert
+          ? activeAlert.category === "critical"
+            ? "border-red-500 ring-2 ring-red-500/50 shadow-[0_0_14px_rgba(239,68,68,0.35)]"
+            : activeAlert.category === "medium"
+            ? "border-amber-400 ring-2 ring-amber-400/50 shadow-[0_0_14px_rgba(245,158,11,0.35)]"
+            : "border-blue-400 ring-2 ring-blue-400/50 shadow-[0_0_14px_rgba(59,130,246,0.35)]"
+          : "border-[#232733]",
         isOver && "border-amber-400 ring-2 ring-amber-400/50 bg-[#1a1d26] scale-[0.99] z-20",
-        camera && "hover:border-amber-400/80",
+        camera && !activeAlert && "hover:border-amber-400/80",
         !camera && "border-dashed border-[#2d3342] bg-[#10131a] hover:border-slate-500"
       )}
     >
@@ -150,8 +167,45 @@ function DroppableMediaTile({
             </span>
           </div>
 
-          {/* Top-right: Occupancy count + Maximize + Delete 'X' button */}
-          <div className="absolute right-1.5 top-1.5 flex items-center gap-1 z-10">
+          {/* Top-right: Alert Indicator + Occupancy count + Maximize + Delete 'X' button */}
+          <div className="absolute right-1.5 top-1.5 flex items-center gap-1.5 z-10">
+            {/* Small 1-second blinking circle dot (Red for Critical/High, Yellow for Medium, Blue for Low) */}
+            {activeAlert && camera.status === "online" && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMaximize(camera);
+                }}
+                className="relative flex size-3 items-center justify-center cursor-pointer select-none"
+                title={`Active Alert: ${activeAlert.ruleName || "Security Alert"} (${CATEGORY_LABEL[activeAlert.category]})`}
+              >
+                {/* Outer pinging ripple (1s duration) */}
+                <span
+                  className={cn(
+                    "absolute inline-flex size-full rounded-full opacity-75 animate-ping",
+                    activeAlert.category === "critical"
+                      ? "bg-red-500"
+                      : activeAlert.category === "medium"
+                      ? "bg-amber-400"
+                      : "bg-blue-400"
+                  )}
+                  style={{ animationDuration: "1s" }}
+                />
+                {/* Inner solid glowing circle dot (1s pulse) */}
+                <span
+                  className={cn(
+                    "relative inline-flex size-2 rounded-full shadow-sm animate-pulse",
+                    activeAlert.category === "critical"
+                      ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] ring-1 ring-red-300"
+                      : activeAlert.category === "medium"
+                      ? "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)] ring-1 ring-amber-200"
+                      : "bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.9)] ring-1 ring-blue-200"
+                  )}
+                  style={{ animationDuration: "1s" }}
+                />
+              </div>
+            )}
+
             {camera.status === "online" && (
               <span className="inline-flex items-center gap-1 rounded-[4px] bg-black/75 px-1.5 py-0.5 text-[9px] font-bold text-white border border-white/10 shadow-sm pointer-events-none">
                 <Users className="size-2.5" />
@@ -229,6 +283,12 @@ export function MediaWallPanel({
   const [enlargedCamera, setEnlargedCamera] = useState<Camera | null>(null);
   const [isModalFullscreen, setIsModalFullscreen] = useState<boolean>(false);
   const [modalFit, setModalFit] = useState<"contain" | "cover">("contain");
+
+  // Real-time live alerts feed for camera tiles (polls every 1.5s in sync with Alert Rail)
+  const { data: allAlertEvents } = useAllAlertEvents();
+  const cameraAlertLookup = useMemo(() => {
+    return buildCameraAlertLookup(allAlertEvents);
+  }, [allAlertEvents]);
 
   // Keyboard shortcut listener: Esc to close modal/fullscreen, F to toggle fullscreen
   useEffect(() => {
@@ -429,6 +489,7 @@ export function MediaWallPanel({
                   const assignedCameraId = assignmentByCell.get(index);
                   const camera = assignedCameraId ? cameraById.get(assignedCameraId) ?? null : null;
                   const livePeopleCount = camera ? findLivePeopleCount(camera, occupancyLookup) : null;
+                  const activeAlert = camera ? findCameraActiveAlert(camera, cameraAlertLookup) : null;
                   const isStandby = !activeSlots.has(index);
 
                   return (
@@ -445,6 +506,7 @@ export function MediaWallPanel({
                         } catch {}
                       }}
                       livePeopleCount={livePeopleCount}
+                      activeAlert={activeAlert}
                       isCustomizing={isCustomizingWall}
                       isStandby={isStandby}
                       onActivate={() => setHoveredIndex(index)}
@@ -457,7 +519,9 @@ export function MediaWallPanel({
         </div>
 
         {/* ── Focused 1080p Single Camera Focus Modal (VMS Full View) ── */}
-        {enlargedCamera && (
+        {enlargedCamera && (() => {
+          const modalAlert = findCameraActiveAlert(enlargedCamera, cameraAlertLookup);
+          return (
           <div
             className={cn(
               "fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md transition-all duration-200",
@@ -488,6 +552,27 @@ export function MediaWallPanel({
                   <span className="hidden sm:inline-flex rounded bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-slate-300 border border-slate-700 shrink-0">
                     1080p Stream
                   </span>
+                  {modalAlert && (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold shadow-md animate-pulse shrink-0 border",
+                        modalAlert.category === "critical" && "bg-red-500/20 text-red-400 border-red-500/40",
+                        modalAlert.category === "medium" && "bg-amber-500/20 text-amber-300 border-amber-500/40",
+                        modalAlert.category === "low" && "bg-blue-500/20 text-blue-300 border-blue-500/40"
+                      )}
+                      style={{ animationDuration: "1s" }}
+                      title={`Active Alert: ${modalAlert.ruleName || "Rule"} (${CATEGORY_LABEL[modalAlert.category]})`}
+                    >
+                      <span
+                        className={cn(
+                          "size-2 rounded-full animate-ping",
+                          modalAlert.category === "critical" ? "bg-red-500" : modalAlert.category === "medium" ? "bg-amber-400" : "bg-blue-400"
+                        )}
+                        style={{ animationDuration: "1s" }}
+                      />
+                      <span>{CATEGORY_LABEL[modalAlert.category].toUpperCase()} ALERT</span>
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -560,7 +645,7 @@ export function MediaWallPanel({
               </div>
             </div>
           </div>
-        )}
+        ); })()}
       </section>
   );
 }

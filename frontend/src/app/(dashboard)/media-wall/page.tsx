@@ -21,6 +21,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCameras } from "@/lib/hooks/useCameras";
 import { useZones } from "@/lib/hooks/useZones";
 import { useLiveCameraOccupancy } from "@/lib/hooks/useLiveCameraOccupancy";
+import { useAllAlertEvents } from "@/lib/hooks/useAlertRules";
+import { buildCameraAlertLookup, findCameraActiveAlert } from "@/lib/cameraAlertsLookup";
 import { useUIStore } from "@/lib/store/useUIStore";
 import { resolveDetectionCameraId } from "@/lib/streamToDetectionCameraId";
 import { cn } from "@/lib/utils";
@@ -30,6 +32,11 @@ export default function MediaWallPage() {
   const { data: cameras } = useCameras();
   const { data: zones } = useZones();
   const liveOccupancy = useLiveCameraOccupancy();
+  const { data: allAlertEvents } = useAllAlertEvents();
+
+  const cameraAlertLookup = useMemo(() => {
+    return buildCameraAlertLookup(allAlertEvents);
+  }, [allAlertEvents]);
 
   const layout = useUIStore((s) => s.mediaWallLayout);
   const setLayout = useUIStore((s) => s.setMediaWallLayout);
@@ -184,6 +191,7 @@ export default function MediaWallPage() {
                      null)
                   : null;
                 const isHighOccupancy = livePeopleCount !== null && livePeopleCount !== undefined && livePeopleCount >= 5;
+                const activeAlert = camera ? findCameraActiveAlert(camera, cameraAlertLookup) : null;
                 return (
                   <div key={i} className="min-h-[90px]">
                     <DroppableCell
@@ -192,6 +200,7 @@ export default function MediaWallPage() {
                       onClear={() => assignCameraToCell(i, null)}
                       onMaximize={(cam) => setEnlargedCamera(cam)}
                       hasAlert={isHighOccupancy}
+                      activeAlert={activeAlert}
                       livePeopleCount={livePeopleCount}
                     />
                   </div>
