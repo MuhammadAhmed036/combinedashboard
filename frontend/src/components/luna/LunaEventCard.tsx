@@ -5,7 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LunaEvent, ParsedLunaPersonInfo } from './types';
-import { parseLunaEvent, resolveLunaSampleUrl } from './lunaHelpers';
+import { parseLunaEvent, resolveLunaSampleUrl, resolveLunaSampleProxyUrl } from './lunaHelpers';
 import { directFetchLunaFace, directFetchLunaEvent } from '@/lib/lunaDirectClient';
 import {
   Navigation,
@@ -35,6 +35,8 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   const info = parseLunaEvent(event);
   const [sampleError, setSampleError] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [sampleUsingFallback, setSampleUsingFallback] = useState(false);
+  const [avatarUsingFallback, setAvatarUsingFallback] = useState(false);
 
   // Matched / enrolled original face avatar state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
@@ -52,24 +54,28 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   useEffect(() => {
     if (info.avatarUrl) {
       setAvatarUrl(info.avatarUrl);
+      setAvatarError(false);
       if (info.faceId) clientAvatarCache.set(info.faceId, info.avatarUrl);
       return;
     }
-    if (!info.faceId) return;
+    const targetFaceId = info.faceId || event.top_match?.face_id || (event as any).face_id;
+    if (!targetFaceId) return;
 
-    if (clientAvatarCache.has(info.faceId)) {
-      setAvatarUrl(clientAvatarCache.get(info.faceId) || null);
+    if (clientAvatarCache.has(targetFaceId)) {
+      setAvatarUrl(clientAvatarCache.get(targetFaceId) || null);
+      setAvatarError(false);
       return;
     }
 
     let isMounted = true;
-    directFetchLunaFace(info.faceId)
+    directFetchLunaFace(targetFaceId)
       .then((data) => {
         if (isMounted && data?.avatar) {
           const resolved = resolveLunaSampleUrl(data.avatar);
           if (resolved) {
-            clientAvatarCache.set(info.faceId!, resolved);
+            clientAvatarCache.set(targetFaceId, resolved);
             setAvatarUrl(resolved);
+            setAvatarError(false);
           }
         }
       })
@@ -78,7 +84,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [info.faceId, info.avatarUrl]);
+  }, [info.faceId, info.avatarUrl, event.top_match]);
 
   // Asynchronously resolve detected image if missing from raw WebSocket event
   useEffect(() => {
@@ -112,6 +118,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
         }
         if (parsed.avatarUrl && !avatarUrl) {
           setAvatarUrl(parsed.avatarUrl);
+          setAvatarError(false);
         }
       })
       .catch(() => {});
@@ -120,6 +127,30 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
       isMounted = false;
     };
   }, [event.event_id, (event as any).id, info.detectedFaceUrl, info.sampleUrl, info.frameUrl, avatarUrl]);
+
+  const handleAvatarError = () => {
+    if (!avatarUsingFallback && avatarUrl) {
+      const fallback = resolveLunaSampleProxyUrl(avatarUrl);
+      if (fallback && fallback !== avatarUrl) {
+        setAvatarUsingFallback(true);
+        setAvatarUrl(fallback);
+        return;
+      }
+    }
+    setAvatarError(true);
+  };
+
+  const handleDetectedError = () => {
+    if (!sampleUsingFallback && detectedImageUrl) {
+      const fallback = resolveLunaSampleProxyUrl(detectedImageUrl);
+      if (fallback && fallback !== detectedImageUrl) {
+        setSampleUsingFallback(true);
+        setDetectedUrl(fallback);
+        return;
+      }
+    }
+    setSampleError(true);
+  };
 
   // Full-view lightbox state
   const [lightbox, setLightbox] = useState<{
@@ -130,7 +161,13 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
 
   const dateTimeLabel = [info.dateFormatted, info.timeFormatted].filter(Boolean).join(' ') || info.timeFormatted;
   const detectedImageUrl = detectedUrl || info.detectedFaceUrl || info.sampleUrl || info.frameUrl;
-  const hasMatchedAvatar = Boolean(avatarUrl && !avatarError);
+  const isMatch = Boolean(
+    info.faceId ||
+    event.top_match ||
+    (event as any).face_id ||
+    info.similarity > 0 ||
+    avatarUrl
+  );
 
   // Dynamic color palette per wireframe (Green >= 80%, Yellow 60-79%, Red < 60%)
   // Rule indicator colors strictly preserved (Red, Green, Yellow) with solid enterprise CCTV styling
@@ -195,7 +232,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
                   src={detectedImageUrl}
                   alt="Detected Person"
                   className="w-full h-full object-cover rounded-lg transition-transform duration-300 group-hover/det:scale-110"
-                  onError={() => setSampleError(true)}
+                  onError={handleDetectedError}
                 />
                 <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/det:opacity-100 transition-opacity flex items-center justify-center">
                   <Maximize2 className="w-3.5 h-3.5 text-white drop-shadow" />
@@ -215,8 +252,8 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
           </div>
         </div>
 
-        {/* ── Overlapping Match Image Badge (Brown box in wireframe) ── */}
-        {hasMatchedAvatar && (
+        {/* ── Overlapping Match Image Badge (Original reference photo) ── */}
+        {isMatch && (
           <div
             onClick={(e) => {
               e.stopPropagation();
@@ -228,18 +265,27 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
                 });
               }
             }}
-            className={`group/match absolute -top-2.5 left-[64px] z-20 w-11 h-14 rounded-lg bg-slate-950 ${matchBorder} flex items-center justify-center overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-110`}
+            className={`group/match absolute -top-2.5 left-[64px] z-20 w-11 h-14 rounded-lg bg-slate-950 ${matchBorder} flex items-center justify-center overflow-hidden cursor-pointer transition-transform duration-200 hover:scale-110 shadow-md`}
             title="Click to view original match photo"
           >
-            <img
-              src={avatarUrl!}
-              alt="Match Reference"
-              className="w-full h-full object-cover rounded-md"
-              onError={() => setAvatarError(true)}
-            />
-            <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/match:opacity-100 transition-opacity flex items-center justify-center">
-              <ZoomIn className="w-3 h-3 text-white drop-shadow" />
-            </div>
+            {avatarUrl && !avatarError ? (
+              <>
+                <img
+                  src={avatarUrl}
+                  alt="Match Reference"
+                  className="w-full h-full object-cover rounded-md"
+                  onError={handleAvatarError}
+                />
+                <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/match:opacity-100 transition-opacity flex items-center justify-center">
+                  <ZoomIn className="w-3 h-3 text-white drop-shadow" />
+                </div>
+              </>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 text-[7px] gap-0.5 p-0.5 text-center bg-slate-950">
+                <User className="w-3.5 h-3.5 text-slate-500 animate-pulse" />
+                <span className="text-[6.5px] text-slate-400 font-mono">REF</span>
+              </div>
+            )}
 
             {/* Match sub-badge */}
             <span className="absolute bottom-0 inset-x-0 bg-slate-950/95 text-[6.5px] font-bold text-center py-0.2 text-emerald-300 tracking-wider pointer-events-none border-t border-slate-800">
@@ -253,7 +299,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
           {/* Top Row: Category tag on left & Similarity Score on Top-Right */}
           <div className="flex items-center justify-between gap-1">
             <span className="text-[8px] uppercase tracking-wider text-slate-400 font-mono pl-3">
-              {hasMatchedAvatar ? 'MATCH' : 'ALERT'}
+              {isMatch ? 'MATCH' : 'ALERT'}
             </span>
             <div
               className={`shrink-0 px-1.5 py-0.5 rounded font-black text-[10px] border shadow-sm ${badgeStyle}`}

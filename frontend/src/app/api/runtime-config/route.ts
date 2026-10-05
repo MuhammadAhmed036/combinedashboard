@@ -10,23 +10,28 @@ export const dynamic = "force-dynamic";
  * Never add a credential to this response — it's served unauthenticated.
  */
 export async function GET() {
+  const lunaHost = process.env.LUNA_HOST || process.env.NEXT_PUBLIC_LUNA_HOST || null;
+  const lunaPort = process.env.LUNA_GATEWAY_PORT || process.env.LUNA_WEB_PORT || process.env.NEXT_PUBLIC_LUNA_PORT || null;
+  const lunaApiUrl =
+    process.env.NEXT_PUBLIC_LUNA_API_URL ||
+    (lunaHost && lunaPort ? `http://${lunaHost}:${lunaPort}/api/lp5/6` : null);
+
   return Response.json(
     {
       apiBase: process.env.DETECTION_API_BASE_URL ?? null,
       pollIntervalMs: Number(process.env.POLL_INTERVAL_MS) || 5000,
       personCountWsBase: process.env.PERSON_COUNT_WS_URL ?? null,
-      lunaWsUrl: process.env.NEXT_PUBLIC_LUNA_WS_URL || "ws://root%40visionlabs.ai:root@192.168.18.71:5000/6/ws",
-      lunaApiUrl:
-        process.env.NEXT_PUBLIC_LUNA_API_URL ||
-        `http://${process.env.LUNA_HOST || "192.168.18.71"}:${process.env.LUNA_GATEWAY_PORT || "8080"}/api/lp5/6`,
-      lunaHost: process.env.LUNA_HOST || "192.168.18.71",
-      lunaPort: process.env.LUNA_GATEWAY_PORT || "8080",
-      lunaAccountId: process.env.LUNA_ACCOUNT_ID || "00000000-0000-4000-b000-000000000146",
-      lunaAuthUser: process.env.LUNA_AUTH_USER || "root@visionlabs.ai",
-      lunaAuthPass: process.env.LUNA_AUTH_PASS || "root",
-      cameraFeedBaseUrl: process.env.CAMERA_FEED_BASE_URL || "http://192.168.18.216:8889",
-      cameraFeedUser: process.env.CAMERA_FEED_USERNAME || "admin",
-      cameraFeedPass: process.env.CAMERA_FEED_PASSWORD || "admin_123456",
+      lunaWsUrl: process.env.NEXT_PUBLIC_LUNA_WS_URL ?? null,
+      lunaWsPort: process.env.LUNA_WS_PORT || process.env.NEXT_PUBLIC_LUNA_WS_PORT || null,
+      lunaApiUrl: lunaApiUrl ?? null,
+      lunaHost: lunaHost ?? null,
+      lunaPort: lunaPort ?? null,
+      lunaAccountId: process.env.LUNA_ACCOUNT_ID || process.env.NEXT_PUBLIC_LUNA_ACCOUNT_ID || null,
+      lunaAuthUser: process.env.LUNA_AUTH_USER || process.env.NEXT_PUBLIC_LUNA_AUTH_USER || null,
+      lunaAuthPass: process.env.LUNA_AUTH_PASS || process.env.NEXT_PUBLIC_LUNA_AUTH_PASS || null,
+      cameraFeedBaseUrl: process.env.CAMERA_FEED_BASE_URL ?? null,
+      cameraFeedUser: process.env.CAMERA_FEED_USERNAME ?? null,
+      cameraFeedPass: process.env.CAMERA_FEED_PASSWORD ?? null,
     },
     { headers: { "Cache-Control": "no-store" } }
   );

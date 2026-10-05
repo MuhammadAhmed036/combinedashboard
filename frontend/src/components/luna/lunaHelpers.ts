@@ -1,9 +1,11 @@
 import { LunaEvent, LunaCandidate, ParsedLunaPersonInfo } from './types';
-import { resolveDirectLunaImageUrl } from '@/lib/lunaDirectClient';
+import { resolveDirectLunaImageUrl, resolveLunaSampleProxyUrl } from '@/lib/lunaDirectClient';
 
 export function resolveLunaSampleUrl(rawUrlOrId?: string | null): string | null {
   return resolveDirectLunaImageUrl(rawUrlOrId);
 }
+
+export { resolveLunaSampleProxyUrl };
 
 export function findBestCandidate(event: LunaEvent): LunaCandidate | null {
   const matches = event.matches || event.match_result;
@@ -46,7 +48,7 @@ export function parseLunaEvent(event: LunaEvent): ParsedLunaPersonInfo {
 
   // 1. Try top_match
   if (evt.top_match) {
-    faceId = evt.top_match.face_id || evt.top_match.face?.face_id || null;
+    faceId = evt.top_match.face_id || evt.top_match.face?.face_id || (evt as any).face_id || null;
     name = evt.top_match.face?.user_data || evt.top_match.label || 'Identified Person';
     rawSim = evt.top_match.similarity ?? evt.top_match.score ?? 0;
     listName = evt.top_match.label || 'Watchlist Match';
@@ -60,7 +62,7 @@ export function parseLunaEvent(event: LunaEvent): ParsedLunaPersonInfo {
   if (!faceId) {
     const candidate = findBestCandidate(evt);
     if (candidate) {
-      faceId = candidate.face?.face_id || null;
+      faceId = candidate.face?.face_id || (candidate as any).face_id || null;
       name = candidate.face?.user_data || candidate.label || 'Identified Person';
       rawSim = candidate.similarity || 0;
       listName = candidate.label || 'Watchlist Match';
@@ -68,6 +70,15 @@ export function parseLunaEvent(event: LunaEvent): ParsedLunaPersonInfo {
       if (rawAvatar) {
         avatarUrl = resolveLunaSampleUrl(rawAvatar);
       }
+    }
+  }
+
+  // 2b. Root face_id fallback
+  if (!faceId && (evt as any).face_id) {
+    faceId = (evt as any).face_id;
+    const rawAvatar = (evt as any).avatar;
+    if (rawAvatar) {
+      avatarUrl = resolveLunaSampleUrl(rawAvatar);
     }
   }
 

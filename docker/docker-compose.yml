@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD}
       POSTGRES_DB: ${LOCAL_DB_NAME:-dashboard}
     ports:
-      - "127.0.0.1:${LOCAL_DB_PORT:-5370}:5432"
+      - "127.0.0.1:${LOCAL_DB_PORT}:5432"
     volumes:
       - safecity-db-data:/var/lib/postgresql/data
       - ./docker/init-db:/docker-entrypoint-initdb.d:ro
@@ -32,7 +32,7 @@ services:
       HOSTNAME: "0.0.0.0"
       DATABASE_URL: postgres://${LOCAL_DB_USER:-dashboard}:${LOCAL_DB_PASSWORD}@db:5432/${LOCAL_DB_NAME:-dashboard}
     ports:
-      - "${APP_PORT:-3000}:3000"
+      - "${APP_PORT}:3000"
     volumes:
       - safecity-data:/app/data
     depends_on:
@@ -47,10 +47,10 @@ services:
     env_file:
       - ../.env
     environment:
-      WS_PORT: "8090"
+      WS_PORT: ${PERSON_COUNT_WS_PORT}
       DATABASE_URL: postgres://${LOCAL_DB_USER:-dashboard}:${LOCAL_DB_PASSWORD}@db:5432/${LOCAL_DB_NAME:-dashboard}
     ports:
-      - "${PERSON_COUNT_WS_PORT:-8090}:8090"
+      - "${PERSON_COUNT_WS_PORT}:${PERSON_COUNT_WS_PORT}"
     depends_on:
       db:
         condition: service_healthy
@@ -76,14 +76,14 @@ services:
     env_file:
       - ../.env
     environment:
-      LUNA_WS_PORT: "8092"
-      LUNA_HOST: ${LUNA_HOST:-192.168.18.71}
-      LUNA_API_PORT: ${LUNA_API_PORT:-5000}
-      LUNA_ACCOUNT_ID: ${LUNA_ACCOUNT_ID:-00000000-0000-4000-b000-000000000146}
-      LUNA_AUTH_USER: ${LUNA_AUTH_USER:-root@visionlabs.ai}
-      LUNA_AUTH_PASS: ${LUNA_AUTH_PASS:-root}
+      LUNA_WS_PORT: ${LUNA_WS_PORT}
+      LUNA_HOST: ${LUNA_HOST}
+      LUNA_API_PORT: ${LUNA_API_PORT}
+      LUNA_ACCOUNT_ID: ${LUNA_ACCOUNT_ID}
+      LUNA_AUTH_USER: ${LUNA_AUTH_USER}
+      LUNA_AUTH_PASS: ${LUNA_AUTH_PASS}
     ports:
-      - "${LUNA_WS_PORT:-8092}:8092"
+      - "${LUNA_WS_PORT}:${LUNA_WS_PORT}"
 
 volumes:
   safecity-data:

@@ -66,13 +66,17 @@ export async function getCameraSnapshot(cameraName: string): Promise<SnapshotRes
 
   try {
     if (!streamsCache || streamsCache.expiresAt < now) {
-      const streamsUrl = process.env.STREAMS_API_URL || "http://192.168.18.216:8000/api/streams/list";
-      const user = process.env.STREAMS_API_USERNAME || "admin";
-      const pass = process.env.STREAMS_API_PASSWORD || "admin_123456";
-      const authHeader = "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
+      const streamsUrl = process.env.STREAMS_API_URL;
+      if (!streamsUrl) return null;
+      const user = process.env.STREAMS_API_USERNAME || "";
+      const pass = process.env.STREAMS_API_PASSWORD || "";
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (user || pass) {
+        headers.Authorization = "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
+      }
 
       const res = await fetch(streamsUrl, {
-        headers: { Authorization: authHeader, Accept: "application/json" },
+        headers,
         signal: AbortSignal.timeout(3000),
       });
 

@@ -19,7 +19,7 @@ const activeStreams = new Map<string, StreamEntry>();
 
 function getAuthHeader(user?: string, pass?: string): Record<string, string> {
   if (!user && !pass) return {};
-  const creds = btoa(`${user || 'admin'}:${pass || 'admin_123456'}`);
+  const creds = btoa(`${user || ''}:${pass || ''}`);
   return { Authorization: `Basic ${creds}` };
 }
 
@@ -30,7 +30,13 @@ async function startWebRTCStream(entry: StreamEntry) {
 
   try {
     const config = await loadRuntimeConfig();
-    const baseUrl = config.cameraFeedBaseUrl || 'http://192.168.18.216:8889';
+    const baseUrl = config.cameraFeedBaseUrl;
+    if (!baseUrl) {
+      console.warn('[WebRTC] Camera feed base URL is not configured in environment');
+      entry.status = 'error';
+      notifyListeners(entry);
+      return;
+    }
     const whepUrl = `${baseUrl.replace(/\/$/, '')}/${encodeURIComponent(entry.sourceName)}/whep`;
     const authHeaders = getAuthHeader(config.cameraFeedUser, config.cameraFeedPass);
 

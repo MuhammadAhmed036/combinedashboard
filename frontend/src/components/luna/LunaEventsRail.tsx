@@ -12,6 +12,7 @@ import {
   directFetchLunaHandlers,
   directFetchLunaLists,
   directFetchLunaEvent,
+  directFetchLunaFace,
 } from '@/lib/lunaDirectClient';
 import { useUIStore } from '@/lib/store/useUIStore';
 import { useCustomizeWallStore } from '@/lib/store/useCustomizeWallStore';
@@ -974,28 +975,38 @@ export const LunaEventsRail: React.FC = () => {
       const config = await loadRuntimeConfig().catch(() => null);
 
       // VisionLabs Official WebSocket Endpoint
-      // Primary: direct connection with basic auth credentials
+      // Primary: direct connection configured via environment / runtime-config
       const directLunaWs =
         process.env.NEXT_PUBLIC_LUNA_WS_URL ||
         config?.lunaWsUrl ||
-        "ws://root%40visionlabs.ai:root@192.168.18.71:5000/6/ws";
+        "";
 
-      // Fallback local proxy in case browser security blocks user:pass in URL
+      // Fallback proxy using configured WS port
+      const wsPort = config?.lunaWsPort || process.env.NEXT_PUBLIC_LUNA_WS_PORT || "";
       const proxyWs =
-        typeof window !== 'undefined'
-          ? `ws://${window.location.hostname}:8092`
-          : 'ws://localhost:8092';
+        typeof window !== 'undefined' && wsPort
+          ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:${wsPort}`
+          : '';
 
-      let currentWsUrl = directLunaWs;
+      let currentWsUrl = directLunaWs || proxyWs;
+      if (!currentWsUrl) {
+        console.warn('[Luna WS] Luna WebSocket URL/port is not configured in environment');
+        return;
+      }
+
       console.log('[Luna WS] Initializing VisionLabs WebSocket:', currentWsUrl);
 
       let ws: WebSocket;
       try {
         ws = new WebSocket(currentWsUrl);
       } catch (err) {
-        console.warn('[Luna WS] Direct connection instantiation failed, using proxy fallback:', err);
-        currentWsUrl = proxyWs;
-        ws = new WebSocket(currentWsUrl);
+        if (proxyWs && currentWsUrl !== proxyWs) {
+          console.warn('[Luna WS] Direct connection instantiation failed, using proxy fallback:', err);
+          currentWsUrl = proxyWs;
+          ws = new WebSocket(currentWsUrl);
+        } else {
+          throw err;
+        }
       }
 
       wsRef.current = ws;
@@ -1056,6 +1067,33 @@ export const LunaEventsRail: React.FC = () => {
                         ? { ...item, ...fullEvt, event_id: id }
                         : item
                     )
+                  );
+                }
+              })
+              .catch(() => {});
+          }
+
+          const matchFaceId =
+            payload.top_match?.face_id ||
+            payload.match_result?.[0]?.candidates?.[0]?.face?.face_id ||
+            (payload as any).face_id;
+
+          if (matchFaceId) {
+            directFetchLunaFace(matchFaceId)
+              .then((faceData) => {
+                if (faceData?.avatar) {
+                  setLiveEvents((prev) =>
+                    prev.map((item) => {
+                      if ((item.event_id || item.id) === id) {
+                        const updated = { ...item };
+                        if (updated.top_match) {
+                          (updated.top_match as any).avatar = faceData.avatar;
+                        }
+                        (updated as any).avatar = faceData.avatar;
+                        return updated;
+                      }
+                      return item;
+                    })
                   );
                 }
               })

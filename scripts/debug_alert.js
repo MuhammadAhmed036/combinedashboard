@@ -1,5 +1,8 @@
-const { Pool } = require('pg');
-const pool = new Pool({ connectionString: process.env.DATABASE_URL || 'postgres://dashboard:admin@db:5432/dashboard' });
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL environment variable is not set");
+  process.exit(1);
+}
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 function boxesOverlap(a, b) {
   return a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;

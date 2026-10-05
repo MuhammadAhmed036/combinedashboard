@@ -7,25 +7,31 @@
 
 export function getLunaConfig() {
   return {
-    host: process.env.LUNA_HOST || '192.168.18.71',
-    apiPort: process.env.LUNA_API_PORT || '5000',
-    accountId: process.env.LUNA_ACCOUNT_ID || '00000000-0000-4000-b000-000000000146',
-    authUser: process.env.LUNA_AUTH_USER || 'root@visionlabs.ai',
-    authPass: process.env.LUNA_AUTH_PASS || 'root',
+    host: process.env.LUNA_HOST || process.env.NEXT_PUBLIC_LUNA_HOST || '',
+    apiPort: process.env.LUNA_API_PORT || process.env.LUNA_CORE_PORT || '',
+    gatewayPort: process.env.LUNA_GATEWAY_PORT || process.env.LUNA_WEB_PORT || process.env.NEXT_PUBLIC_LUNA_PORT || '',
+    accountId: process.env.LUNA_ACCOUNT_ID || process.env.NEXT_PUBLIC_LUNA_ACCOUNT_ID || '',
+    authUser: process.env.LUNA_AUTH_USER || process.env.NEXT_PUBLIC_LUNA_AUTH_USER || '',
+    authPass: process.env.LUNA_AUTH_PASS || process.env.NEXT_PUBLIC_LUNA_AUTH_PASS || '',
   };
 }
 
-export function getLunaHeaders() {
+export function getLunaHeaders(): Record<string, string> {
   const { authUser, authPass, accountId } = getLunaConfig();
-  const credentials = Buffer.from(`${authUser}:${authPass}`).toString('base64');
-  return {
-    'Authorization': `Basic ${credentials}`,
-    'Luna-Account-Id': accountId,
-  };
+  const headers: Record<string, string> = {};
+  if (authUser || authPass) {
+    const credentials = Buffer.from(`${authUser}:${authPass}`).toString('base64');
+    headers['Authorization'] = `Basic ${credentials}`;
+  }
+  if (accountId) {
+    headers['Luna-Account-Id'] = accountId;
+  }
+  return headers;
 }
 
 export function getLunaBaseUrl() {
   const { host, apiPort } = getLunaConfig();
+  if (!host || !apiPort) return '';
   // Luna Core uses version path /6 (e.g. /6/events, /6/lists, /6/images)
   return `http://${host}:${apiPort}/6`;
 }
@@ -33,6 +39,9 @@ export function getLunaBaseUrl() {
 export async function fetchLunaEvents(searchParams: URLSearchParams) {
   try {
     const baseUrl = getLunaBaseUrl();
+    if (!baseUrl) {
+      return { events: [], offline: true, error: 'Luna server host/port is not configured' };
+    }
     const headers = {
       ...getLunaHeaders(),
       'Content-Type': 'application/json',
@@ -168,6 +177,9 @@ export async function resolveFaceAvatar(faceId: string): Promise<string | null> 
 export async function fetchLunaLists() {
   try {
     const baseUrl = getLunaBaseUrl();
+    if (!baseUrl) {
+      return { lists: [], offline: true, error: 'Luna server host/port is not configured' };
+    }
     const targetUrl = `${baseUrl}/lists?page=1&page_size=100`;
 
     const response = await fetch(targetUrl, {
@@ -193,6 +205,9 @@ export async function fetchLunaLists() {
 export async function fetchLunaHandlers() {
   try {
     const baseUrl = getLunaBaseUrl();
+    if (!baseUrl) {
+      return { handlers: [], offline: true, error: 'Luna server host/port is not configured' };
+    }
     const targetUrl = `${baseUrl}/handlers?page=1&page_size=100`;
 
     const response = await fetch(targetUrl, {
@@ -218,6 +233,9 @@ export async function fetchLunaHandlers() {
 export async function fetchLunaFace(faceId: string) {
   try {
     const baseUrl = getLunaBaseUrl();
+    if (!baseUrl) {
+      return { offline: true, error: 'Luna server host/port is not configured' };
+    }
     const targetUrl = `${baseUrl}/faces/${faceId}`;
 
     const response = await fetch(targetUrl, {
@@ -242,6 +260,9 @@ export async function fetchLunaFace(faceId: string) {
 
 export async function fetchLunaMedia(pathOrId: string) {
   const { host, apiPort } = getLunaConfig();
+  if (!host || !apiPort) {
+    return new Response(null, { status: 503 });
+  }
   let targetUrl: string;
 
   if (pathOrId.startsWith('http://') || pathOrId.startsWith('https://')) {
@@ -263,6 +284,7 @@ export async function fetchLunaMedia(pathOrId: string) {
 export async function fetchLunaEventById(eventId: string) {
   try {
     const baseUrl = getLunaBaseUrl();
+    if (!baseUrl) return null;
     const targetUrl = `${baseUrl}/events/${eventId}`;
 
     const response = await fetch(targetUrl, {

@@ -65,6 +65,7 @@ export async function GET(
 
     const isCameraRunning = camStatus.toLowerCase() === "running";
     const currentFrameAvailable = isCameraRunning && webrtc;
+    const feedBase = (process.env.CAMERA_FEED_BASE_URL || "").replace(/\/+$/, "");
 
     return NextResponse.json(
       {
@@ -73,8 +74,8 @@ export async function GET(
         webrtc: {
           status: webrtc ? "ACTIVE" : "ERROR",
           isLive: webrtc,
-          whepUrl: `http://192.168.18.216:8889/${encodeURIComponent(decodedCamera)}/whep`,
-          playerUrl: `http://192.168.18.216:8889/${encodeURIComponent(decodedCamera)}/`,
+          whepUrl: feedBase ? `${feedBase}/${encodeURIComponent(decodedCamera)}/whep` : null,
+          playerUrl: feedBase ? `${feedBase}/${encodeURIComponent(decodedCamera)}/` : null,
         },
         yolo: yoloInfo,
         currentFrameAvailable,

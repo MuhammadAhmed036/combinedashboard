@@ -94,14 +94,19 @@ export function checkPersonInRoi(
 
 export async function fetchCameraStatuses(): Promise<Map<string, string>> {
   const map = new Map<string, string>();
+  const url = process.env.STREAMS_API_URL;
+  if (!url) return map;
+
   try {
-    const url = process.env.STREAMS_API_URL || "http://192.168.18.216:8000/api/streams/list";
-    const user = process.env.STREAMS_API_USERNAME || "admin";
-    const pass = process.env.STREAMS_API_PASSWORD || "admin_123456";
-    const auth = "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
+    const user = process.env.STREAMS_API_USERNAME || "";
+    const pass = process.env.STREAMS_API_PASSWORD || "";
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (user || pass) {
+      headers.Authorization = "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
+    }
 
     const res = await fetch(url, {
-      headers: { Authorization: auth, Accept: "application/json" },
+      headers,
       signal: AbortSignal.timeout(3000),
     });
     if (res.ok) {
@@ -140,19 +145,23 @@ const WHEP_PROBE_SDP = [
 ].join("\r\n");
 
 export async function checkWebRtcHealth(cameraName: string): Promise<boolean> {
+  const base = process.env.CAMERA_FEED_BASE_URL;
+  if (!base) return false;
+
   try {
-    const base = process.env.CAMERA_FEED_BASE_URL || "http://192.168.18.216:8889";
     const whepUrl = `${base.replace(/\/+$/, "")}/${encodeURIComponent(cameraName)}/whep`;
-    const user = process.env.CAMERA_FEED_USERNAME || "admin";
-    const pass = process.env.CAMERA_FEED_PASSWORD || "admin_123456";
-    const auth = "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
+    const user = process.env.CAMERA_FEED_USERNAME || "";
+    const pass = process.env.CAMERA_FEED_PASSWORD || "";
+    const headers: Record<string, string> = {
+      "Content-Type": "application/sdp",
+    };
+    if (user || pass) {
+      headers.Authorization = "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
+    }
 
     const postRes = await fetch(whepUrl, {
       method: "POST",
-      headers: {
-        Authorization: auth,
-        "Content-Type": "application/sdp",
-      },
+      headers,
       body: WHEP_PROBE_SDP,
       signal: AbortSignal.timeout(3000),
     });

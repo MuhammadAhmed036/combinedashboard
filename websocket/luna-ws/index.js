@@ -28,19 +28,33 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-const PORT = parseInt(process.env.LUNA_WS_PORT || process.env.WS_PORT || '8092', 10);
-const LUNA_HOST = process.env.LUNA_HOST || '192.168.18.71';
-const LUNA_API_PORT = process.env.LUNA_API_PORT || '5000';
-const LUNA_ACCOUNT_ID = process.env.LUNA_ACCOUNT_ID || '00000000-0000-4000-b000-000000000146';
-const LUNA_AUTH_USER = process.env.LUNA_AUTH_USER || 'root@visionlabs.ai';
-const LUNA_AUTH_PASS = process.env.LUNA_AUTH_PASS || 'root';
+const PORT = parseInt(process.env.LUNA_WS_PORT || process.env.WS_PORT, 10);
+if (!PORT || isNaN(PORT)) {
+  console.error('[luna-ws] LUNA_WS_PORT or WS_PORT is not configured in environment');
+  process.exit(1);
+}
+
+const LUNA_HOST = process.env.LUNA_HOST || '';
+const LUNA_API_PORT = process.env.LUNA_API_PORT || '';
+const LUNA_ACCOUNT_ID = process.env.LUNA_ACCOUNT_ID || '';
+const LUNA_AUTH_USER = process.env.LUNA_AUTH_USER || '';
+const LUNA_AUTH_PASS = process.env.LUNA_AUTH_PASS || '';
+
+if (!LUNA_HOST || !LUNA_API_PORT) {
+  console.error('[luna-ws] LUNA_HOST or LUNA_API_PORT is not configured in environment');
+  process.exit(1);
+}
 
 function getLunaAuthHeaders() {
-  const credentials = Buffer.from(`${LUNA_AUTH_USER}:${LUNA_AUTH_PASS}`).toString('base64');
-  return {
-    Authorization: `Basic ${credentials}`,
-    'Luna-Account-Id': LUNA_ACCOUNT_ID,
-  };
+  const headers = {};
+  if (LUNA_AUTH_USER || LUNA_AUTH_PASS) {
+    const credentials = Buffer.from(`${LUNA_AUTH_USER}:${LUNA_AUTH_PASS}`).toString('base64');
+    headers.Authorization = `Basic ${credentials}`;
+  }
+  if (LUNA_ACCOUNT_ID) {
+    headers['Luna-Account-Id'] = LUNA_ACCOUNT_ID;
+  }
+  return headers;
 }
 
 const server = http.createServer((req, res) => {
@@ -56,7 +70,8 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server });
 
 wss.on('connection', (clientWs, req) => {
-  const clientUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const hostHeader = req.headers.host || 'proxy';
+  const clientUrl = new URL(req.url, `http://${hostHeader}`);
   const searchParams = clientUrl.searchParams.toString();
 
   const upstreamWsUrl = `ws://${LUNA_HOST}:${LUNA_API_PORT}/6/ws${

@@ -3,8 +3,11 @@ import { getLunaConfig, getLunaHeaders } from '@/lib/server/lunaService';
 
 export const dynamic = 'force-dynamic';
 
-function fetchImage(subpath: string) {
+async function fetchImage(subpath: string) {
   const { host, apiPort } = getLunaConfig();
+  if (!host || !apiPort) {
+    return new Response(null, { status: 503 });
+  }
   return fetch(`http://${host}:${apiPort}/6/images/${subpath}`, {
     method: 'GET',
     headers: getLunaHeaders(),

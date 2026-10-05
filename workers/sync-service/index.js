@@ -542,15 +542,19 @@ async function insertAlertEventIfNew({
 let streamStatusCache = { expiresAt: 0, data: new Map() };
 
 async function getCameraFfmpegStatus(cameraName) {
+  const url = process.env.STREAMS_API_URL;
+  if (!url) return "unknown";
   const now = Date.now();
   if (streamStatusCache.expiresAt < now) {
     try {
-      const url = process.env.STREAMS_API_URL || "http://192.168.18.216:8000/api/streams/list";
-      const username = process.env.STREAMS_API_USERNAME || "admin";
-      const password = process.env.STREAMS_API_PASSWORD || "admin_123456";
-      const authHeader = "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
+      const username = process.env.STREAMS_API_USERNAME || "";
+      const password = process.env.STREAMS_API_PASSWORD || "";
+      const headers = { Accept: "application/json" };
+      if (username || password) {
+        headers.Authorization = "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
+      }
       const res = await fetch(url, {
-        headers: { Authorization: authHeader, Accept: "application/json" },
+        headers,
         signal: AbortSignal.timeout(4000),
       });
       if (res.ok) {
@@ -587,15 +591,19 @@ const WHEP_PROBE_SDP = [
 ].join("\r\n");
 
 async function checkWebRtcHealth(cameraName) {
+  const base = process.env.CAMERA_FEED_BASE_URL;
+  if (!base) return false;
   try {
-    const base = process.env.CAMERA_FEED_BASE_URL || "http://192.168.18.216:8889";
     const whepUrl = `${base.replace(/\/+$/, "")}/${encodeURIComponent(cameraName)}/whep`;
-    const username = process.env.CAMERA_FEED_USERNAME || "admin";
-    const password = process.env.CAMERA_FEED_PASSWORD || "admin_123456";
-    const authHeader = "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
+    const username = process.env.CAMERA_FEED_USERNAME || "";
+    const password = process.env.CAMERA_FEED_PASSWORD || "";
+    const headers = { "Content-Type": "application/sdp" };
+    if (username || password) {
+      headers.Authorization = "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
+    }
     const res = await fetch(whepUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/sdp", Authorization: authHeader },
+      headers,
       body: WHEP_PROBE_SDP,
       signal: AbortSignal.timeout(4000),
     });

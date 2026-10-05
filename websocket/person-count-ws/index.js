@@ -42,7 +42,11 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-const WS_PORT = Number(process.env.WS_PORT) || 8090;
+const WS_PORT = Number(process.env.WS_PORT || process.env.PERSON_COUNT_WS_PORT);
+if (!WS_PORT || isNaN(WS_PORT)) {
+  console.error("[person-count-ws] WS_PORT or PERSON_COUNT_WS_PORT is not configured");
+  process.exit(1);
+}
 const POLL_MS = Number(process.env.POLL_MS) || 2000;
 const POLL_BATCH_LIMIT = 500;
 

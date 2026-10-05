@@ -10,7 +10,9 @@ export interface RuntimeConfig {
   personCountWsBase: string | null;
   /** Base URL of the standalone Luna events WebSocket service. */
   lunaWsUrl: string | null;
-  /** Direct URL to VisionLabs Luna LP5 Gateway (e.g. http://192.168.18.71:8080/api/lp5/6) */
+  /** Port of the standalone Luna events WebSocket service. */
+  lunaWsPort: string | null;
+  /** Direct URL to VisionLabs Luna LP5 Gateway */
   lunaApiUrl: string;
   lunaHost: string;
   lunaPort: string;
@@ -28,15 +30,16 @@ const FALLBACK: RuntimeConfig = {
   pollIntervalMs: DEFAULT_POLL_INTERVAL_MS,
   personCountWsBase: null,
   lunaWsUrl: null,
-  lunaApiUrl: "http://192.168.18.71:8080/api/lp5/6",
-  lunaHost: "192.168.18.71",
-  lunaPort: "8080",
-  lunaAccountId: "00000000-0000-4000-b000-000000000146",
-  lunaAuthUser: "root@visionlabs.ai",
-  lunaAuthPass: "root",
-  cameraFeedBaseUrl: "http://192.168.18.216:8889",
-  cameraFeedUser: "admin",
-  cameraFeedPass: "admin_123456",
+  lunaWsPort: null,
+  lunaApiUrl: "",
+  lunaHost: "",
+  lunaPort: "",
+  lunaAccountId: "",
+  lunaAuthUser: "",
+  lunaAuthPass: "",
+  cameraFeedBaseUrl: "",
+  cameraFeedUser: "",
+  cameraFeedPass: "",
 };
 
 let resolved: RuntimeConfig | null = null;
@@ -62,6 +65,7 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
         pollIntervalMs?: unknown;
         personCountWsBase?: unknown;
         lunaWsUrl?: unknown;
+        lunaWsPort?: unknown;
         lunaApiUrl?: unknown;
         lunaHost?: unknown;
         lunaPort?: unknown;
@@ -80,27 +84,19 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
       const personCountWsBase =
         typeof payload.personCountWsBase === "string" ? payload.personCountWsBase : null;
       const lunaWsUrl = typeof payload.lunaWsUrl === "string" ? payload.lunaWsUrl : null;
-      const lunaApiUrl =
-        typeof payload.lunaApiUrl === "string"
-          ? payload.lunaApiUrl
-          : "http://192.168.18.71:8080/api/lp5/6";
-      const lunaHost = typeof payload.lunaHost === "string" ? payload.lunaHost : "192.168.18.71";
-      const lunaPort = typeof payload.lunaPort === "string" ? payload.lunaPort : "8080";
-      const lunaAccountId =
-        typeof payload.lunaAccountId === "string"
-          ? payload.lunaAccountId
-          : "00000000-0000-4000-b000-000000000146";
-      const lunaAuthUser =
-        typeof payload.lunaAuthUser === "string" ? payload.lunaAuthUser : "root@visionlabs.ai";
-      const lunaAuthPass = typeof payload.lunaAuthPass === "string" ? payload.lunaAuthPass : "root";
+      const lunaWsPort = typeof payload.lunaWsPort === "string" ? payload.lunaWsPort : null;
+      const lunaApiUrl = typeof payload.lunaApiUrl === "string" ? payload.lunaApiUrl : "";
+      const lunaHost = typeof payload.lunaHost === "string" ? payload.lunaHost : "";
+      const lunaPort = typeof payload.lunaPort === "string" ? payload.lunaPort : "";
+      const lunaAccountId = typeof payload.lunaAccountId === "string" ? payload.lunaAccountId : "";
+      const lunaAuthUser = typeof payload.lunaAuthUser === "string" ? payload.lunaAuthUser : "";
+      const lunaAuthPass = typeof payload.lunaAuthPass === "string" ? payload.lunaAuthPass : "";
       const cameraFeedBaseUrl =
-        typeof payload.cameraFeedBaseUrl === "string"
-          ? payload.cameraFeedBaseUrl
-          : "http://192.168.18.216:8889";
+        typeof payload.cameraFeedBaseUrl === "string" ? payload.cameraFeedBaseUrl : "";
       const cameraFeedUser =
-        typeof payload.cameraFeedUser === "string" ? payload.cameraFeedUser : "admin";
+        typeof payload.cameraFeedUser === "string" ? payload.cameraFeedUser : "";
       const cameraFeedPass =
-        typeof payload.cameraFeedPass === "string" ? payload.cameraFeedPass : "admin_123456";
+        typeof payload.cameraFeedPass === "string" ? payload.cameraFeedPass : "";
 
       return {
         apiBase,
@@ -108,6 +104,7 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
         pollIntervalMs,
         personCountWsBase,
         lunaWsUrl,
+        lunaWsPort,
         lunaApiUrl,
         lunaHost,
         lunaPort,
