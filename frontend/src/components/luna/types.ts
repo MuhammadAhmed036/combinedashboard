@@ -46,6 +46,8 @@ export interface LunaEvent {
   match_result?: LunaMatch[];
   face_detections?: Array<{
     sample_id?: string;
+    image_origin?: string;
+    image_id?: string;
     samples?: {
       face?: { url?: string };
       body?: { url?: string };
@@ -53,6 +55,8 @@ export interface LunaEvent {
   }>;
   detections?: Array<{
     sample_id?: string;
+    image_origin?: string;
+    image_id?: string;
     samples?: {
       face?: { url?: string };
       body?: { url?: string };

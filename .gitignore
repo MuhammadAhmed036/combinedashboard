@@ -37,3 +37,8 @@ Thumbs.db
 # Codex/local agent metadata
 .codex/
 .agents/
+
+# Offline archives & binary bundles
+*.tar.gz
+*.tgz
+vendor/

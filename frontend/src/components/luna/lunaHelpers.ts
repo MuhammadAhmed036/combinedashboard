@@ -7,6 +7,28 @@ export function resolveLunaSampleUrl(rawUrlOrId?: string | null): string | null 
 
 export { resolveLunaSampleProxyUrl };
 
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number') return String(value);
+    if (value && typeof value === 'object') {
+      const record = value as Record<string, unknown>;
+      const nested = firstString(record.url, record.id, record.image_id, record.image_origin);
+      if (nested) return nested;
+    }
+  }
+  return null;
+}
+
+function resolveFrameUrl(rawUrlOrId?: string | null): string | null {
+  if (!rawUrlOrId) return null;
+  if (/\/images\//i.test(rawUrlOrId)) return resolveLunaSampleUrl(rawUrlOrId);
+  const uuidMatch = rawUrlOrId.match(
+    /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/i
+  );
+  return uuidMatch ? resolveLunaSampleUrl(`/images/${uuidMatch[0]}`) : resolveLunaSampleUrl(rawUrlOrId);
+}
+
 export function findBestCandidate(event: LunaEvent): LunaCandidate | null {
   const matches = event.matches || event.match_result;
   if (!matches || !Array.isArray(matches)) return null;
@@ -109,14 +131,30 @@ export function parseLunaEvent(event: LunaEvent): ParsedLunaPersonInfo {
     detectedFaceUrl = resolveLunaSampleUrl(bodySampleId);
   }
 
-  const cameraOrigin =
-    (evt.face_detections?.[0] as any)?.image_origin ||
-    evt.body_detections?.[0]?.image_origin ||
-    (evt as any).image_origin ||
-    (evt.detections?.[0] as any)?.image_origin;
+  const cameraOrigin = firstString(
+    (evt.face_detections?.[0] as any)?.image_origin,
+    (evt.face_detections?.[0] as any)?.image_id,
+    (evt.face_detections?.[0] as any)?.image,
+    evt.body_detections?.[0]?.image_origin,
+    (evt.body_detections?.[0] as any)?.image_id,
+    (evt.body_detections?.[0] as any)?.image,
+    (evt.detections?.[0] as any)?.image_origin,
+    (evt.detections?.[0] as any)?.image_id,
+    (evt.detections?.[0] as any)?.image,
+    (evt as any).image_origin,
+    (evt as any).image_id,
+    (evt as any).origin_image_id,
+    (evt as any).full_frame_image_id,
+    (evt as any).frame_image_id,
+    (evt as any).image,
+    (evt as any).images?.origin,
+    (evt as any).images?.frame,
+    (evt as any).samples?.image,
+    (evt as any).samples?.origin
+  );
 
   if (cameraOrigin) {
-    frameUrl = resolveLunaSampleUrl(cameraOrigin);
+    frameUrl = resolveFrameUrl(cameraOrigin);
   }
 
   sampleUrl = detectedFaceUrl || frameUrl;

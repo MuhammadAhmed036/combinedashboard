@@ -4,13 +4,27 @@ import { getLunaConfig, getLunaHeaders } from '@/lib/server/lunaService';
 export const dynamic = 'force-dynamic';
 
 async function fetchImage(subpath: string) {
-  const { host, apiPort } = getLunaConfig();
-  if (!host || !apiPort) {
+  const { host, apiPort, gatewayPort } = getLunaConfig();
+  if (!host || (!gatewayPort && !apiPort)) {
+    return new Response(null, { status: 503 });
+  }
+
+  const headers = getLunaHeaders();
+  if (gatewayPort) {
+    const gatewayResponse = await fetch(`http://${host}:${gatewayPort}/api/lp5/6/images/${subpath}`, {
+      method: 'GET',
+      headers,
+      cache: 'force-cache',
+    }).catch(() => null);
+    if (gatewayResponse?.ok) return gatewayResponse;
+  }
+
+  if (!apiPort) {
     return new Response(null, { status: 503 });
   }
   return fetch(`http://${host}:${apiPort}/6/images/${subpath}`, {
     method: 'GET',
-    headers: getLunaHeaders(),
+    headers,
     cache: 'force-cache',
   });
 }

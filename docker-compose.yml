@@ -1,0 +1,96 @@
+name: safecity-newdashboard
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: safecity-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${LOCAL_DB_USER:-dashboard}
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:-admin}
+      POSTGRES_DB: ${LOCAL_DB_NAME:-dashboard}
+    ports:
+      - "127.0.0.1:${LOCAL_DB_PORT:-5433}:5432"
+    volumes:
+      - safecity-db-data:/var/lib/postgresql/data
+      - ./docker/init-db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LOCAL_DB_USER:-dashboard} -d ${LOCAL_DB_NAME:-dashboard}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    image: safecity-ai-dashboard:${APP_IMAGE_TAG:-0.1.0}
+    container_name: safecity-dashboard
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      DATABASE_URL: postgres://${LOCAL_DB_USER:-dashboard}:${LOCAL_DB_PASSWORD:-admin}@db:5432/${LOCAL_DB_NAME:-dashboard}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - safecity-data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  person-count-ws:
+    image: safecity-person-count-ws:${WS_IMAGE_TAG:-0.1.0}
+    container_name: safecity-person-count-ws
+    build:
+      context: ./websocket/person-count-ws
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      WS_PORT: ${PERSON_COUNT_WS_PORT:-8090}
+      DATABASE_URL: postgres://${LOCAL_DB_USER:-dashboard}:${LOCAL_DB_PASSWORD:-admin}@db:5432/${LOCAL_DB_NAME:-dashboard}
+    ports:
+      - "${PERSON_COUNT_WS_PORT:-8090}:${PERSON_COUNT_WS_PORT:-8090}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  sync:
+    image: safecity-sync:${SYNC_IMAGE_TAG:-0.1.0}
+    container_name: safecity-sync
+    build:
+      context: ./workers/sync-service
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://${LOCAL_DB_USER:-dashboard}:${LOCAL_DB_PASSWORD:-admin}@db:5432/${LOCAL_DB_NAME:-dashboard}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  luna-ws:
+    image: safecity-luna-ws:${LUNA_WS_IMAGE_TAG:-0.1.0}
+    container_name: safecity-luna-ws
+    build:
+      context: ./websocket/luna-ws
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      LUNA_WS_PORT: ${LUNA_WS_PORT:-8092}
+      LUNA_HOST: ${LUNA_HOST:-192.168.18.71}
+      LUNA_API_PORT: ${LUNA_API_PORT:-5000}
+      LUNA_ACCOUNT_ID: ${LUNA_ACCOUNT_ID:-}
+      LUNA_AUTH_USER: ${LUNA_AUTH_USER:-}
+      LUNA_AUTH_PASS: ${LUNA_AUTH_PASS:-}
+    ports:
+      - "${LUNA_WS_PORT:-8092}:${LUNA_WS_PORT:-8092}"
+
+volumes:
+  safecity-data:
+  safecity-db-data:
+

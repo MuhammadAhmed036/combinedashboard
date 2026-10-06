@@ -26,6 +26,7 @@ interface LunaEventCardProps {
 
 const clientAvatarCache = new Map<string, string>();
 const clientSampleCache = new Map<string, string>();
+const clientFrameCache = new Map<string, string>();
 
 export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   event,
@@ -49,6 +50,10 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
     if (raw) return raw;
     const evId = event.event_id || (event as any).id;
     return evId ? clientSampleCache.get(evId) || null : null;
+  });
+  const [fullFrameUrl, setFullFrameUrl] = useState<string | null>(() => {
+    const evId = event.event_id || (event as any).id;
+    return info.frameUrl || (evId ? clientFrameCache.get(evId) || null : null);
   });
 
   useEffect(() => {
@@ -89,18 +94,27 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   // Asynchronously resolve detected image if missing from raw WebSocket event
   useEffect(() => {
     const existing = info.detectedFaceUrl || info.sampleUrl || info.frameUrl;
+    const existingFrame = info.frameUrl;
     const evId = event.event_id || (event as any).id;
+    if (existingFrame) {
+      setFullFrameUrl(existingFrame);
+      if (evId) clientFrameCache.set(evId, existingFrame);
+    }
     if (existing) {
       setDetectedUrl(existing);
       setSampleError(false);
       if (evId) clientSampleCache.set(evId, existing);
-      return;
+      if (existingFrame) return;
     }
 
     if (!evId) return;
 
     if (clientSampleCache.has(evId)) {
-      setDetectedUrl(clientSampleCache.get(evId)!);
+      setDetectedUrl(clientSampleCache.get(evId) || null);
+      setSampleError(false);
+    }
+    if (clientFrameCache.has(evId)) {
+      setFullFrameUrl(clientFrameCache.get(evId) || null);
       setSampleError(false);
       return;
     }
@@ -111,6 +125,10 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
         if (!isMounted || !fullEvt) return;
         const parsed = parseLunaEvent(fullEvt);
         const resolved = parsed.detectedFaceUrl || parsed.sampleUrl || parsed.frameUrl;
+        if (parsed.frameUrl) {
+          clientFrameCache.set(evId, parsed.frameUrl);
+          setFullFrameUrl(parsed.frameUrl);
+        }
         if (resolved) {
           clientSampleCache.set(evId, resolved);
           setDetectedUrl(resolved);
@@ -161,6 +179,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
 
   const dateTimeLabel = [info.dateFormatted, info.timeFormatted].filter(Boolean).join(' ') || info.timeFormatted;
   const detectedImageUrl = detectedUrl || info.detectedFaceUrl || info.sampleUrl || info.frameUrl;
+  const fullFrameImageUrl = fullFrameUrl || info.frameUrl || detectedImageUrl;
   const isMatch = Boolean(
     info.faceId ||
     event.top_match ||
@@ -215,16 +234,16 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
           <div
             onClick={(e) => {
               e.stopPropagation();
-              if (detectedImageUrl && !sampleError) {
+              if (fullFrameImageUrl) {
                 setLightbox({
-                  url: detectedImageUrl,
-                  title: `Detected Person: ${info.name}`,
+                  url: fullFrameImageUrl,
+                  title: `${fullFrameUrl || info.frameUrl ? 'Full Frame' : 'Detected Person'}: ${info.name}`,
                   subtitle: `${info.cameraName} • ${dateTimeLabel}`,
                 });
               }
             }}
             className="group/det relative w-full h-full rounded-lg bg-slate-950 border border-slate-800/80 flex items-center justify-center overflow-hidden shadow-inner cursor-pointer"
-            title="Click to view full detected image"
+            title="Click to view full frame"
           >
             {detectedImageUrl && !sampleError ? (
               <>
@@ -402,11 +421,11 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
               </div>
 
               {/* Lightbox Image Preview */}
-              <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-slate-950/90 min-h-[300px]">
+              <div className="flex-1 overflow-auto p-3 flex items-center justify-center bg-slate-950/90 min-h-[300px]">
                 <img
                   src={lightbox.url}
                   alt={lightbox.title}
-                  className="max-h-[65vh] w-auto max-w-full object-contain rounded-lg shadow-lg border border-slate-800"
+                  className="max-h-[78vh] w-auto max-w-full object-contain rounded-lg shadow-lg border border-slate-800"
                 />
               </div>
 
