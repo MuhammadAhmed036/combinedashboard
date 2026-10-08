@@ -28,6 +28,8 @@ import { resolveDetectionCameraId } from "@/lib/streamToDetectionCameraId";
 import { cn } from "@/lib/utils";
 import type { Camera, GridLayoutKey } from "@/lib/types";
 
+const SAFE_CONCURRENT_DECODERS = 16;
+
 export default function MediaWallPage() {
   const { data: cameras } = useCameras();
   const { data: zones } = useZones();
@@ -49,6 +51,7 @@ export default function MediaWallPage() {
   const [enlargedCamera, setEnlargedCamera] = useState<Camera | null>(null);
   const [isModalFullscreen, setIsModalFullscreen] = useState<boolean>(false);
   const [modalFit, setModalFit] = useState<"contain" | "cover">("contain");
+  const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!enlargedCamera) return;
@@ -77,6 +80,10 @@ export default function MediaWallPage() {
     return map;
   }, [cameras]);
 
+  const assignmentByCell = useMemo(() => {
+    return new Map(assignments.map((assignment) => [assignment.cellIndex, assignment.cameraId]));
+  }, [assignments]);
+
   // The live people-count feed keys by the detection API's camera_id, while
   // this page's camera list comes from the separate live-stream API — the
   // two share the same camera names in practice, so match case-insensitively.
@@ -95,6 +102,36 @@ export default function MediaWallPage() {
     () => new Set(assignments.map((a) => a.cameraId).filter(Boolean) as string[]),
     [assignments]
   );
+
+  const activeSlots = useMemo(() => {
+    const pool = new Set<number>();
+    const activeCameraIds = new Set<string>();
+
+    if (activeSlotIndex !== null && activeSlotIndex >= 0 && activeSlotIndex < cellCount) {
+      pool.add(activeSlotIndex);
+      const cameraId = assignmentByCell.get(activeSlotIndex);
+      if (cameraId) activeCameraIds.add(cameraId);
+    }
+
+    for (let i = 0; i < cellCount; i++) {
+      const cameraId = assignmentByCell.get(i);
+      if (cameraId && activeCameraIds.has(cameraId)) {
+        pool.add(i);
+      }
+    }
+
+    for (let i = 0; i < cellCount; i++) {
+      if (activeCameraIds.size >= SAFE_CONCURRENT_DECODERS) break;
+      const cameraId = assignmentByCell.get(i);
+      if (!cameraId) continue;
+      activeCameraIds.add(cameraId);
+      pool.add(i);
+    }
+
+    return pool;
+  }, [activeSlotIndex, assignmentByCell, cellCount]);
+
+  const guardActive = cellCount > SAFE_CONCURRENT_DECODERS;
 
   useEffect(() => {
     // Only ever auto-populate the wall the very first time it's used — once
@@ -154,6 +191,14 @@ export default function MediaWallPage() {
                 onChange={(v: GridLayoutKey) => setLayout(v)}
                 options={["2x2", "3x3", "4x4"]}
               />
+              {guardActive && (
+                <span
+                  className="hidden rounded-md border border-emerald-600/60 bg-emerald-950/70 px-2.5 py-1 text-[10px] font-semibold text-emerald-200 sm:inline-flex"
+                  title={`Production guard keeps only ${SAFE_CONCURRENT_DECODERS} live camera decoders active; other tiles stay in standby until hovered or opened.`}
+                >
+                  Guard: {activeSlots.size}/{cellCount} live
+                </span>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -180,8 +225,8 @@ export default function MediaWallPage() {
               ))}
             {cameras &&
               Array.from({ length: cellCount }).map((_, i) => {
-                const assignment = assignments.find((a) => a.cellIndex === i);
-                const camera = assignment?.cameraId ? cameraById.get(assignment.cameraId) ?? null : null;
+                const assignedCameraId = assignmentByCell.get(i);
+                const camera = assignedCameraId ? cameraById.get(assignedCameraId) ?? null : null;
                 const livePeopleCount = camera
                   ? (livePeopleCountByName.get(camera.id.toLowerCase()) ??
                      livePeopleCountByName.get(camera.name.toLowerCase()) ??
@@ -192,6 +237,7 @@ export default function MediaWallPage() {
                   : null;
                 const isHighOccupancy = livePeopleCount !== null && livePeopleCount !== undefined && livePeopleCount >= 5;
                 const activeAlert = camera ? findCameraActiveAlert(camera, cameraAlertLookup) : null;
+                const isStandby = guardActive && !activeSlots.has(i);
                 return (
                   <div key={i} className="min-h-[90px]">
                     <DroppableCell
@@ -202,6 +248,8 @@ export default function MediaWallPage() {
                       hasAlert={isHighOccupancy}
                       activeAlert={activeAlert}
                       livePeopleCount={livePeopleCount}
+                      isStandby={isStandby}
+                      onActivate={() => setActiveSlotIndex(i)}
                     />
                   </div>
                 );

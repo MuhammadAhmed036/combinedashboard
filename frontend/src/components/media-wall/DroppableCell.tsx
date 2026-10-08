@@ -15,6 +15,8 @@ export function DroppableCell({
   hasAlert,
   activeAlert,
   livePeopleCount,
+  isStandby = false,
+  onActivate,
 }: {
   index: number;
   camera: Camera | null;
@@ -24,12 +26,15 @@ export function DroppableCell({
   activeAlert?: ActiveCameraAlert | null;
   /** Live person count from the detection API's people-count feed; `null`/`undefined` while no live reading has arrived yet. */
   livePeopleCount?: number | null;
+  isStandby?: boolean;
+  onActivate?: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `cell-${index}` });
 
   return (
     <div
       ref={setNodeRef}
+      onMouseEnter={onActivate}
       onDoubleClick={() => camera && onMaximize?.(camera)}
       className={cn(
         "group relative flex h-full min-h-[90px] items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-surface-border bg-surface-2 transition-colors",
@@ -62,6 +67,8 @@ export function DroppableCell({
           feedUrl={camera.proxy_feed_url ?? camera.proxyFeedUrl}
           playerUrl={camera.playerUrl}
           offline={camera.status === "offline"}
+          isStandby={isStandby}
+          onActivate={onActivate}
           className="h-full w-full"
         >
           <div className="absolute left-2 top-2 flex items-center gap-1.5">
