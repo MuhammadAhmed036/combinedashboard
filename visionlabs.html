@@ -1,0 +1,2257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VisionLabs Luna 5 - Live Surveillance & Event Portal</title>
+  <style>
+    :root {
+      --bg-main: #090d16;
+      --bg-panel: #0f172a;
+      --bg-card: #141e33;
+      --bg-card-hover: #192642;
+      --bg-input: #0b1120;
+      --border-color: #1e293b;
+      --border-accent: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent-blue: #38bdf8;
+      --accent-blue-bg: rgba(56, 189, 248, 0.12);
+      --accent-green: #22c55e;
+      --accent-green-bg: rgba(34, 197, 94, 0.15);
+      --accent-yellow: #eab308;
+      --accent-yellow-bg: rgba(234, 179, 8, 0.15);
+      --accent-red: #ef4444;
+      --accent-red-bg: rgba(239, 68, 68, 0.15);
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Header */
+    header {
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand-icon {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 0.5rem;
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 700;
+      font-size: 1.1rem;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.35);
+    }
+
+    .brand-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: var(--text-main);
+    }
+
+    .brand-sub {
+      font-size: 0.75rem;
+      color: var(--accent-blue);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Tabs Bar */
+    .tabs-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--bg-main);
+      padding: 0.25rem;
+      border-radius: 0.6rem;
+      border: 1px solid var(--border-color);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.45rem 1rem;
+      border-radius: 0.45rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      background: var(--bg-card);
+      color: var(--accent-blue);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-accent);
+    }
+
+    /* Header Status Indicators */
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.3rem 0.65rem;
+      border-radius: 9999px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-panel);
+    }
+
+    .dot {
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 50%;
+    }
+
+    .dot.green { background-color: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+    .dot.yellow { background-color: var(--accent-yellow); box-shadow: 0 0 8px var(--accent-yellow); }
+    .dot.red { background-color: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+
+    /* Stats Quick Strip */
+    .stats-strip {
+      background: #0d1527;
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.5rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      font-size: 0.8125rem;
+      overflow-x: auto;
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: var(--text-muted);
+    }
+
+    .stat-val {
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* Content Area */
+    main {
+      flex: 1;
+      padding: 1.5rem;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+      animation: fadeIn 0.2s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Settings View */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.2rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+    }
+
+    .form-hint {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.25rem;
+    }
+
+    .form-control {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      padding: 0.55rem 0.85rem;
+      color: var(--text-main);
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .form-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      user-select: none;
+      margin-top: 0.5rem;
+    }
+
+    .form-checkbox input[type="checkbox"] {
+      width: 1.1rem;
+      height: 1.1rem;
+      accent-color: var(--accent-blue);
+      cursor: pointer;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.25rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background: #0284c7;
+      color: white;
+      box-shadow: 0 2px 4px rgba(2, 132, 199, 0.3);
+    }
+    .btn-primary:hover {
+      background: #0369a1;
+    }
+
+    .btn-secondary {
+      background: #1e293b;
+      color: var(--text-main);
+      border: 1px solid var(--border-accent);
+    }
+    .btn-secondary:hover {
+      background: #334155;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+    }
+    .btn-outline:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .btn-success {
+      background: #16a34a;
+      color: white;
+    }
+    .btn-success:hover {
+      background: #15803d;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    .actions-bar {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    /* Live Events Controls */
+    .controls-panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .search-input-wrap {
+      position: relative;
+      flex: 1;
+      max-width: 380px;
+    }
+
+    .search-input-wrap input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      padding: 0.45rem 0.85rem 0.45rem 2rem;
+      color: var(--text-main);
+      font-size: 0.875rem;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.65rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      width: 0.9rem;
+      height: 0.9rem;
+    }
+
+    .filter-pills {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .pill-btn {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 9999px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-input);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .pill-btn:hover {
+      color: var(--text-main);
+      border-color: var(--border-accent);
+    }
+
+    .pill-btn.active {
+      background: var(--accent-blue-bg);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .pill-btn.active.green {
+      background: var(--accent-green-bg);
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+    }
+
+    .pill-btn.active.yellow {
+      background: var(--accent-yellow-bg);
+      border-color: var(--accent-yellow);
+      color: var(--accent-yellow);
+    }
+
+    /* Events Grid */
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 1rem;
+    }
+
+    /* Event Card */
+    .event-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      position: relative;
+    }
+
+    .event-card:hover {
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.4);
+    }
+
+    .event-card.high-match {
+      border-left: 4px solid var(--accent-green);
+    }
+    .event-card.mid-match {
+      border-left: 4px solid var(--accent-yellow);
+    }
+    .event-card.low-match {
+      border-left: 4px solid #64748b;
+    }
+
+    .event-card-header {
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(15, 23, 42, 0.5);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .event-sim-badge {
+      font-size: 0.8125rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 0.35rem;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .badge-high {
+      background: var(--accent-green-bg);
+      color: var(--accent-green);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    .badge-mid {
+      background: var(--accent-yellow-bg);
+      color: var(--accent-yellow);
+      border: 1px solid rgba(234, 179, 8, 0.3);
+    }
+    .badge-low {
+      background: rgba(100, 116, 139, 0.15);
+      color: #94a3b8;
+      border: 1px solid rgba(100, 116, 139, 0.3);
+    }
+
+    /* Images Dual Presentation */
+    .event-media-container {
+      padding: 0.75rem 1rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      background: #090e1a;
+    }
+
+    .media-box {
+      aspect-ratio: 4/3;
+      background: #040711;
+      border-radius: 0.5rem;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .media-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.2s ease;
+    }
+
+    .media-box:hover img {
+      transform: scale(1.05);
+    }
+
+    .media-box-label {
+      position: absolute;
+      bottom: 0.3rem;
+      left: 0.3rem;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      padding: 0.15rem 0.45rem;
+      border-radius: 0.25rem;
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: #e2e8f0;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .media-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      color: var(--text-dim);
+      font-size: 0.75rem;
+      text-align: center;
+      padding: 0.5rem;
+    }
+
+    .event-body {
+      padding: 0.75rem 1rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .person-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .person-name.unmatched {
+      color: #cbd5e1;
+    }
+
+    .event-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .meta-tag {
+      background: var(--bg-input);
+      padding: 0.15rem 0.45rem;
+      border-radius: 0.25rem;
+      border: 1px solid var(--border-color);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .event-footer {
+      padding: 0.5rem 1rem;
+      background: rgba(15, 23, 42, 0.4);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.75rem;
+    }
+
+    .btn-xs {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.7rem;
+      border-radius: 0.3rem;
+      background: var(--bg-input);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+    }
+
+    .btn-xs:hover {
+      color: var(--accent-blue);
+      border-color: var(--accent-blue);
+    }
+
+    /* Modal / Lightbox */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    .modal-container {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      max-width: 900px;
+      width: 100%;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    }
+
+    .modal-header {
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0d1527;
+    }
+
+    .modal-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .modal-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.25rem;
+      line-height: 1;
+      padding: 0.25rem;
+      border-radius: 0.35rem;
+    }
+
+    .modal-close-btn:hover {
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-body {
+      padding: 1.25rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-image-preview {
+      width: 100%;
+      max-height: 55vh;
+      object-fit: contain;
+      background: #040711;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-color);
+      margin-bottom: 1rem;
+    }
+
+    pre.json-viewer {
+      background: #050811;
+      color: #38bdf8;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--border-color);
+      font-family: monospace;
+      font-size: 0.8rem;
+      overflow: auto;
+      max-height: 60vh;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* Logs & Connection test alert box */
+    .alert-box {
+      padding: 0.85rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.8125rem;
+      margin-top: 1rem;
+      display: none;
+    }
+    .alert-box.success {
+      display: block;
+      background: var(--accent-green-bg);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: #86efac;
+    }
+    .alert-box.error {
+      display: block;
+      background: var(--accent-red-bg);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+
+    /* Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+    }
+
+    .data-table th, .data-table td {
+      padding: 0.65rem 0.85rem;
+      border-bottom: 1px solid var(--border-color);
+      text-align: left;
+    }
+
+    .data-table th {
+      background: #0d1527;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .data-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 4rem 1rem;
+      color: var(--text-dim);
+    }
+    .empty-state svg {
+      width: 3.5rem;
+      height: 3.5rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    /* Live animation */
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    }
+    .pulse-new {
+      animation: pulseGlow 1.5s ease-out;
+    }
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+    .spin {
+      animation: spin 1s linear infinite;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">V</div>
+      <div>
+        <div class="brand-title">VisionLabs Luna 5</div>
+        <div class="brand-sub">Command Portal & Live Stream</div>
+      </div>
+    </div>
+
+    <nav class="tabs-nav">
+      <button class="tab-btn active" onclick="switchTab('live')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+        Live Feed
+      </button>
+      <button class="tab-btn" onclick="switchTab('history')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        History & Search
+      </button>
+      <button class="tab-btn" onclick="switchTab('lists')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Watchlists
+      </button>
+      <button class="tab-btn" onclick="switchTab('settings')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+    </nav>
+
+    <div class="header-status">
+      <div class="status-badge" id="ws-status-badge" title="WebSocket Live Status">
+        <span class="dot red" id="ws-dot"></span>
+        <span id="ws-text">WS Offline</span>
+      </div>
+      <div class="status-badge" id="api-status-badge" title="HTTP API Reachability">
+        <span class="dot yellow" id="api-dot"></span>
+        <span id="api-text">API Checking...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Quick Statistics Bar -->
+  <div class="stats-strip">
+    <div class="stat-item">
+      <span>Total Events:</span>
+      <span class="stat-val" id="stat-total-count">0</span>
+    </div>
+    <div class="stat-item">
+      <span>Matched Faces:</span>
+      <span class="stat-val" style="color: var(--accent-green);" id="stat-match-count">0</span>
+    </div>
+    <div class="stat-item">
+      <span>High Alerts (≥75%):</span>
+      <span class="stat-val" style="color: #4ade80;" id="stat-high-count">0</span>
+    </div>
+    <div class="stat-item">
+      <span>Live Rate:</span>
+      <span class="stat-val" id="stat-event-rate">0 /s</span>
+    </div>
+    <div class="stat-item" style="margin-left: auto;">
+      <span>Target Host:</span>
+      <span class="stat-val" id="stat-target-host">192.168.18.71:8080</span>
+    </div>
+  </div>
+
+  <!-- Main Views Container -->
+  <main>
+
+    <!-- 1. LIVE EVENTS VIEW -->
+    <section id="tab-live" class="tab-panel active">
+      <div class="controls-panel">
+        <div class="search-input-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="live-search-input" placeholder="Search by name, camera, or ID..." oninput="renderLiveEvents()">
+        </div>
+
+        <div class="filter-pills">
+          <button class="pill-btn active" data-filter="all" onclick="setLiveFilter('all', this)">All Events</button>
+          <button class="pill-btn green" data-filter="high" onclick="setLiveFilter('high', this)">High Match (≥75%)</button>
+          <button class="pill-btn yellow" data-filter="matches" onclick="setLiveFilter('matches', this)">Any Match</button>
+          <button class="pill-btn" data-filter="unmatched" onclick="setLiveFilter('unmatched', this)">Unmatched</button>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-left: auto;">
+          <button class="btn btn-outline" id="pause-stream-btn" onclick="toggleStreamPause()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            <span id="pause-text">Pause Stream</span>
+          </button>
+          <button class="btn btn-outline" onclick="clearLiveEvents()">Clear</button>
+          <button class="btn btn-secondary" onclick="exportEventsJson()">Export JSON</button>
+        </div>
+      </div>
+
+      <div class="events-grid" id="live-events-container">
+        <!-- Event cards render dynamically here -->
+      </div>
+
+      <div class="empty-state" id="live-empty-state" style="display: none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+        <h3>No Live Events Received Yet</h3>
+        <p>Waiting for real-time WebSocket events from VisionLabs Luna Platform...</p>
+      </div>
+    </section>
+
+    <!-- 2. HISTORY & SEARCH VIEW -->
+    <section id="tab-history" class="tab-panel">
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <div class="card-title">Filter VisionLabs Events (Direct API)</div>
+          <button class="btn btn-primary" onclick="queryHistoryEvents()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Search Events
+          </button>
+        </div>
+
+        <div class="settings-grid">
+          <div class="form-group">
+            <label class="form-label">Similarity Tier</label>
+            <select class="form-control" id="hist-sim-tier" onchange="syncSimilaritySlider(this.value)">
+              <option value="all">All Similarities (0% - 100%)</option>
+              <option value="high" selected>High Match (≥ 75%)</option>
+              <option value="mid">Medium Match (50% - 74%)</option>
+              <option value="low">Low Match (&lt; 50%)</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Min Similarity (<span id="min-sim-display">0.75</span>)</label>
+            <input type="range" class="form-control" id="hist-min-sim" min="0" max="1" step="0.05" value="0.75" oninput="document.getElementById('min-sim-display').innerText = this.value">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Gender Filter</label>
+            <select class="form-control" id="hist-gender">
+              <option value="">All Genders</option>
+              <option value="1">Male (1)</option>
+              <option value="0">Female (0)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Page Size</label>
+            <select class="form-control" id="hist-page-size">
+              <option value="10">10 Events</option>
+              <option value="30" selected>30 Events</option>
+              <option value="50">50 Events</option>
+              <option value="100">100 Events</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Camera / Source / Handler ID</label>
+            <input type="text" class="form-control" id="hist-source" placeholder="e.g. Camera 01, handler UUID">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Candidate Match Label / User Data</label>
+            <input type="text" class="form-control" id="hist-label" placeholder="Filter by person name / label">
+          </div>
+        </div>
+      </div>
+
+      <div class="controls-panel" style="justify-content: space-between;">
+        <span id="history-results-summary" style="font-size: 0.85rem; color: var(--text-muted);">Results: 0 events</span>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-outline" id="hist-prev-btn" onclick="prevHistoryPage()" disabled>Previous</button>
+          <span id="hist-page-number" style="display: flex; align-items: center; font-size: 0.85rem; font-weight: 600; padding: 0 0.5rem;">Page 1</span>
+          <button class="btn btn-outline" id="hist-next-btn" onclick="nextHistoryPage()">Next</button>
+        </div>
+      </div>
+
+      <div class="events-grid" id="history-events-container">
+        <!-- Queried events will be injected here -->
+      </div>
+    </section>
+
+    <!-- 3. WATCHLISTS & HANDLERS VIEW -->
+    <section id="tab-lists" class="tab-panel">
+      <div class="settings-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Registered Watchlists (Luna Lists)</div>
+            <button class="btn btn-outline" onclick="loadLunaLists()">Refresh</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>List Name / Description</th>
+                <th>List ID</th>
+                <th>Faces Count</th>
+              </tr>
+            </thead>
+            <tbody id="watchlists-tbody">
+              <tr><td colspan="3" style="text-align: center; color: var(--text-dim);">Click Refresh to load watchlists</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Active Luna Handlers / Video Streams</div>
+            <button class="btn btn-outline" onclick="loadLunaHandlers()">Refresh</button>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Handler ID</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="handlers-tbody">
+              <tr><td colspan="2" style="text-align: center; color: var(--text-dim);">Click Refresh to load handlers</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. SETTINGS VIEW -->
+    <section id="tab-settings" class="tab-panel">
+      <div class="settings-grid">
+        <!-- Server Connection Panel -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+              VisionLabs Server Endpoints
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="setting-host">VisionLabs Server Host / IP</label>
+            <input type="text" class="form-control" id="setting-host" value="192.168.18.71" placeholder="e.g. 192.168.18.71 or your-luna-server.com">
+            <div class="form-hint">The IP address of the machine running VisionLabs Luna Platform.</div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="setting-gateway-port">Gateway / Web Port</label>
+              <input type="number" class="form-control" id="setting-gateway-port" value="8080" placeholder="8080">
+              <div class="form-hint">Default Gateway port: 8080</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="setting-core-port">Core API Port</label>
+              <input type="number" class="form-control" id="setting-core-port" value="5000" placeholder="5000">
+              <div class="form-hint">Direct Core API port: 5000</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="setting-api-prefix">API Route Prefix</label>
+            <select class="form-control" id="setting-api-prefix">
+              <option value="/api/lp5/6" selected>/api/lp5/6 (Recommended for Gateway Port 8080)</option>
+              <option value="/6">/6 (Direct Core API Port 5000)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="setting-ws-url">WebSocket Connection URL</label>
+            <input type="text" class="form-control" id="setting-ws-url" value="ws://192.168.18.71:8080/api/lp5/6/ws" placeholder="ws://192.168.18.71:8080/api/lp5/6/ws">
+            <div class="form-hint">
+              Live socket endpoint. Default Gateway: <code>ws://192.168.18.71:8080/api/lp5/6/ws</code> (Connects cleanly in all browsers without credentials restrictions).
+            </div>
+          </div>
+        </div>
+
+        <!-- Authentication & Credentials Panel -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Credentials & Account
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="setting-account-id">Luna Account ID (UUID)</label>
+            <input type="text" class="form-control" id="setting-account-id" value="00000000-0000-4000-b000-000000000146" placeholder="e.g. 00000000-0000-4000-b000-000000000146">
+            <div class="form-hint">Used for <code>Luna-Account-Id</code> header on all API calls.</div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="setting-auth-user">HTTP Basic Username</label>
+              <input type="text" class="form-control" id="setting-auth-user" value="root@visionlabs.ai" placeholder="root@visionlabs.ai">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="setting-auth-pass">HTTP Basic Password</label>
+              <input type="password" class="form-control" id="setting-auth-pass" value="root" placeholder="password">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Client Operation Mode</label>
+            <label class="form-checkbox">
+              <input type="checkbox" id="setting-auto-connect" checked>
+              <span>Auto-connect to WebSocket & APIs on page load</span>
+            </label>
+            <label class="form-checkbox">
+              <input type="checkbox" id="setting-sound-alert" checked>
+              <span>Play sound alert for High Similarity matches (≥ 75%)</span>
+            </label>
+            <label class="form-checkbox">
+              <input type="checkbox" id="setting-fallback-poll" checked>
+              <span>Enable background polling if WebSocket has no activity (every 4s)</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons & Test Connection Result -->
+      <div class="card" style="margin-top: 1.5rem;">
+        <div class="actions-bar" style="border: none; padding: 0; margin: 0;">
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="saveSettingsAndConnect()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save Settings & Start Live Stream
+            </button>
+            <button class="btn btn-secondary" onclick="testConnection()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m10 15 5-3-5-3v6z"/></svg>
+              Test Connection
+            </button>
+            <button class="btn btn-outline" onclick="resetDefaultSettings()">
+              Reset Defaults
+            </button>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-dim);">
+            Settings are stored safely in your browser's <code>localStorage</code>.
+          </div>
+        </div>
+
+        <div id="test-connection-alert" class="alert-box"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Lightbox Preview Modal -->
+  <div class="modal-backdrop" id="lightbox-modal" onclick="closeLightbox(event)">
+    <div class="modal-container" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title" id="lightbox-title">Image Preview</div>
+        <button class="modal-close-btn" onclick="closeLightbox()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <img class="modal-image-preview" id="lightbox-img" src="" alt="VisionLabs Image Preview">
+        <div id="lightbox-details" style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.6;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Raw Event JSON Modal -->
+  <div class="modal-backdrop" id="json-modal" onclick="closeJsonModal(event)">
+    <div class="modal-container" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title" id="json-modal-title">Raw Event JSON Payload</div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button class="btn btn-xs" onclick="copyJsonToClipboard()">Copy JSON</button>
+          <button class="modal-close-btn" onclick="closeJsonModal()">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <pre class="json-viewer" id="json-viewer-content"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audio Context Synthesis for High Match Alerts -->
+  <script>
+    // Audio synthesizer for alerts without external mp3 files
+    let audioCtx = null;
+    function playAlertSound() {
+      if (!settings.soundAlert) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+        osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.25);
+      } catch (e) {
+        console.warn('Audio alert error:', e);
+      }
+    }
+  </script>
+
+  <!-- Core Logic Script -->
+  <script>
+    // Default Settings Definition
+    const DEFAULT_CONFIG = {
+      host: '192.168.18.71',
+      gatewayPort: 8080,
+      corePort: 5000,
+      apiPrefix: '/api/lp5/6',
+      wsUrl: 'ws://root%40visionlabs.ai:root@192.168.18.71:5000/6/ws',
+      accountId: '00000000-0000-4000-b000-000000000146',
+      authUser: 'root@visionlabs.ai',
+      authPass: 'root',
+      autoConnect: true,
+      soundAlert: true,
+      fallbackPoll: true,
+    };
+
+    let settings = { ...DEFAULT_CONFIG };
+
+    // In-memory application state
+    let liveEvents = [];
+    let historyEvents = [];
+    let historyPage = 1;
+    let historyTotal = 0;
+    let liveFilter = 'all';
+    let isStreamPaused = false;
+    let activeSocket = null;
+    let pollIntervalTimer = null;
+    let lastEventTimestamp = Date.now();
+    let eventsCountLastSec = 0;
+    let currentEventRate = 0;
+    let activeRawJson = null;
+
+    // In-memory image blob cache to prevent re-fetching
+    const imageBlobCache = new Map();
+
+    // Load settings from localStorage
+    function loadSavedSettings() {
+      try {
+        const saved = localStorage.getItem('visionlabs_portal_config');
+        if (saved) {
+          settings = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+        }
+      } catch (e) {
+        console.warn('Could not read saved settings:', e);
+      }
+      populateSettingsForm();
+    }
+
+    // Populate Settings HTML Form
+    function populateSettingsForm() {
+      document.getElementById('setting-host').value = settings.host || '';
+      document.getElementById('setting-gateway-port').value = settings.gatewayPort || 8080;
+      document.getElementById('setting-core-port').value = settings.corePort || 5000;
+      document.getElementById('setting-api-prefix').value = settings.apiPrefix || '/api/lp5/6';
+      document.getElementById('setting-ws-url').value = settings.wsUrl || '';
+      document.getElementById('setting-account-id').value = settings.accountId || '';
+      document.getElementById('setting-auth-user').value = settings.authUser || '';
+      document.getElementById('setting-auth-pass').value = settings.authPass || '';
+      document.getElementById('setting-auto-connect').checked = settings.autoConnect !== false;
+      document.getElementById('setting-sound-alert').checked = settings.soundAlert !== false;
+      document.getElementById('setting-fallback-poll').checked = settings.fallbackPoll !== false;
+
+      // Update header quick strip target
+      document.getElementById('stat-target-host').innerText = `${settings.host}:${settings.gatewayPort}`;
+    }
+
+    // Save Settings
+    function saveSettingsAndConnect() {
+      settings.host = document.getElementById('setting-host').value.trim();
+      settings.gatewayPort = parseInt(document.getElementById('setting-gateway-port').value, 10) || 8080;
+      settings.corePort = parseInt(document.getElementById('setting-core-port').value, 10) || 5000;
+      settings.apiPrefix = document.getElementById('setting-api-prefix').value.trim();
+      settings.wsUrl = document.getElementById('setting-ws-url').value.trim();
+      settings.accountId = document.getElementById('setting-account-id').value.trim();
+      settings.authUser = document.getElementById('setting-auth-user').value.trim();
+      settings.authPass = document.getElementById('setting-auth-pass').value.trim();
+      settings.autoConnect = document.getElementById('setting-auto-connect').checked;
+      settings.soundAlert = document.getElementById('setting-sound-alert').checked;
+      settings.fallbackPoll = document.getElementById('setting-fallback-poll').checked;
+
+      localStorage.setItem('visionlabs_portal_config', JSON.stringify(settings));
+
+      document.getElementById('stat-target-host').innerText = `${settings.host}:${settings.gatewayPort}`;
+
+      showAlert('Settings saved successfully! Connecting to VisionLabs services...', 'success');
+
+      // Start services
+      startLiveServices();
+
+      // Automatically switch to Live Feed view
+      setTimeout(() => {
+        switchTab('live');
+      }, 700);
+    }
+
+    function resetDefaultSettings() {
+      if (confirm('Reset all settings to default values?')) {
+        settings = { ...DEFAULT_CONFIG };
+        localStorage.removeItem('visionlabs_portal_config');
+        populateSettingsForm();
+        showAlert('Settings reset to defaults.', 'success');
+      }
+    }
+
+    // Tab Switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+
+      const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick')?.includes(tabId));
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const targetPanel = document.getElementById(`tab-${tabId}`);
+      if (targetPanel) targetPanel.classList.add('active');
+
+      if (tabId === 'history' && historyEvents.length === 0) {
+        queryHistoryEvents();
+      } else if (tabId === 'lists') {
+        loadLunaLists();
+        loadLunaHandlers();
+      }
+    }
+
+    // Generate Request Headers
+    function getApiHeaders() {
+      const headers = {
+        'Accept': 'application/json',
+      };
+      if (settings.authUser || settings.authPass) {
+        headers['Authorization'] = 'Basic ' + btoa(`${settings.authUser}:${settings.authPass}`);
+      }
+      if (settings.accountId) {
+        headers['Luna-Account-Id'] = settings.accountId;
+      }
+      return headers;
+    }
+
+    // Base API URL
+    function getApiBaseUrl() {
+      const port = settings.gatewayPort || 8080;
+      const prefix = settings.apiPrefix || '/api/lp5/6';
+      return `http://${settings.host}:${port}${prefix}`;
+    }
+
+    // Test Connection
+    async function testConnection() {
+      const alertBox = document.getElementById('test-connection-alert');
+      alertBox.className = 'alert-box';
+      alertBox.style.display = 'block';
+      alertBox.innerText = 'Testing VisionLabs HTTP API & WebSocket connectivity...';
+
+      const startTime = performance.now();
+      const baseUrl = getApiBaseUrl();
+      const targetUrl = `${baseUrl}/events?page=1&page_size=1`;
+
+      try {
+        const response = await fetch(targetUrl, {
+          method: 'GET',
+          headers: getApiHeaders(),
+        });
+        const duration = Math.round(performance.now() - startTime);
+
+        if (response.ok) {
+          const data = await response.json();
+          alertBox.className = 'alert-box success';
+          alertBox.innerHTML = `<strong>Connected Successfully!</strong><br>
+            • HTTP Status: ${response.status} OK (${duration}ms)<br>
+            • Endpoint: ${targetUrl}<br>
+            • VisionLabs reported events available.`;
+          updateApiStatusBadge(true, `${duration}ms`);
+        } else {
+          alertBox.className = 'alert-box error';
+          alertBox.innerHTML = `<strong>API Responded with Error ${response.status}</strong><br>
+            • Status: ${response.status} ${response.statusText}<br>
+            • Endpoint: ${targetUrl}<br>
+            • Ensure Luna Account ID and credentials are valid.`;
+          updateApiStatusBadge(false, `${response.status}`);
+        }
+      } catch (err) {
+        alertBox.className = 'alert-box error';
+        alertBox.innerHTML = `<strong>Network Connection Failed</strong><br>
+          • Error: ${err.message}<br>
+          • Attempted: ${targetUrl}<br>
+          • Check if the host IP (${settings.host}) and port (${settings.gatewayPort}) are reachable. If testing directly from a local browser file, ensure CORS is allowed or test via the gateway.`;
+        updateApiStatusBadge(false, 'Failed');
+      }
+    }
+
+    function showAlert(msg, type) {
+      const alertBox = document.getElementById('test-connection-alert');
+      alertBox.className = `alert-box ${type}`;
+      alertBox.innerText = msg;
+      setTimeout(() => {
+        alertBox.style.display = 'none';
+      }, 5000);
+    }
+
+    function updateWsStatusBadge(status, label) {
+      const dot = document.getElementById('ws-dot');
+      const text = document.getElementById('ws-text');
+      dot.className = `dot ${status}`;
+      text.innerText = label;
+    }
+
+    function updateApiStatusBadge(online, text) {
+      const dot = document.getElementById('api-dot');
+      const label = document.getElementById('api-text');
+      dot.className = `dot ${online ? 'green' : 'red'}`;
+      label.innerText = online ? `API Online (${text})` : `API ${text}`;
+    }
+
+    // ─── WebSocket Client ────────────────────────────────────────────────────────
+    function connectWebSocket() {
+      if (activeSocket) {
+        try { activeSocket.close(); } catch (e) {}
+        activeSocket = null;
+      }
+
+      const wsUrl = settings.wsUrl;
+      if (!wsUrl) {
+        updateWsStatusBadge('yellow', 'WS Disabled');
+        return;
+      }
+
+      updateWsStatusBadge('yellow', 'Connecting...');
+
+      try {
+        const ws = new WebSocket(wsUrl);
+        activeSocket = ws;
+
+        ws.onopen = () => {
+          console.log('[VisionLabs WS] Connected to:', wsUrl);
+          updateWsStatusBadge('green', 'WS Live');
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const rawData = JSON.parse(event.data);
+            handleIncomingLiveEvent(rawData);
+          } catch (e) {
+            console.warn('[VisionLabs WS] Non-JSON payload received:', event.data);
+          }
+        };
+
+        ws.onerror = (err) => {
+          console.warn('[VisionLabs WS] Error:', err);
+          updateWsStatusBadge('red', 'WS Error');
+        };
+
+        ws.onclose = () => {
+          console.log('[VisionLabs WS] Disconnected');
+          updateWsStatusBadge('red', 'WS Offline');
+          // Auto reconnect after 5s if auto-connect enabled
+          if (settings.autoConnect) {
+            setTimeout(() => {
+              if (activeSocket === ws) {
+                connectWebSocket();
+              }
+            }, 5000);
+          }
+        };
+      } catch (err) {
+        console.error('[VisionLabs WS] Could not instantiate WebSocket:', err);
+        updateWsStatusBadge('red', 'WS Failed');
+      }
+    }
+
+    // In-memory cache for Luna Face records: faceId -> { faceId, avatarUrl, name, raw }
+    const faceCache = new Map();
+
+    async function resolveFaceDetails(faceId) {
+      if (!faceId) return null;
+      if (faceCache.has(faceId)) {
+        return faceCache.get(faceId);
+      }
+
+      try {
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/faces/${faceId}`, {
+          headers: getApiHeaders(),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // In Luna Platform 5, avatar is in data.avatar or data.samples[0]
+          const rawAvatar = data.avatar || (Array.isArray(data.samples) && data.samples.length > 0 ? data.samples[0] : null);
+          const avatarUrl = rawAvatar ? resolveImageUrl(rawAvatar, 'sample') : null;
+          const name = data.external_id || data.user_data || null;
+
+          const info = {
+            faceId,
+            avatarUrl,
+            name,
+            raw: data,
+          };
+          faceCache.set(faceId, info);
+          return info;
+        }
+      } catch (err) {
+        console.warn('[VisionLabs] Failed to resolve face details for', faceId, err);
+      }
+      return null;
+    }
+
+    function handleAvatarBoxClick(eventId) {
+      const ev = liveEvents.find(e => e.id === eventId) || historyEvents.find(e => e.id === eventId);
+      if (ev && ev.avatarUrl) {
+        openLightbox(ev.avatarUrl, `Watchlist Avatar - ${ev.personName}`);
+      }
+    }
+
+    // Incoming Event Processing
+    function handleIncomingLiveEvent(rawPayload) {
+      if (isStreamPaused) return;
+
+      const evt = rawPayload.event || rawPayload;
+      if (!evt || (!evt.event_id && !evt.id && !evt.create_time)) return;
+
+      eventsCountLastSec++;
+      const parsed = parseLunaEvent(evt);
+
+      // Avoid duplicates
+      const exists = liveEvents.some(e => e.raw.event_id === parsed.raw.event_id || (e.raw.id && e.raw.id === parsed.raw.id));
+      if (!exists) {
+        liveEvents.unshift(parsed);
+        if (liveEvents.length > 200) {
+          liveEvents.pop();
+        }
+
+        // Play alert on high match
+        if (parsed.similarity >= 75) {
+          playAlertSound();
+        }
+
+        renderLiveEvents();
+        updateStats();
+
+        // If faceId is present and avatar not yet loaded, asynchronously resolve it!
+        if (parsed.faceId && !parsed.avatarUrl) {
+          resolveFaceDetails(parsed.faceId).then(faceInfo => {
+            if (faceInfo && faceInfo.avatarUrl) {
+              parsed.avatarUrl = faceInfo.avatarUrl;
+              if (faceInfo.name && (!parsed.personName || parsed.personName === parsed.listName || parsed.personName === 'Watchlist Candidate')) {
+                parsed.personName = faceInfo.name;
+              }
+              renderLiveEvents();
+            }
+          });
+        }
+      }
+    }
+
+    // ─── Direct HTTP Polling (Fallback / Initial Fetch) ──────────────────────────
+    async function fetchInitialEvents() {
+      try {
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/events?page=1&page_size=25&order=desc`, {
+          headers: getApiHeaders(),
+        });
+        if (!res.ok) {
+          updateApiStatusBadge(false, `${res.status}`);
+          return;
+        }
+        updateApiStatusBadge(true, 'OK');
+        const data = await res.json();
+        const events = data.events || (Array.isArray(data) ? data : []);
+
+        const parsedList = events.map(parseLunaEvent);
+
+        // Pre-fetch all face avatars in parallel!
+        const faceIdsToResolve = new Set();
+        parsedList.forEach(ev => {
+          if (ev.faceId && !faceCache.has(ev.faceId)) {
+            faceIdsToResolve.add(ev.faceId);
+          }
+        });
+
+        if (faceIdsToResolve.size > 0) {
+          await Promise.allSettled(Array.from(faceIdsToResolve).map(fId => resolveFaceDetails(fId)));
+          parsedList.forEach(ev => {
+            if (ev.faceId && faceCache.has(ev.faceId)) {
+              const cached = faceCache.get(ev.faceId);
+              if (cached.avatarUrl && !ev.avatarUrl) {
+                ev.avatarUrl = cached.avatarUrl;
+              }
+              if (cached.name && (!ev.personName || ev.personName === ev.listName || ev.personName === 'Watchlist Candidate')) {
+                ev.personName = cached.name;
+              }
+            }
+          });
+        }
+
+        liveEvents = parsedList;
+        renderLiveEvents();
+        updateStats();
+      } catch (e) {
+        console.warn('Initial events fetch error:', e);
+        updateApiStatusBadge(false, 'Offline');
+      }
+    }
+
+    function startLiveServices() {
+      connectWebSocket();
+      fetchInitialEvents();
+
+      // Periodic stats rate updater
+      if (!window._rateInterval) {
+        window._rateInterval = setInterval(() => {
+          currentEventRate = eventsCountLastSec;
+          eventsCountLastSec = 0;
+          document.getElementById('stat-event-rate').innerText = `${currentEventRate} /s`;
+        }, 1000);
+      }
+
+      // Background poll if WebSocket has no activity
+      if (pollIntervalTimer) clearInterval(pollIntervalTimer);
+      if (settings.fallbackPoll) {
+        pollIntervalTimer = setInterval(() => {
+          if (!activeSocket || activeSocket.readyState !== WebSocket.OPEN) {
+            fetchInitialEvents();
+          }
+        }, 4000);
+      }
+    }
+
+    // ─── Event Parsing Helpers ──────────────────────────────────────────────────
+    function parseLunaEvent(evt) {
+      const e = evt.event || evt;
+      const eventId = e.event_id || e.id || 'unknown';
+      let personName = '';
+      let listName = '';
+      let similarity = 0;
+      let isMatch = false;
+      let avatarUrl = null;
+      let detectedFaceUrl = null;
+      let frameUrl = null;
+      let faceId = null;
+
+      // 1. Extract match info from top_match
+      const topMatch = e.top_match;
+      if (topMatch) {
+        similarity = Math.round((topMatch.similarity ?? topMatch.score ?? 0) * 100);
+        isMatch = similarity > 0;
+        faceId = topMatch.face_id || topMatch.face?.face_id || null;
+        personName = topMatch.external_id || topMatch.face?.external_id || topMatch.face?.user_data || topMatch.user_data || '';
+        listName = topMatch.label || '';
+        const rawAvatar = topMatch.avatar || topMatch.face?.avatar || null;
+        if (rawAvatar) avatarUrl = resolveImageUrl(rawAvatar, 'sample');
+      }
+
+      // 2. Fallback candidate search in match_result or matches
+      const matches = e.match_result || e.matches;
+      if (!faceId && matches && Array.isArray(matches)) {
+        for (const m of matches) {
+          if (m.candidates && Array.isArray(m.candidates) && m.candidates.length > 0) {
+            const cand = m.candidates[0];
+            const sim = Math.round((cand.similarity ?? cand.score ?? 0) * 100);
+            if (sim > similarity) {
+              similarity = sim;
+              isMatch = similarity > 0;
+              faceId = cand.face?.face_id || cand.face_id || null;
+              if (!personName) {
+                personName = cand.face?.external_id || cand.external_id || cand.face?.user_data || cand.user_data || '';
+              }
+              if (!listName) {
+                listName = cand.label || m.label || '';
+              }
+              const rawAvatar = cand.face?.avatar || (cand && cand.avatar) || null;
+              if (rawAvatar) avatarUrl = resolveImageUrl(rawAvatar, 'sample');
+            }
+          }
+        }
+      }
+
+      // 3. Root face_id fallback
+      if (!faceId && e.face_id) {
+        faceId = e.face_id;
+      }
+
+      // 4. Check if face is already in cache
+      if (faceId && faceCache.has(faceId)) {
+        const cached = faceCache.get(faceId);
+        if (cached.avatarUrl && !avatarUrl) {
+          avatarUrl = cached.avatarUrl;
+        }
+        if (cached.name && (!personName || personName === listName)) {
+          personName = cached.name;
+        }
+      }
+
+      // 5. Final personName fallback
+      if (!personName) {
+        personName = listName || e.user_data || (isMatch ? 'Watchlist Candidate' : 'Unidentified Person');
+      }
+
+      // Face sample crop
+      const faceSampleId =
+        e.face_detections?.[0]?.sample_id ||
+        e.face_detections?.[0]?.samples?.face?.sample_id ||
+        e.face_detections?.[0]?.samples?.face?.url ||
+        e.detections?.[0]?.sample_id ||
+        e.detections?.[0]?.samples?.face?.sample_id ||
+        e.detections?.[0]?.samples?.face?.url ||
+        e.sample_id;
+
+      if (faceSampleId) {
+        detectedFaceUrl = resolveImageUrl(faceSampleId, 'sample');
+      }
+
+      // Full camera frame
+      const frameOriginId =
+        e.face_detections?.[0]?.image_origin ||
+        e.face_detections?.[0]?.image_id ||
+        e.detections?.[0]?.image_origin ||
+        e.detections?.[0]?.image_id ||
+        e.image_origin ||
+        e.image_id;
+
+      if (frameOriginId) {
+        frameUrl = resolveImageUrl(frameOriginId, 'image');
+      }
+
+      // Attributes
+      const gender = e.gender !== undefined ? (e.gender === 1 ? 'Male' : 'Female') : (e.body_basic_attributes?.apparent_gender === 1 ? 'Male' : 'Female');
+      const age = e.age || e.body_basic_attributes?.apparent_age || null;
+      const camera = e.source || (e.handler_id ? `Handler ${e.handler_id.slice(0, 8)}` : 'Camera');
+      const timeStr = formatEventTime(e.create_time || new Date().toISOString());
+
+      return {
+        id: eventId,
+        personName,
+        listName,
+        similarity,
+        isMatch,
+        gender,
+        age,
+        camera,
+        timeStr,
+        faceId,
+        avatarUrl,
+        detectedFaceUrl,
+        frameUrl,
+        raw: e,
+      };
+    }
+
+    function formatEventTime(isoString) {
+      try {
+        const d = new Date(isoString);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' • ' + d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      } catch (e) {
+        return isoString;
+      }
+    }
+
+    // Resolve URL to Luna media endpoint
+    function resolveImageUrl(rawUrlOrId, type) {
+      if (!rawUrlOrId) return null;
+
+      const baseUrl = getApiBaseUrl();
+      const uuidMatch = rawUrlOrId.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/i);
+
+      if (rawUrlOrId.startsWith('http://') || rawUrlOrId.startsWith('https://')) {
+        if (uuidMatch && (rawUrlOrId.includes('/samples/') || rawUrlOrId.includes('/images/'))) {
+          const uuid = uuidMatch[0];
+          if (rawUrlOrId.includes('images')) return `${baseUrl}/images/${uuid}`;
+          if (rawUrlOrId.includes('bodies')) return `${baseUrl}/samples/bodies/${uuid}`;
+          return `${baseUrl}/samples/faces/${uuid}`;
+        }
+        return rawUrlOrId;
+      }
+
+      const uuid = uuidMatch ? uuidMatch[0] : rawUrlOrId;
+
+      if (type === 'image' || rawUrlOrId.includes('image')) {
+        return `${baseUrl}/images/${uuid}`;
+      }
+      if (rawUrlOrId.includes('bodies')) {
+        return `${baseUrl}/samples/bodies/${uuid}`;
+      }
+      return `${baseUrl}/samples/faces/${uuid}`;
+    }
+
+    // ─── Image Loader with In-Memory Cache and Authentication ──────────────────
+    async function loadAuthorizedImage(imgElement, url) {
+      if (!url) return;
+      if (imageBlobCache.has(url)) {
+        imgElement.src = imageBlobCache.get(url);
+        return;
+      }
+
+      try {
+        const res = await fetch(url, {
+          headers: getApiHeaders(),
+        });
+        if (res.ok) {
+          const blob = await res.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          imageBlobCache.set(url, objectUrl);
+          imgElement.src = objectUrl;
+        } else {
+          // Direct fallback
+          imgElement.src = url;
+        }
+      } catch (err) {
+        // Fallback for CORS or direct media
+        imgElement.src = url;
+      }
+    }
+
+    // ─── Render Live Event Cards ───────────────────────────────────────────────
+    function renderLiveEvents() {
+      const container = document.getElementById('live-events-container');
+      const emptyState = document.getElementById('live-empty-state');
+      const searchQuery = (document.getElementById('live-search-input').value || '').toLowerCase().trim();
+
+      let filtered = liveEvents.filter(ev => {
+        // Search filter
+        if (searchQuery) {
+          const matchQuery =
+            ev.personName.toLowerCase().includes(searchQuery) ||
+            ev.camera.toLowerCase().includes(searchQuery) ||
+            ev.id.toLowerCase().includes(searchQuery);
+          if (!matchQuery) return false;
+        }
+
+        // Pill filter
+        if (liveFilter === 'high') return ev.similarity >= 75;
+        if (liveFilter === 'matches') return ev.isMatch;
+        if (liveFilter === 'unmatched') return !ev.isMatch;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      container.innerHTML = filtered.map(ev => createEventCardHtml(ev)).join('');
+
+      // Asynchronously load authenticated images and resolve missing avatars
+      filtered.forEach(ev => {
+        const detImg = document.getElementById(`det-img-${ev.id}`);
+        if (detImg && (ev.detectedFaceUrl || ev.frameUrl)) {
+          loadAuthorizedImage(detImg, ev.detectedFaceUrl || ev.frameUrl);
+        }
+
+        const avImg = document.getElementById(`av-img-${ev.id}`);
+        if (avImg && ev.avatarUrl) {
+          loadAuthorizedImage(avImg, ev.avatarUrl);
+        } else if (ev.isMatch && ev.faceId && !ev.avatarUrl) {
+          // Asynchronously resolve face avatar from /faces/{faceId}!
+          resolveFaceDetails(ev.faceId).then(faceInfo => {
+            if (faceInfo && faceInfo.avatarUrl) {
+              ev.avatarUrl = faceInfo.avatarUrl;
+              if (faceInfo.name && (!ev.personName || ev.personName === ev.listName || ev.personName === 'Watchlist Candidate')) {
+                ev.personName = faceInfo.name;
+                const nameEl = document.querySelector(`#card-${ev.id} .person-name span`);
+                if (nameEl) nameEl.innerText = ev.personName;
+              }
+              const avBox = document.getElementById(`av-box-${ev.id}`);
+              if (avBox) {
+                avBox.innerHTML = `
+                  <img id="av-img-${ev.id}" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' fill='%23334155'><rect width='100' height='100' fill='%230f172a'/><text x='50' y='55' font-size='11' text-anchor='middle' fill='%2364748b'>Loading...</text></svg>" alt="Watchlist Avatar">
+                  <span class="media-box-label">Watchlist</span>
+                `;
+                const newImg = document.getElementById(`av-img-${ev.id}`);
+                if (newImg) {
+                  loadAuthorizedImage(newImg, ev.avatarUrl);
+                }
+              }
+            } else {
+              const placeholder = document.getElementById(`av-placeholder-${ev.id}`);
+              if (placeholder) {
+                placeholder.innerHTML = `
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg>
+                  <span>No Avatar</span>
+                `;
+              }
+            }
+          });
+        }
+      });
+    }
+
+    function createEventCardHtml(ev) {
+      const tierClass = ev.similarity >= 75 ? 'high-match' : ev.similarity >= 50 ? 'mid-match' : 'low-match';
+      const badgeClass = ev.similarity >= 75 ? 'badge-high' : ev.similarity >= 50 ? 'badge-mid' : 'badge-low';
+
+      return `
+        <div class="event-card ${tierClass}" id="card-${ev.id}">
+          <div class="event-card-header">
+            <span class="event-sim-badge ${badgeClass}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              ${ev.similarity > 0 ? `${ev.similarity}% Match` : 'Unmatched'}
+            </span>
+            <span style="font-size: 0.72rem; color: var(--text-dim);">${ev.timeStr}</span>
+          </div>
+
+          <div class="event-media-container">
+            <div class="media-box" onclick="openLightbox('${ev.detectedFaceUrl || ev.frameUrl}', 'Detected Face - ${escapeHtml(ev.personName)}')">
+              <img id="det-img-${ev.id}" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' fill='%23334155'><rect width='100' height='100' fill='%230f172a'/><text x='50' y='55' font-size='11' text-anchor='middle' fill='%2364748b'>Loading...</text></svg>" alt="Detected Face">
+              <span class="media-box-label">Detected Face</span>
+            </div>
+
+            <div class="media-box" id="av-box-${ev.id}" onclick="handleAvatarBoxClick('${ev.id}')">
+              ${ev.avatarUrl ? `
+                <img id="av-img-${ev.id}" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' fill='%23334155'><rect width='100' height='100' fill='%230f172a'/><text x='50' y='55' font-size='11' text-anchor='middle' fill='%2364748b'>Loading...</text></svg>" alt="Watchlist Avatar">
+                <span class="media-box-label">Watchlist</span>
+              ` : (ev.isMatch && ev.faceId) ? `
+                <div class="media-placeholder" id="av-placeholder-${ev.id}">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+                  <span style="font-size: 0.7rem; color: #38bdf8;">Loading Avatar...</span>
+                </div>
+              ` : `
+                <div class="media-placeholder">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg>
+                  <span>No Avatar</span>
+                </div>
+              `}
+            </div>
+          </div>
+
+          <div class="event-body">
+            <div class="person-name ${!ev.isMatch ? 'unmatched' : ''}">
+              <span>${escapeHtml(ev.personName)}</span>
+              ${ev.listName && ev.listName !== ev.personName ? `<span class="meta-tag" style="margin-left: 0.35rem; font-size: 0.68rem; font-weight: 500; color: #38bdf8; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.25);">${escapeHtml(ev.listName)}</span>` : ''}
+            </div>
+
+            <div class="event-meta-row">
+              <span class="meta-tag">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                ${escapeHtml(ev.camera)}
+              </span>
+              ${ev.gender ? `<span class="meta-tag">${ev.gender}</span>` : ''}
+              ${ev.age ? `<span class="meta-tag">~${ev.age} yrs</span>` : ''}
+            </div>
+          </div>
+
+          <div class="event-footer">
+            <span style="color: var(--text-dim); font-size: 0.7rem;">ID: ${ev.id.slice(0, 8)}...</span>
+            <div style="display: flex; gap: 0.4rem;">
+              ${ev.frameUrl ? `<button class="btn-xs" onclick="openLightbox('${ev.frameUrl}', 'Full Frame - ${escapeHtml(ev.camera)}')">Full Frame</button>` : ''}
+              <button class="btn-xs" onclick="inspectEventJson('${ev.id}')">{ } JSON</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function setLiveFilter(filter, btn) {
+      liveFilter = filter;
+      document.querySelectorAll('.filter-pills .pill-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderLiveEvents();
+    }
+
+    function toggleStreamPause() {
+      isStreamPaused = !isStreamPaused;
+      const btn = document.getElementById('pause-stream-btn');
+      const text = document.getElementById('pause-text');
+      if (isStreamPaused) {
+        btn.classList.remove('btn-outline');
+        btn.classList.add('btn-danger');
+        text.innerText = 'Resume Stream';
+      } else {
+        btn.classList.remove('btn-danger');
+        btn.classList.add('btn-outline');
+        text.innerText = 'Pause Stream';
+      }
+    }
+
+    function clearLiveEvents() {
+      liveEvents = [];
+      renderLiveEvents();
+      updateStats();
+    }
+
+    function updateStats() {
+      document.getElementById('stat-total-count').innerText = liveEvents.length;
+      document.getElementById('stat-match-count').innerText = liveEvents.filter(e => e.isMatch).length;
+      document.getElementById('stat-high-count').innerText = liveEvents.filter(e => e.similarity >= 75).length;
+    }
+
+    // ─── History & Search API Query ─────────────────────────────────────────────
+    async function queryHistoryEvents() {
+      const container = document.getElementById('history-events-container');
+      const summary = document.getElementById('history-results-summary');
+      container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--accent-blue);">Querying VisionLabs API...</div>';
+
+      const tier = document.getElementById('hist-sim-tier').value;
+      const minSim = parseFloat(document.getElementById('hist-min-sim').value);
+      const gender = document.getElementById('hist-gender').value;
+      const pageSize = parseInt(document.getElementById('hist-page-size').value, 10);
+      const source = document.getElementById('hist-source').value.trim();
+      const label = document.getElementById('hist-label').value.trim();
+
+      const params = new URLSearchParams();
+      params.set('page', String(historyPage));
+      params.set('page_size', String(pageSize));
+      params.set('order', 'desc');
+
+      if (tier === 'high') {
+        params.set('top_similar_object_similarity__gte', '0.75');
+      } else if (tier === 'mid') {
+        params.set('top_similar_object_similarity__gte', '0.50');
+        params.set('top_similar_object_similarity__lt', '0.75');
+      } else if (tier === 'low') {
+        params.set('top_similar_object_similarity__lt', '0.50');
+      } else if (tier === 'custom') {
+        if (minSim > 0) params.set('top_similar_object_similarity__gte', String(minSim));
+      }
+
+      if (gender) params.set('gender', gender);
+      if (source) params.set('sources', source);
+      if (label) params.set('top_matching_candidates_label', label);
+
+      const baseUrl = getApiBaseUrl();
+      const targetUrl = `${baseUrl}/events?${params.toString()}`;
+
+      try {
+        const res = await fetch(targetUrl, {
+          headers: getApiHeaders(),
+        });
+        if (!res.ok) {
+          container.innerHTML = `<div style="grid-column: 1/-1; color: var(--accent-red); text-align: center; padding: 2rem;">API returned ${res.status}: ${res.statusText}</div>`;
+          return;
+        }
+
+        const data = await res.json();
+        const rawList = data.events || (Array.isArray(data) ? data : []);
+        historyEvents = rawList.map(parseLunaEvent);
+        historyTotal = data.total || historyEvents.length;
+
+        // Pre-fetch all face avatars in parallel!
+        const faceIdsToResolve = new Set();
+        historyEvents.forEach(ev => {
+          if (ev.faceId && !faceCache.has(ev.faceId)) {
+            faceIdsToResolve.add(ev.faceId);
+          }
+        });
+
+        if (faceIdsToResolve.size > 0) {
+          await Promise.allSettled(Array.from(faceIdsToResolve).map(fId => resolveFaceDetails(fId)));
+          historyEvents.forEach(ev => {
+            if (ev.faceId && faceCache.has(ev.faceId)) {
+              const cached = faceCache.get(ev.faceId);
+              if (cached.avatarUrl && !ev.avatarUrl) {
+                ev.avatarUrl = cached.avatarUrl;
+              }
+              if (cached.name && (!ev.personName || ev.personName === ev.listName || ev.personName === 'Watchlist Candidate')) {
+                ev.personName = cached.name;
+              }
+            }
+          });
+        }
+
+        summary.innerText = `Found ${historyTotal} total events (Page ${historyPage})`;
+        document.getElementById('hist-page-number').innerText = `Page ${historyPage}`;
+        document.getElementById('hist-prev-btn').disabled = historyPage <= 1;
+
+        if (historyEvents.length === 0) {
+          container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-dim);">No matching events found for the given criteria.</div>';
+          return;
+        }
+
+        container.innerHTML = historyEvents.map(ev => createEventCardHtml(ev)).join('');
+
+        historyEvents.forEach(ev => {
+          const detImg = document.getElementById(`det-img-${ev.id}`);
+          if (detImg && (ev.detectedFaceUrl || ev.frameUrl)) {
+            loadAuthorizedImage(detImg, ev.detectedFaceUrl || ev.frameUrl);
+          }
+          const avImg = document.getElementById(`av-img-${ev.id}`);
+          if (avImg && ev.avatarUrl) {
+            loadAuthorizedImage(avImg, ev.avatarUrl);
+          }
+        });
+      } catch (err) {
+        container.innerHTML = `<div style="grid-column: 1/-1; color: var(--accent-red); text-align: center; padding: 2rem;">Error: ${err.message}</div>`;
+      }
+    }
+
+    function syncSimilaritySlider(val) {
+      const slider = document.getElementById('hist-min-sim');
+      const disp = document.getElementById('min-sim-display');
+      if (val === 'high') { slider.value = 0.75; }
+      else if (val === 'mid') { slider.value = 0.50; }
+      else if (val === 'low') { slider.value = 0.10; }
+      disp.innerText = slider.value;
+    }
+
+    function prevHistoryPage() {
+      if (historyPage > 1) {
+        historyPage--;
+        queryHistoryEvents();
+      }
+    }
+
+    function nextHistoryPage() {
+      historyPage++;
+      queryHistoryEvents();
+    }
+
+    // ─── Watchlists & Handlers Loader ───────────────────────────────────────────
+    async function loadLunaLists() {
+      const tbody = document.getElementById('watchlists-tbody');
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--accent-blue);">Loading Watchlists...</td></tr>';
+
+      try {
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/lists?page=1&page_size=100`, {
+          headers: getApiHeaders(),
+        });
+        if (!res.ok) {
+          tbody.innerHTML = `<tr><td colspan="3" style="color: var(--accent-red); text-align: center;">Error ${res.status}: ${res.statusText}</td></tr>`;
+          return;
+        }
+        const data = await res.json();
+        const lists = data.lists || (Array.isArray(data) ? data : []);
+
+        if (lists.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--text-dim);">No watchlists registered in VisionLabs.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = lists.map(l => `
+          <tr>
+            <td><strong>${escapeHtml(l.user_data || 'Watchlist')}</strong></td>
+            <td style="font-family: monospace; color: var(--accent-blue);">${escapeHtml(l.list_id)}</td>
+            <td><span class="meta-tag">${l.face_count || l.count || 0} faces</span></td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="3" style="color: var(--accent-red); text-align: center;">Network Error: ${e.message}</td></tr>`;
+      }
+    }
+
+    async function loadLunaHandlers() {
+      const tbody = document.getElementById('handlers-tbody');
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--accent-blue);">Loading Handlers...</td></tr>';
+
+      try {
+        const baseUrl = getApiBaseUrl();
+        const res = await fetch(`${baseUrl}/handlers?page=1&page_size=100`, {
+          headers: getApiHeaders(),
+        });
+        if (!res.ok) {
+          tbody.innerHTML = `<tr><td colspan="2" style="color: var(--accent-red); text-align: center;">Error ${res.status}: ${res.statusText}</td></tr>`;
+          return;
+        }
+        const data = await res.json();
+        const handlers = data.handlers || (Array.isArray(data) ? data : []);
+
+        if (handlers.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--text-dim);">No handlers registered.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = handlers.map(h => `
+          <tr>
+            <td style="font-family: monospace; color: var(--accent-blue);">${escapeHtml(h.handler_id)}</td>
+            <td>${escapeHtml(h.description || 'VisionLabs Stream Handler')}</td>
+          </tr>
+        `).join('');
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="2" style="color: var(--accent-red); text-align: center;">Network Error: ${e.message}</td></tr>`;
+      }
+    }
+
+    // ─── Modal / Lightbox Handlers ──────────────────────────────────────────────
+    function openLightbox(url, title) {
+      if (!url) return;
+      document.getElementById('lightbox-title').innerText = title || 'Image Viewer';
+      const img = document.getElementById('lightbox-img');
+      img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" fill="%23334155"><rect width="200" height="200" fill="%230f172a"/><text x="100" y="105" font-size="14" text-anchor="middle" fill="%2364748b">Loading image...</text></svg>';
+      loadAuthorizedImage(img, url);
+      document.getElementById('lightbox-modal').classList.add('open');
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox-modal').classList.remove('open');
+    }
+
+    function inspectEventJson(eventId) {
+      const ev = liveEvents.find(e => e.id === eventId) || historyEvents.find(e => e.id === eventId);
+      if (!ev) return;
+      activeRawJson = ev.raw;
+      document.getElementById('json-modal-title').innerText = `Event: ${eventId}`;
+      document.getElementById('json-viewer-content').innerText = JSON.stringify(ev.raw, null, 2);
+      document.getElementById('json-modal').classList.add('open');
+    }
+
+    function closeJsonModal() {
+      document.getElementById('json-modal').classList.remove('open');
+    }
+
+    function copyJsonToClipboard() {
+      if (!activeRawJson) return;
+      navigator.clipboard.writeText(JSON.stringify(activeRawJson, null, 2)).then(() => {
+        alert('Event JSON copied to clipboard!');
+      });
+    }
+
+    function exportEventsJson() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(liveEvents.map(e => e.raw), null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `visionlabs_events_${new Date().toISOString().slice(0, 10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Keyboard support (Esc to close modal)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeLightbox();
+        closeJsonModal();
+      }
+    });
+
+    // Initialize application on load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSavedSettings();
+      if (settings.autoConnect) {
+        startLiveServices();
+      }
+    });
+  </script>
+</body>
+</html>
+
