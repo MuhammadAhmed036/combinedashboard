@@ -67,7 +67,8 @@ All commands are run from `D:\newdashboard`:
 - **Reset local database and rebuild from scratch**:
   ```powershell
   docker compose --env-file .env -f docker/docker-compose.yml down -v
-  docker compose --env-file .env -f docker/docker-composl up -d --build
+  docker compose --env-file .env -f docker/docker-compose.yml up -d --build
+  ```
 ---
 
 ## 👤 VisionLabs Luna Platform 5 Integration

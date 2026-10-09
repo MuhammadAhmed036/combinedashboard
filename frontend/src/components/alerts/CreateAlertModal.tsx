@@ -136,14 +136,6 @@ export function CreateAlertModal() {
     height: 1080,
   });
 
-  const { data: snapshot, isLoading: snapshotLoading } = useCameraSnapshot(
-    cameraId || null
-  );
-
-  const { data: cameraClasses, isLoading: cameraClassesLoading } = useCameraClasses(
-    alertKind === "region" ? cameraId || null : null
-  );
-
   const selectedCamera = cameras?.find((c) => c.cameraId === cameraId) ?? null;
   const streamCameraMatch = streamCameras?.find(
     (c) =>
@@ -157,6 +149,34 @@ export function CreateAlertModal() {
     selectedCamera?.cameraName ||
     selectedCamera?.cameraId ||
     cameraId;
+
+  const candidateCameraIds = useMemo(() => {
+    return [
+      cameraId,
+      selectedCamera?.cameraName,
+      selectedCamera?.cameraId,
+      streamCameraMatch?.id,
+      streamCameraMatch?.code,
+      streamCameraMatch?.name,
+      streamCameraMatch?.sourceName,
+      resolveDetectionCameraId(cameraId),
+    ].filter(Boolean) as string[];
+  }, [cameraId, selectedCamera, streamCameraMatch]);
+
+  const {
+    data: snapshot,
+    isLoading: snapshotLoading,
+    isFetching: snapshotFetching,
+    refetch: refetchSnapshot,
+  } = useCameraSnapshot(cameraId || null, {
+    enabled: isOpen,
+    pollIntervalMs: 2500,
+    candidateCameraIds,
+  });
+
+  const { data: cameraClasses, isLoading: cameraClassesLoading } = useCameraClasses(
+    alertKind === "region" ? cameraId || null : null
+  );
 
   // WebRTC Stream connection directly to MediaMTX
   const { stream: liveStream, status: liveStreamStatus } = useSharedCameraStream(
@@ -402,16 +422,29 @@ export function CreateAlertModal() {
                 {snapshot && (
                   <button
                     type="button"
-                    onClick={() => setFeedMode("snapshot")}
+                    onClick={() => {
+                      setFeedMode("snapshot");
+                      void refetchSnapshot();
+                    }}
                     className={cn(
-                      "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all",
+                      "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all shadow-sm",
                       !activeFeedIsWebRTC
-                        ? "border-primary/50 bg-primary/10 text-primary shadow-sm"
+                        ? "border-primary/50 bg-primary/10 text-primary"
                         : "border-surface-border bg-surface-2 text-muted-foreground hover:text-foreground"
                     )}
+                    title="Click to switch to or refresh latest snapshot"
                   >
                     <CameraIcon className="size-3" />
-                    Latest Snapshot
+                    <span>Latest Snapshot</span>
+                    {!activeFeedIsWebRTC && (
+                      <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-semibold ml-0.5">
+                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Live
+                      </span>
+                    )}
+                    {snapshotFetching && (
+                      <Loader2 className="size-2.5 animate-spin text-primary" />
+                    )}
                   </button>
                 )}
               </div>
@@ -436,6 +469,21 @@ export function CreateAlertModal() {
                 onChange={setBox}
                 onDimensionsReady={(dims) => setStreamDims(dims)}
               />
+            )}
+
+            {!activeFeedIsWebRTC && snapshot && (
+              <div className="flex items-center justify-between px-1 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1.5 font-medium text-foreground/80">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>
+                    Auto-updating live frame
+                    {snapshot.detectionTs ? ` • Captured ${formatSnapshotTime(snapshot.detectionTs)}` : ""}
+                  </span>
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground/70">
+                  Event #{snapshot.eventId}
+                </span>
+              </div>
             )}
 
             {!snapshotLoading && !snapshot && !liveStream && (
@@ -565,4 +613,16 @@ export function CreateAlertModal() {
       </DialogContent>
     </Dialog>
   );
+}
+
+
+function formatSnapshotTime(isoOrStr?: string | null): string {
+  if (!isoOrStr) return "";
+  try {
+    const d = new Date(isoOrStr);
+    if (isNaN(d.getTime())) return isoOrStr;
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  } catch {
+    return isoOrStr;
+  }
 }

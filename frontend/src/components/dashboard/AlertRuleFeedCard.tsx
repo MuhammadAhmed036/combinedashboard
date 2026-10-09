@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useMarkAlertSeen, useUpdateAlertRuleStatus } from "@/lib/hooks/useAlertRules";
 import { useAlertSeenBaselineStore } from "@/lib/store/useAlertSeenBaselineStore";
 import { effectiveUnseenCount } from "@/lib/alertUnseen";
-import { formatTime } from "@/lib/formatters";
+import { formatRuleTitle, formatTime } from "@/lib/formatters";
 
 export function AlertRuleFeedCard({
   rule,
@@ -55,7 +55,7 @@ export function AlertRuleFeedCard({
               </span>
             )}
           </div>
-          <div className="mt-1 truncate text-sm font-medium">{rule.name ?? rule.alertId}</div>
+          <div className="mt-1 truncate text-sm font-medium">{formatRuleTitle(rule.name, rule.label || rule.cameraId)}</div>
           <div className="truncate text-xs text-muted-foreground">
             {rule.cameraId} &middot; {rule.zone ?? "no zone"}
           </div>

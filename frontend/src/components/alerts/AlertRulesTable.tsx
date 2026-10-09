@@ -20,7 +20,7 @@ import {
 } from "@/lib/hooks/useAlertRules";
 import { useAlertSeenBaselineStore } from "@/lib/store/useAlertSeenBaselineStore";
 import { effectiveUnseenCount } from "@/lib/alertUnseen";
-import { formatDateTime } from "@/lib/formatters";
+import { formatDateTime, formatRuleTitle } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
 export function AlertRulesTable({
@@ -82,7 +82,7 @@ export function AlertRulesTable({
               className="cursor-pointer transition-colors hover:bg-surface-2"
             >
               <td className="max-w-[260px] px-4 py-3">
-                <div className="truncate font-medium">{rule.name ?? rule.alertId}</div>
+                <div className="truncate font-medium">{formatRuleTitle(rule.name, rule.label || rule.cameraId)}</div>
                 <div className="truncate text-xs text-muted-foreground">
                   {describeAlertCondition(rule)}
                 </div>

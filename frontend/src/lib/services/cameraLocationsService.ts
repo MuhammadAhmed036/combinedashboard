@@ -85,6 +85,7 @@ export interface CameraSnapshot {
   imageWidth: number;
   imageHeight: number;
   detectionTs: string | null;
+  createdAt?: string | null;
 }
 
 export async function fetchLatestCameraSnapshot(cameraId: string): Promise<CameraSnapshot | null> {
@@ -97,17 +98,20 @@ export async function fetchLatestCameraSnapshot(cameraId: string): Promise<Camer
   }
   const payload = asRecord(await response.json());
   const rows = Array.isArray(payload.events) ? payload.events : [];
+  if (rows.length === 0) return null;
   const latest = asRecord(rows[0]);
   const eventId = asString(latest.event_id);
-  const imageWidth = asNumber(latest.image_width);
-  const imageHeight = asNumber(latest.image_height);
-  if (!eventId || !imageWidth || !imageHeight) return null;
+  if (!eventId) return null;
+
+  const imageWidth = asNumber(latest.image_width) || 1920;
+  const imageHeight = asNumber(latest.image_height) || 1080;
 
   return {
     eventId,
     imageWidth,
     imageHeight,
-    detectionTs: asString(latest.detection_ts),
+    detectionTs: asString(latest.detection_ts) || asString(latest.created_at),
+    createdAt: asString(latest.created_at),
   };
 }
 

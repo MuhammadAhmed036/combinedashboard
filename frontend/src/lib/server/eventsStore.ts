@@ -34,10 +34,10 @@ export async function listEvents(
   const { rows } = await pool.query(
     `SELECT *, COUNT(*) OVER() AS total_count
      FROM detection_events
-     WHERE ($1::text IS NULL OR camera_id = $1)
+     WHERE ($1::text IS NULL OR camera_id = $1 OR LOWER(camera_id) = LOWER($1))
        AND ($2::timestamptz IS NULL OR detection_ts::timestamptz >= $2::timestamptz)
        AND ($3::timestamptz IS NULL OR detection_ts::timestamptz < $3::timestamptz)
-     ORDER BY created_at DESC
+     ORDER BY created_at DESC, id DESC
      LIMIT $4`,
     [filters.cameraId ?? null, filters.dateFrom ?? null, filters.dateTo ?? null, filters.limit ?? 20]
   );

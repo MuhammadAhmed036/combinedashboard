@@ -42,3 +42,16 @@ export function initialsFromName(name: string): string {
     .slice(0, 2)
     .toUpperCase();
 }
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuid(str?: string | null): boolean {
+  if (!str) return false;
+  return UUID_REGEX.test(str.trim());
+}
+
+export function formatRuleTitle(name?: string | null, fallback?: string): string {
+  if (name && !isUuid(name)) return name;
+  return fallback || "Security Rule";
+}
+

@@ -57,6 +57,13 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isUuid(str?: string | null): boolean {
+  if (!str) return false;
+  return UUID_REGEX.test(str.trim());
+}
+
 // ─── Virtual Scroller Constants ───────────────────────────────────────────────
 const ITEM_HEIGHT = 74; // 66px card + 8px margin
 const OVERSCAN = 5;
@@ -74,6 +81,7 @@ function AlertEventItem({
   const categoryColor = CATEGORY_ACCENT[event.category || "medium"];
   const classColor = classAccent(primaryClass);
   const ts = event.detectionTs ?? event.createdAt;
+  const cameraTitle = event.cameraId || "Camera";
 
   return (
     <article
@@ -116,19 +124,15 @@ function AlertEventItem({
           </div>
         </div>
 
-        {/* Right: metadata */}
-        <div className="flex flex-col justify-between min-w-0 flex-1 px-2 py-1.5">
-          <div className="truncate text-[11px] font-semibold text-white leading-tight">
-            {event.ruleName ?? event.alertId}
+        {/* Right: metadata — Camera Name + Date & Time (No raw UUID / alertId) */}
+        <div className="flex flex-col justify-center gap-2 min-w-0 flex-1 px-2.5 py-1.5">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-white leading-tight">
+            <Camera className="size-3 shrink-0 text-slate-300" />
+            <span className="truncate">{cameraTitle}</span>
           </div>
 
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <Camera className="size-2.5 shrink-0 text-slate-400" />
-            <span className="truncate">{event.cameraId}</span>
-          </div>
-
-          <div className="flex items-center gap-1 text-[9.5px] text-muted-foreground/80">
-            <Clock className="size-2.5 shrink-0" />
+            <Clock className="size-2.5 shrink-0 text-slate-400" />
             <span className="truncate">{ts ? formatDateTime(ts) : "—"}</span>
           </div>
         </div>
@@ -257,8 +261,14 @@ function ForensicEvidenceModal({
   };
 
   const handleCopyLog = () => {
+    const displayRuleName = (event.ruleName && !isUuid(event.ruleName))
+      ? event.ruleName
+      : (event.ruleLabel && !isUuid(event.ruleLabel))
+      ? event.ruleLabel
+      : `${event.cameraId} Alert`;
+
     const logData = [
-      `Alert Rule: ${event.ruleName ?? event.ruleLabel ?? event.alertId}`,
+      `Alert Rule: ${displayRuleName}`,
       `Camera: ${event.cameraId}`,
       `Severity: ${CATEGORY_LABEL[event.category || "medium"]}`,
       `Detected Target: ${primaryClass.toUpperCase()}`,
@@ -272,7 +282,11 @@ function ForensicEvidenceModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const ruleTitle = event.ruleName ?? event.ruleLabel ?? event.alertId;
+  const ruleTitle = (event.ruleName && !isUuid(event.ruleName))
+    ? event.ruleName
+    : (event.ruleLabel && !isUuid(event.ruleLabel))
+    ? event.ruleLabel
+    : `${event.cameraId} Alert`;
 
   return (
     <Dialog open={Boolean(event)} onOpenChange={(open) => !open && onClose()}>
@@ -668,12 +682,14 @@ function ConfiguredRuleItem({
           title="Click to view alerts for this rule"
         >
           <div className="truncate text-xs font-bold text-white leading-tight group-hover:text-slate-200 transition-colors">
-            {rule.name || rule.label || rule.alertId}
+            {rule.name && !isUuid(rule.name) ? rule.name : (rule.label && !isUuid(rule.label) ? `${rule.cameraId} (${rule.label})` : rule.cameraId)}
           </div>
-          <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-            <Camera className="size-2.5 text-slate-400" />
-            <span className="truncate">{rule.cameraId}</span>
-          </div>
+          {rule.name && !isUuid(rule.name) && (
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+              <Camera className="size-2.5 text-slate-400" />
+              <span className="truncate">{rule.cameraId}</span>
+            </div>
+          )}
         </div>
 
         {/* Category Pill */}
@@ -985,7 +1001,11 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
               </button>
               <span className="text-muted-foreground text-[11px]">/</span>
               <span className="truncate text-xs font-semibold text-white">
-                {selectedRuleForAlerts.name || selectedRuleForAlerts.label || selectedRuleForAlerts.alertId}
+                {selectedRuleForAlerts.name && !isUuid(selectedRuleForAlerts.name)
+                  ? selectedRuleForAlerts.name
+                  : (selectedRuleForAlerts.label && !isUuid(selectedRuleForAlerts.label)
+                  ? `${selectedRuleForAlerts.cameraId} (${selectedRuleForAlerts.label})`
+                  : selectedRuleForAlerts.cameraId)}
               </span>
             </div>
           ) : activeTab === "live" ? (
@@ -1130,7 +1150,13 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
           {selectedRuleForAlerts && (
             <div className="flex items-center justify-between px-2.5 py-1.5 bg-[#182030] border-b border-[#283550] text-[11px] text-slate-200 shrink-0">
               <span className="truncate">
-                Rule: <strong className="text-white">{selectedRuleForAlerts.name || selectedRuleForAlerts.label}</strong> ({events?.length ?? 0} alerts)
+                Rule: <strong className="text-white">
+                  {selectedRuleForAlerts.name && !isUuid(selectedRuleForAlerts.name)
+                    ? selectedRuleForAlerts.name
+                    : (selectedRuleForAlerts.label && !isUuid(selectedRuleForAlerts.label)
+                    ? `${selectedRuleForAlerts.cameraId} (${selectedRuleForAlerts.label})`
+                    : selectedRuleForAlerts.cameraId)}
+                </strong> ({events?.length ?? 0} alerts)
               </span>
               <button
                 type="button"
@@ -1273,7 +1299,11 @@ export function AlertRail({ cameras }: { cameras: CameraType[] | undefined }) {
           <div className="py-2 text-xs text-muted-foreground">
             Are you sure you want to delete{" "}
             <span className="font-semibold text-white">
-              {deletingRule?.name || deletingRule?.label || deletingRule?.alertId}
+              {deletingRule?.name && !isUuid(deletingRule.name)
+                ? deletingRule.name
+                : (deletingRule?.label && !isUuid(deletingRule.label)
+                ? `${deletingRule.cameraId} (${deletingRule.label})`
+                : deletingRule?.cameraId || "this rule")}
             </span>
             ? This will remove the rule and stop tracking alerts for it.
           </div>

@@ -1,3 +1,4 @@
+import { subscribeToAllCamerasFeed } from "@/lib/allCamerasFeed";
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRuntimeConfig } from "@/lib/hooks/useRuntimeConfig";
@@ -48,11 +49,50 @@ export function useCameraClasses(cameraId: string | null) {
   });
 }
 
-export function useCameraSnapshot(cameraId: string | null) {
+export function useCameraSnapshot(
+  cameraId: string | null,
+  options?: {
+    enabled?: boolean;
+    pollIntervalMs?: number;
+    candidateCameraIds?: string[];
+  }
+) {
+  const queryClient = useQueryClient();
+  const isEnabled = Boolean(cameraId) && (options?.enabled ?? true);
+  const pollInterval = options?.pollIntervalMs ?? 2500;
+  const candidateIds = options?.candidateCameraIds ?? [];
+
+  // Real-time WebSocket feed subscription for instant zero-latency push updates
+  useEffect(() => {
+    if (!isEnabled || !cameraId) return;
+
+    const lowerCameraId = cameraId.toLowerCase();
+    const candidateSet = new Set(
+      [lowerCameraId, ...candidateIds.map((id) => id.toLowerCase())].filter(Boolean)
+    );
+
+    const unsubscribe = subscribeToAllCamerasFeed((data) => {
+      if (data.type !== "people_count") return;
+      const dataCamId = String(data.camera_id ?? "").toLowerCase();
+      const dataCamName = String(data.camera_name ?? "").toLowerCase();
+
+      if (candidateSet.has(dataCamId) || candidateSet.has(dataCamName)) {
+        void queryClient.invalidateQueries({ queryKey: ["camera-snapshot", cameraId] });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isEnabled, cameraId, candidateIds, queryClient]);
+
   return useQuery({
     queryKey: ["camera-snapshot", cameraId],
     queryFn: () => fetchLatestCameraSnapshot(cameraId as string),
-    enabled: Boolean(cameraId),
+    enabled: isEnabled,
+    refetchInterval: isEnabled ? pollInterval : false,
+    refetchIntervalInBackground: false,
+    staleTime: 1000,
   });
 }
 

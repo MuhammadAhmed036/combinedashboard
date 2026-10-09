@@ -8,6 +8,7 @@ import { AlertCategoryBadge } from "@/components/alerts/AlertCategoryBadge";
 import { AbsenceLiveStatus } from "@/components/alerts/AbsenceLiveStatus";
 import { isAbsenceRule } from "@/lib/alertConditions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatRuleTitle } from "@/lib/formatters";
 
 export function CameraAlertRulesCard({ cameraId }: { cameraId: string }) {
   const { data: rules, isLoading } = useAlertRules({ cameraId });
@@ -35,7 +36,7 @@ export function CameraAlertRulesCard({ cameraId }: { cameraId: string }) {
               className="block rounded-md border border-surface-border bg-surface-1 px-2.5 py-1.5 text-xs hover:bg-surface-3"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="min-w-0 flex-1 truncate">{rule.name ?? rule.alertId}</span>
+                <span className="min-w-0 flex-1 truncate">{formatRuleTitle(rule.name, rule.label || rule.cameraId)}</span>
                 <span className="shrink-0 text-muted-foreground">{rule.eventCount} matches</span>
                 <AlertCategoryBadge category={rule.category} className="shrink-0" />
                 <AlertRuleStatusBadge status={rule.status} className="shrink-0" />

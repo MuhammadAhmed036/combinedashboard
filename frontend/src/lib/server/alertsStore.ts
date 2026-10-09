@@ -163,9 +163,15 @@ export async function deleteAlert(alertId: string): Promise<boolean> {
 export async function listAlertEvents(alertId: string, limit = 100): Promise<Row[]> {
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT * FROM alert_events
-     WHERE alert_id = $1
-     ORDER BY GREATEST(COALESCE(detection_ts::timestamptz, created_at), created_at) DESC, id DESC
+    `SELECT e.*,
+            a.name AS rule_name,
+            a.label AS rule_label,
+            a.metadata->>'category' AS category,
+            a.conditions->'class_names' AS class_names
+     FROM alert_events e
+     LEFT JOIN alerts a ON a.alert_id = e.alert_id
+     WHERE e.alert_id = $1
+     ORDER BY GREATEST(COALESCE(e.detection_ts::timestamptz, e.created_at), e.created_at) DESC, e.id DESC
      LIMIT $2`,
     [alertId, limit]
   );
