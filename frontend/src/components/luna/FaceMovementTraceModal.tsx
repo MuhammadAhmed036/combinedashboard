@@ -6,7 +6,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { LunaEvent, MovementTracePoint, ParsedLunaPersonInfo } from './types';
 import { resolveLunaSampleUrl } from './lunaHelpers';
-import { directFetchLunaEvents } from '@/lib/lunaDirectClient';
+import { directFetchLunaEvents, lunaHandlerNameCache } from '@/lib/lunaDirectClient';
 import { useCameraLocations } from '@/lib/hooks/useCameraLocations';
 import { useCustomizeWallStore } from '@/lib/store/useCustomizeWallStore';
 import { FaceMovementTraceMapLoader } from './FaceMovementTraceMapLoader';
@@ -213,7 +213,19 @@ export const FaceMovementTraceModal: React.FC<FaceMovementTraceModalProps> = ({
             sim = 1.0;
           }
 
-          const camName = ev.source || (ev.handler_id ? `Handler ${ev.handler_id.slice(0, 8)}` : 'Surveillance Cam');
+          const hId = ev.handler_id;
+          const hResolved = hId
+            ? lunaHandlerNameCache.get(hId) ||
+              lunaHandlerNameCache.get(hId.toLowerCase()) ||
+              lunaHandlerNameCache.get(hId.slice(0, 8)) ||
+              lunaHandlerNameCache.get(hId.slice(0, 8).toLowerCase())
+            : null;
+          const camName =
+            (ev as any).handler_name ||
+            (ev as any).handler_description ||
+            ev.source ||
+            hResolved ||
+            (hId ? `Handler ${hId.slice(0, 8)}` : 'Surveillance Cam');
           const coords = resolvePointCoordinates(camName, ev.location?.geo_position);
 
           return {

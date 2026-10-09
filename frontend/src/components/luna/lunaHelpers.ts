@@ -1,5 +1,5 @@
 import { LunaEvent, LunaCandidate, ParsedLunaPersonInfo } from './types';
-import { resolveDirectLunaImageUrl, resolveLunaSampleProxyUrl } from '@/lib/lunaDirectClient';
+import { resolveDirectLunaImageUrl, resolveLunaSampleProxyUrl, lunaHandlerNameCache } from '@/lib/lunaDirectClient';
 
 export function resolveLunaSampleUrl(rawUrlOrId?: string | null): string | null {
   return resolveDirectLunaImageUrl(rawUrlOrId);
@@ -195,8 +195,20 @@ export function parseLunaEvent(event: LunaEvent): ParsedLunaPersonInfo {
     name = evt.user_data || 'Detected Person';
   }
 
-  // Camera source / handler
-  const cameraName = evt.source || (evt.handler_id ? `Handler ${evt.handler_id.slice(0, 8)}` : 'Surveillance Cam');
+  // Camera source / handler name
+  const hId = evt.handler_id || (evt as any).handlerId;
+  const hResolved = hId
+    ? lunaHandlerNameCache.get(hId) ||
+      lunaHandlerNameCache.get(hId.toLowerCase()) ||
+      lunaHandlerNameCache.get(hId.slice(0, 8)) ||
+      lunaHandlerNameCache.get(hId.slice(0, 8).toLowerCase())
+    : null;
+  const cameraName =
+    (evt as any).handler_name ||
+    (evt as any).handler_description ||
+    evt.source ||
+    hResolved ||
+    (hId ? `Handler ${hId.slice(0, 8)}` : 'Surveillance Cam');
 
   // If there's an explicit match, use its score; if it's an unmatched detection, similarity is 0
   const similarity = rawSim > 0 ? Math.round(rawSim > 1 ? rawSim : rawSim * 100) : 0;

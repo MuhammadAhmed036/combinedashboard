@@ -13,6 +13,7 @@ import {
   directFetchLunaLists,
   directFetchLunaEvent,
   directFetchLunaFace,
+  registerLunaHandlers,
 } from '@/lib/lunaDirectClient';
 import { useUIStore } from '@/lib/store/useUIStore';
 import { useCustomizeWallStore } from '@/lib/store/useCustomizeWallStore';
@@ -942,11 +943,31 @@ export const LunaEventsRail: React.FC = () => {
           directFetchLunaHandlers(),
         ]);
         if (lists.status === 'fulfilled') setAvailableLists(lists.value);
-        if (handlers.status === 'fulfilled') setAvailableHandlers(handlers.value);
+        if (handlers.status === 'fulfilled') {
+          setAvailableHandlers(handlers.value);
+          registerLunaHandlers(handlers.value);
+        }
       } catch { /* silent */ }
     }
     loadMeta();
   }, []);
+
+  const handlerMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const h of availableHandlers) {
+      if (h.handler_id) {
+        const name = (h as any).name || h.description;
+        if (name && typeof name === 'string' && name.trim()) {
+          const clean = name.trim();
+          map[h.handler_id] = clean;
+          map[h.handler_id.toLowerCase()] = clean;
+          map[h.handler_id.slice(0, 8)] = clean;
+          map[h.handler_id.slice(0, 8).toLowerCase()] = clean;
+        }
+      }
+    }
+    return map;
+  }, [availableHandlers]);
 
   // Fetch history directly from VisionLabs Luna LP5
   const fetchHistoryEvents = useCallback(async (pageToFetch: number, currentFilters: FilterState, currentPageSize: number) => {
@@ -1398,7 +1419,7 @@ export const LunaEventsRail: React.FC = () => {
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.18, delay: index < 5 ? index * 0.04 : 0 }}
             >
-              <LunaEventCard event={ev} onTraceClick={handleTraceClick} />
+              <LunaEventCard event={ev} handlerMap={handlerMap} onTraceClick={handleTraceClick} />
             </motion.div>
           ))}
         </AnimatePresence>

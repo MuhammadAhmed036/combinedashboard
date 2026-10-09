@@ -263,6 +263,60 @@ export async function directFetchLunaEvents(
   return { events, total: data.total || events.length };
 }
 
+export const lunaHandlerNameCache = new Map<string, string>();
+
+export function registerLunaHandlers(handlers: LunaHandler[]) {
+  if (!Array.isArray(handlers)) return;
+  for (const h of handlers) {
+    if (!h.handler_id) continue;
+    const name = (h as any).name || h.description;
+    if (name && typeof name === 'string' && name.trim()) {
+      const clean = name.trim();
+      lunaHandlerNameCache.set(h.handler_id, clean);
+      lunaHandlerNameCache.set(h.handler_id.toLowerCase(), clean);
+      lunaHandlerNameCache.set(h.handler_id.slice(0, 8), clean);
+      lunaHandlerNameCache.set(h.handler_id.slice(0, 8).toLowerCase(), clean);
+    }
+  }
+}
+
+/**
+ * Fetch a single handler's description/name on demand
+ */
+export async function directFetchLunaHandlerName(handlerId: string): Promise<string | null> {
+  if (!handlerId) return null;
+  const hLower = handlerId.toLowerCase();
+  const hPrefix = handlerId.slice(0, 8).toLowerCase();
+  if (lunaHandlerNameCache.has(hLower)) return lunaHandlerNameCache.get(hLower)!;
+  if (lunaHandlerNameCache.has(hPrefix)) return lunaHandlerNameCache.get(hPrefix)!;
+
+  try {
+    const baseUrl = await getDirectLunaBaseUrl();
+    const headers = await getDirectLunaHeaders();
+    let res = await fetch(`${baseUrl}/handlers/${handlerId}`, {
+      headers,
+      cache: 'force-cache',
+    }).catch(() => null);
+
+    if (!res || !res.ok) {
+      res = await fetch(`/api/luna/handlers/${handlerId}`).catch(() => null);
+    }
+
+    if (res && res.ok) {
+      const data = await res.json();
+      const name = data?.description || data?.name || null;
+      if (name && typeof name === 'string' && name.trim()) {
+        const clean = name.trim();
+        lunaHandlerNameCache.set(handlerId, clean);
+        lunaHandlerNameCache.set(hLower, clean);
+        lunaHandlerNameCache.set(hPrefix, clean);
+        return clean;
+      }
+    }
+  } catch {}
+  return null;
+}
+
 /**
  * Fetch handlers directly from VisionLabs
  */
@@ -275,7 +329,9 @@ export async function directFetchLunaHandlers(): Promise<LunaHandler[]> {
   });
   if (!res.ok) return [];
   const data = await res.json();
-  return data.handlers || (Array.isArray(data) ? data : []);
+  const handlers: LunaHandler[] = data.handlers || (Array.isArray(data) ? data : []);
+  registerLunaHandlers(handlers);
+  return handlers;
 }
 
 /**

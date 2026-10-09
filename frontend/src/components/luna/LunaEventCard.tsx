@@ -6,7 +6,12 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LunaEvent, ParsedLunaPersonInfo } from './types';
 import { parseLunaEvent, resolveLunaSampleUrl, resolveLunaSampleProxyUrl } from './lunaHelpers';
-import { directFetchLunaFace, directFetchLunaEvent } from '@/lib/lunaDirectClient';
+import {
+  directFetchLunaFace,
+  directFetchLunaEvent,
+  directFetchLunaHandlerName,
+  lunaHandlerNameCache,
+} from '@/lib/lunaDirectClient';
 import {
   Navigation,
   User,
@@ -22,6 +27,7 @@ interface LunaEventCardProps {
   event: LunaEvent;
   onTraceClick: (event: LunaEvent, info: ParsedLunaPersonInfo) => void;
   onSelect?: (event: LunaEvent) => void;
+  handlerMap?: Record<string, string>;
 }
 
 const clientAvatarCache = new Map<string, string>();
@@ -32,12 +38,57 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   event,
   onTraceClick,
   onSelect,
+  handlerMap,
 }) => {
   const info = parseLunaEvent(event);
   const [sampleError, setSampleError] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const [sampleUsingFallback, setSampleUsingFallback] = useState(false);
   const [avatarUsingFallback, setAvatarUsingFallback] = useState(false);
+  const [asyncHandlerName, setAsyncHandlerName] = useState<string | null>(null);
+
+  const targetHandlerId = event.handler_id || (event as any).handlerId;
+
+  useEffect(() => {
+    if (!targetHandlerId) return;
+    const hLower = targetHandlerId.toLowerCase();
+    const hPrefix = targetHandlerId.slice(0, 8).toLowerCase();
+
+    if (handlerMap?.[targetHandlerId] || handlerMap?.[hLower] || handlerMap?.[hPrefix]) return;
+    if (lunaHandlerNameCache.has(hLower) || lunaHandlerNameCache.has(hPrefix)) return;
+
+    let isMounted = true;
+    directFetchLunaHandlerName(targetHandlerId).then((name) => {
+      if (isMounted && name) setAsyncHandlerName(name);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [targetHandlerId, handlerMap]);
+
+  const displayCameraName = React.useMemo(() => {
+    if (event.source && event.source.trim()) return event.source.trim();
+    if ((event as any).handler_name && String((event as any).handler_name).trim()) {
+      return String((event as any).handler_name).trim();
+    }
+    if ((event as any).handler_description && String((event as any).handler_description).trim()) {
+      return String((event as any).handler_description).trim();
+    }
+    if (asyncHandlerName) return asyncHandlerName;
+
+    if (targetHandlerId) {
+      const hLower = targetHandlerId.toLowerCase();
+      const hPrefix = targetHandlerId.slice(0, 8).toLowerCase();
+      if (handlerMap?.[targetHandlerId]) return handlerMap[targetHandlerId];
+      if (handlerMap?.[hLower]) return handlerMap[hLower];
+      if (handlerMap?.[hPrefix]) return handlerMap[hPrefix];
+      if (lunaHandlerNameCache.get(hLower)) return lunaHandlerNameCache.get(hLower)!;
+      if (lunaHandlerNameCache.get(hPrefix)) return lunaHandlerNameCache.get(hPrefix)!;
+    }
+
+    return info.cameraName;
+  }, [event.source, (event as any).handler_name, (event as any).handler_description, asyncHandlerName, targetHandlerId, handlerMap, info.cameraName]);
 
   // Matched / enrolled original face avatar state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
@@ -337,13 +388,13 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
             <span className="truncate">{info.name}</span>
           </div>
 
-          {/* Row 2: Cam Name block */}
+          {/* Row 2: Cam Name / Handler block */}
           <div
             className={`px-1.5 py-0.5 rounded border text-[10px] truncate flex items-center gap-1.5 ${camBlock}`}
-            title={`Camera: ${info.cameraName}`}
+            title={`Camera / Handler: ${displayCameraName}`}
           >
             <Camera className="w-3 h-3 text-slate-400 shrink-0" />
-            <span className="truncate font-medium">{info.cameraName}</span>
+            <span className="truncate font-medium">{displayCameraName}</span>
           </div>
 
           {/* Row 3: List block */}
