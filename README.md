@@ -182,11 +182,11 @@ PERSON_COUNT_WS_PORT=8091
 PERSON_COUNT_WS_URL=ws://localhost:8091
 
 # ── VisionLabs Luna Platform 5 Config ────────────────────────────────────────
-LUNA_HOST=192.168.18.71
+LUNA_HOST=<your-luna-server-ip>
 LUNA_API_PORT=5000
-LUNA_ACCOUNT_ID=00000000-0000-4000-b000-000000000146
-LUNA_AUTH_USER=root@visionlabs.ai
-LUNA_AUTH_PASS=root
+LUNA_ACCOUNT_ID=<luna-account-uuid>
+LUNA_AUTH_USER=<luna-username>
+LUNA_AUTH_PASS=<luna-password>
 LUNA_WS_PORT=8092
 NEXT_PUBLIC_LUNA_WS_URL=ws://localhost:8092
 

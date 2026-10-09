@@ -873,7 +873,7 @@
     </div>
     <div class="stat-item" style="margin-left: auto;">
       <span>Target Host:</span>
-      <span class="stat-val" id="stat-target-host">192.168.18.71:8080</span>
+      <span class="stat-val" id="stat-target-host">Not Configured</span>
     </div>
   </div>
 
@@ -1045,7 +1045,7 @@
 
           <div class="form-group">
             <label class="form-label" for="setting-host">VisionLabs Server Host / IP</label>
-            <input type="text" class="form-control" id="setting-host" value="192.168.18.71" placeholder="e.g. 192.168.18.71 or your-luna-server.com">
+            <input type="text" class="form-control" id="setting-host" value="" placeholder="e.g. 10.0.0.5 or your-luna-server.com">
             <div class="form-hint">The IP address of the machine running VisionLabs Luna Platform.</div>
           </div>
 
@@ -1072,9 +1072,9 @@
 
           <div class="form-group">
             <label class="form-label" for="setting-ws-url">WebSocket Connection URL</label>
-            <input type="text" class="form-control" id="setting-ws-url" value="ws://192.168.18.71:8080/api/lp5/6/ws" placeholder="ws://192.168.18.71:8080/api/lp5/6/ws">
+            <input type="text" class="form-control" id="setting-ws-url" value="" placeholder="ws://<HOST>:<PORT>/api/lp5/6/ws">
             <div class="form-hint">
-              Live socket endpoint. Default Gateway: <code>ws://192.168.18.71:8080/api/lp5/6/ws</code> (Connects cleanly in all browsers without credentials restrictions).
+              Live socket endpoint. Example: <code>ws://&lt;HOST&gt;:8080/api/lp5/6/ws</code>.
             </div>
           </div>
         </div>
@@ -1090,18 +1090,18 @@
 
           <div class="form-group">
             <label class="form-label" for="setting-account-id">Luna Account ID (UUID)</label>
-            <input type="text" class="form-control" id="setting-account-id" value="00000000-0000-4000-b000-000000000146" placeholder="e.g. 00000000-0000-4000-b000-000000000146">
+            <input type="text" class="form-control" id="setting-account-id" value="" placeholder="e.g. 00000000-0000-4000-b000-000000000000">
             <div class="form-hint">Used for <code>Luna-Account-Id</code> header on all API calls.</div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
               <label class="form-label" for="setting-auth-user">HTTP Basic Username</label>
-              <input type="text" class="form-control" id="setting-auth-user" value="root@visionlabs.ai" placeholder="root@visionlabs.ai">
+              <input type="text" class="form-control" id="setting-auth-user" value="" placeholder="e.g. user@domain.com">
             </div>
             <div class="form-group">
               <label class="form-label" for="setting-auth-pass">HTTP Basic Password</label>
-              <input type="password" class="form-control" id="setting-auth-pass" value="root" placeholder="password">
+              <input type="password" class="form-control" id="setting-auth-pass" value="" placeholder="password">
             </div>
           </div>
 
@@ -1214,14 +1214,14 @@
   <script>
     // Default Settings Definition
     const DEFAULT_CONFIG = {
-      host: '192.168.18.71',
+      host: '',
       gatewayPort: 8080,
       corePort: 5000,
       apiPrefix: '/api/lp5/6',
-      wsUrl: 'ws://root%40visionlabs.ai:root@192.168.18.71:5000/6/ws',
-      accountId: '00000000-0000-4000-b000-000000000146',
-      authUser: 'root@visionlabs.ai',
-      authPass: 'root',
+      wsUrl: '',
+      accountId: '',
+      authUser: '',
+      authPass: '',
       autoConnect: true,
       soundAlert: true,
       fallbackPoll: true,
@@ -1274,7 +1274,7 @@
       document.getElementById('setting-fallback-poll').checked = settings.fallbackPoll !== false;
 
       // Update header quick strip target
-      document.getElementById('stat-target-host').innerText = `${settings.host}:${settings.gatewayPort}`;
+      document.getElementById('stat-target-host').innerText = settings.host ? `${settings.host}:${settings.gatewayPort}` : 'Not Configured';
     }
 
     // Save Settings
@@ -1293,7 +1293,7 @@
 
       localStorage.setItem('visionlabs_portal_config', JSON.stringify(settings));
 
-      document.getElementById('stat-target-host').innerText = `${settings.host}:${settings.gatewayPort}`;
+      document.getElementById('stat-target-host').innerText = settings.host ? `${settings.host}:${settings.gatewayPort}` : 'Not Configured';
 
       showAlert('Settings saved successfully! Connecting to VisionLabs services...', 'success');
 

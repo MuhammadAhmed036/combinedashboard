@@ -106,7 +106,7 @@ You need these details from whoever owns the team DB:
 
 | Required value | Example |
 |---|---|
-| DB host/IP | `192.168.18.205` |
+| DB host/IP | `<team-db-host-or-ip>` |
 | DB port | `15432` or `5432` |
 | DB name | `yolo_events` |
 | Username | read-only user preferred |
