@@ -1,9 +1,9 @@
-name: combined
+name: ${PROJECT_NAME:-combined}
 
 services:
   db:
-    image: postgres:16-alpine
-    container_name: combined-db
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
+    container_name: ${PROJECT_NAME:-combined}-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${LOCAL_DB_USER:-dashboard}
@@ -22,7 +22,7 @@ services:
 
   app:
     image: safecity-ai-dashboard:${APP_IMAGE_TAG:-0.1.0}
-    container_name: combined-dashboard
+    container_name: ${PROJECT_NAME:-combined}-dashboard
     build:
       context: .
       dockerfile: docker/Dockerfile
@@ -43,7 +43,7 @@ services:
 
   person-count-ws:
     image: safecity-person-count-ws:${WS_IMAGE_TAG:-0.1.0}
-    container_name: combined-person-count-ws
+    container_name: ${PROJECT_NAME:-combined}-person-count-ws
     build:
       context: ./websocket/person-count-ws
     restart: unless-stopped
@@ -60,7 +60,7 @@ services:
 
   sync:
     image: safecity-sync:${SYNC_IMAGE_TAG:-0.1.0}
-    container_name: combined-sync
+    container_name: ${PROJECT_NAME:-combined}-sync
     build:
       context: ./workers/sync-service
     restart: unless-stopped
@@ -74,7 +74,7 @@ services:
 
   luna-ws:
     image: safecity-luna-ws:${LUNA_WS_IMAGE_TAG:-0.1.0}
-    container_name: safecity-luna-ws
+    container_name: ${PROJECT_NAME:-combined}-luna-ws
     build:
       context: ./websocket/luna-ws
     restart: unless-stopped

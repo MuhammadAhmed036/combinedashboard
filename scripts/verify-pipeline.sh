@@ -4,14 +4,15 @@
 # containers; prints no secrets. Usage: scripts/verify-pipeline.sh [base_url]
 set -u
 cd "$(dirname "$0")/.."
+PROJECT="$(grep -E '^PROJECT_NAME=' .env 2>/dev/null | tail -1 | cut -d= -f2-)"; PROJECT="${PROJECT:-combined}"
 APP_PORT=$(grep -E '^APP_PORT=' .env | cut -d= -f2)
 BASE="${1:-http://127.0.0.1:${APP_PORT}}"
 PASS=0; FAIL=0
 ok()   { echo "PASS  $*"; PASS=$((PASS+1)); }
 bad()  { echo "FAIL  $*"; FAIL=$((FAIL+1)); }
-local_sql() { docker exec combined-db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAX -c "$1"' sh "$1"; }
+local_sql() { docker exec "$PROJECT-db" sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAX -c "$1"' sh "$1"; }
 source_max() {
-  docker exec combined-sync node -e '
+  docker exec "$PROJECT-sync" node -e '
     const { Pool } = require("pg");
     const p = new Pool({ connectionString: process.env.TEAM_DATABASE_URL });
     p.query("SELECT MAX(id) AS m FROM detection_events").then(r => { console.log(r.rows[0].m); return p.end(); });'
@@ -53,7 +54,7 @@ ST=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/stats/classes")
 
 echo "== person-count WebSocket =="
 WSPORT=$(grep -E '^PERSON_COUNT_WS_PORT=' .env | cut -d= -f2)
-MSG=$(docker exec combined-person-count-ws node -e "
+MSG=$(docker exec "$PROJECT-person-count-ws" node -e "
   const WebSocket = require('ws'); const ws = new WebSocket('ws://127.0.0.1:${WSPORT}');
   const t = setTimeout(() => { console.log('TIMEOUT'); process.exit(0); }, 8000);
   ws.on('message', m => { console.log(String(m)); clearTimeout(t); ws.close(); process.exit(0); });

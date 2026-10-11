@@ -5,6 +5,7 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$SCRIPT_DIR"
+PROJECT="$(grep -E '^PROJECT_NAME=' .env 2>/dev/null | tail -1 | cut -d= -f2-)"; PROJECT="${PROJECT:-combined}"
 
 DOCKER=""
 if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
@@ -23,7 +24,7 @@ fi
 
 for schema in ./database/init-db/*.sql; do
   echo "==> Applying $(basename "$schema")"
-  $DOCKER exec -i combined-db sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$schema"
+  $DOCKER exec -i "$PROJECT-db" sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$schema"
 done
 
 echo "Database schema is ready."

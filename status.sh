@@ -10,6 +10,9 @@ NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+PROJECT="$(grep -E '^PROJECT_NAME=' .env 2>/dev/null | tail -1 | cut -d= -f2-)"; PROJECT="${PROJECT:-combined}"
+# Clean environment: shell variables would otherwise override .env for compose.
+dc() { env -i PATH="$PATH" HOME="$HOME" ${DOCKER_HOST:+DOCKER_HOST="$DOCKER_HOST"} docker compose -p "$PROJECT" --env-file .env "$@"; }
 
 if [ -f ".env" ]; then
     export $(grep -v '^#' .env | grep -v '^$' | tr -d '\r' | xargs -d '\n') 2>/dev/null || true
@@ -22,7 +25,7 @@ echo -e "${CYAN}${BOLD}=== SafeCity Dashboard Status ===${NC}"
 # Check Docker status
 if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     echo -e "\n${BOLD}[Docker Containers]${NC}"
-    docker compose ps 2>/dev/null || docker-compose ps 2>/dev/null || true
+    dc ps 2>/dev/null || true
 fi
 
 # Check HTTP endpoint

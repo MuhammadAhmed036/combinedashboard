@@ -8,12 +8,15 @@ NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+PROJECT="$(grep -E '^PROJECT_NAME=' .env 2>/dev/null | tail -1 | cut -d= -f2-)"; PROJECT="${PROJECT:-combined}"
+# Clean environment: shell variables would otherwise override .env for compose.
+dc() { env -i PATH="$PATH" HOME="$HOME" ${DOCKER_HOST:+DOCKER_HOST="$DOCKER_HOST"} docker compose -p "$PROJECT" --env-file .env "$@"; }
 
 echo "Stopping SafeCity Dashboard services..."
 
 # If docker is running
 if command -v docker >/dev/null 2>&1; then
-    docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
+    dc down 2>/dev/null || true
 fi
 
 # Stop native PID processes if any

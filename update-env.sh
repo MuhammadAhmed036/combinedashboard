@@ -7,6 +7,7 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$SCRIPT_DIR"
+PROJECT="$(grep -E '^PROJECT_NAME=' .env 2>/dev/null | tail -1 | cut -d= -f2-)"; PROJECT="${PROJECT:-combined}"
 
 DOCKER=""
 COMPOSE=""
@@ -74,7 +75,7 @@ $COMPOSE restart app person-count-ws sync >/dev/null
 echo "==> Waiting for the container to become healthy"
 i=0
 while [ $i -lt 60 ]; do
-  STATUS=$($DOCKER inspect --format '{{.State.Health.Status}}' combined-dashboard 2>/dev/null || echo "starting")
+  STATUS=$($DOCKER inspect --format '{{.State.Health.Status}}' "$PROJECT-dashboard" 2>/dev/null || echo "starting")
   if [ "$STATUS" = "healthy" ]; then
     break
   fi

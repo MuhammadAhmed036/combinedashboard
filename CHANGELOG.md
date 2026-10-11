@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-10-11 — Offline install bundle (packaging only)
+
+### What changed
+
+- New `packaging/`: `build-bundle.sh` (images from `git archive HEAD`, tag `combined-<version>-<commit>`, pinned
+  `postgres:<x.y>-alpine`, `docker save`, `defaults.env` = the repo's current `.env` with `NEXT_PUBLIC_LUNA_WS_URL`
+  emptied (the repo's `.env` is not changed), mode 600, VERSION with the commit), `verify-bundle.sh` (sha256, VERSION = HEAD, images load, secrets only in `defaults.env` — not in scripts,
+  compose, docs, image layers or the client JS bundle), `install.sh` (prompts for every key with defaults
+  `--env-file` > existing `.env` > `defaults.env` > `.env.example`; hidden secret input with masked defaults;
+  Enter keeps a value, `-` clears it (required keys cannot be cleared);
+  `--yes`; fresh `LOCAL_DB_PASSWORD` per install, kept on upgrade; port checks with next-free suggestion; summary +
+  confirm; connectivity checks incl. "tokens may be IP-bound" re-entry on 401/403; LUNA warn-only; offline start of
+  this project only; health wait; boot check for `docker.service`), `README_INSTALL.md`.
+- `docker-compose.yml`: project name, container names and the PostgreSQL image come from `.env`
+  (`PROJECT_NAME`, default `combined`; `POSTGRES_IMAGE`). The LUNA relay container is now `<project>-luna-ws`
+  (was `safecity-luna-ws`) so a second project cannot collide. Ports, restart policy (`unless-stopped`) unchanged.
+  Redeploying the live `combined` project recreates its LUNA relay under the new name (compose matches the
+  container by project + service label; dry run: `safecity-luna-ws Recreate` → `combined-luna-ws`), so the old
+  container does not stay behind or clash on `LUNA_WS_PORT`.
+- Compose is run with a clean environment and an explicit project (`install.sh`, `stop.sh`, `status.sh`): shell
+  variables would otherwise override `.env` and could point compose at another project or ports.
+- `.env.example`: `PROJECT_NAME`, `LUNA_WS_IMAGE_TAG`, `POSTGRES_IMAGE`.
+- Helper scripts (`scripts/verify-pipeline.sh`, `repair-db-password.sh`, `repair-schema.sh`, `update-env.sh`) use
+  `<PROJECT_NAME>-*` container names from `.env`.
+- No application code changed. Images are built with every `NEXT_PUBLIC_*` empty (option a); the server reads the
+  LUNA values at runtime, so no setting is build-time.
+
+### Why
+
+- Install/upgrade the dashboard on an offline VM next to other dashboards and the pipeline without collisions, with
+  every endpoint and credential entered (or confirmed) at install time.
+
+### Tested / not tested
+
+- See `README_TEST.md` next to the bundle (temp-project install, upgrade on a copy, verify-bundle results).
+
+### Rollback
+
+- Packaging only: discard `packaging/` and the compose/script/`.env.example` changes. Installed systems: run the
+  previous bundle's `install.sh` (keeps `.env` and data).
+
 ## 2026-10-11 — Multi-class region alerts: show every detected class
 
 ### What changed
