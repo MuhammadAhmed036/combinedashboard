@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { authenticatedFetch } from "@/lib/server/authenticatedFetch";
+import { bearer, isSafePathSegment } from "@/lib/server/pipelineUpstream";
 import { resolveFeedUrl } from "@/lib/server/streams";
 
 export const dynamic = "force-dynamic";
@@ -19,20 +20,33 @@ export async function GET(
   { params }: { params: Promise<{ cameraName: string }> }
 ) {
   try {
-    const { cameraName } = await params;
-    const upstreamUrl = await resolveFeedUrl(decodeURIComponent(cameraName));
+    const cameraName = decodeURIComponent((await params).cameraName);
+    // ".." would survive encodeURIComponent and climb the streaming server's paths.
+    if (!isSafePathSegment(cameraName, 100)) {
+      return Response.json({ error: "Invalid camera name" }, { status: 400 });
+    }
+    const upstreamUrl = await resolveFeedUrl(cameraName);
     const headers = new Headers({ Accept: request.headers.get("accept") ?? "*/*" });
     const range = request.headers.get("range");
     if (range) headers.set("Range", range);
 
-    const upstream = await authenticatedFetch(
-      upstreamUrl,
-      { method: "GET", headers, signal: request.signal },
-      {
-        username: process.env.CAMERA_FEED_USERNAME,
-        password: process.env.CAMERA_FEED_PASSWORD,
-      }
-    );
+    // The bearer token wins over Basic/Digest when it is configured.
+    const token = process.env.CAMERA_FEED_TOKEN;
+    const upstream = token
+      ? await fetch(upstreamUrl, {
+          method: "GET",
+          headers: { ...Object.fromEntries(headers), ...bearer(token) },
+          signal: request.signal,
+          cache: "no-store",
+        })
+      : await authenticatedFetch(
+          upstreamUrl,
+          { method: "GET", headers, signal: request.signal },
+          {
+            username: process.env.CAMERA_FEED_USERNAME,
+            password: process.env.CAMERA_FEED_PASSWORD,
+          }
+        );
 
     const responseHeaders = new Headers();
     for (const name of RESPONSE_HEADERS) {

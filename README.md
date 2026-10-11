@@ -6,69 +6,67 @@ A unified, real-time SafeCity surveillance and command dashboard featuring offli
 
 ## ⚡ Quick Start: Run the Whole Project (Single Command)
 
-To run the entire system — including the database, dashboard application, sync worker, and all WebSocket services — open your terminal in the project root (`D:\newdashboard`) and run:
+From the project root (where `.env` and `docker-compose.yml` are), on the VM:
 
-```powershell
-docker compose --env-file .env -f docker/docker-compose.yml up -d --build
+```bash
+cp .env.example .env      # first time only: fill in every <placeholder>
+docker compose up -d --build
 ```
 
-> **Important**: Always run this command from the project root (`D:\newdashboard`), where `.env` and `docker/` reside.
+The compose project is named **`combined`** and its containers are `combined-*`, so it never collides with
+another dashboard on the same VM (e.g. the Nats_New dashboard's `safecity-db`, ports 3000/8090/5433).
+Do not use `deploy.sh`/`repair-*.sh` on a VM that also runs other dashboards without reading them first.
 
-Once started, open your browser and navigate to:
-👉 **[http://localhost:3002/dashboard](http://localhost:3002/dashboard)** (or `http://localhost:3000/dashboard` depending on `APP_PORT` in your `.env`)
+Open **`http://<VM_IP>:3002/dashboard`** (`APP_PORT` in `.env`).
+
+> **Security**: the dashboard has no sign-in yet. It proxies live video and detection frames with
+> server-side tokens, so port `APP_PORT` must only be reachable on the LAN.
 
 ---
 
 ## 🐳 Docker Stack Architecture (What Runs in Containers)
 
-The entire system is orchestrated with Docker Compose into 5 interconnected services:
-
 | Service | Container Name | Port | Description |
 | :--- | :--- | :--- | :--- |
-| **`app`** | `safecity-newdashboard-app-1` | `3002:3000` | Next.js 16 (Turbopack) dashboard web app, server-side APIs, and Luna reverse proxies |
-| **`db`** | `safecity-newdashboard-db-1` | `5370:5432` | Local PostgreSQL 16 database storing alerts, rules, locations, and synced detection events |
-| **`sync`** | `safecity-newdashboard-sync-1` | *Internal* | Background worker that polls Team DB for YOLO detections, updates cursors, and triggers alerts |
-| **`person-count-ws`** | `safecity-newdashboard-person-count-ws-1` | `8091:8090` | Node.js WebSocket broadcasting real-time person counts per camera to the Media Wall |
-| **`luna-ws`** | `safecity-newdashboard-luna-ws-1` | `8092:8092` | High-performance Node.js WebSocket proxy relaying live face/body recognition events from Luna |
+| **`app`** | `combined-dashboard` | `APP_PORT` (3002) → 3000 | Next.js 16 dashboard, server-side APIs, pipeline proxies (WHEP, frame images) and Luna proxies |
+| **`db`** | `combined-db` | `127.0.0.1:LOCAL_DB_PORT` (5370) → 5432 | This dashboard's own PostgreSQL 16 (volume `combined_db-data`, schema `database/init-db/`) |
+| **`sync`** | `combined-sync` | *Internal* | Mirrors `detection_events` / `camera_locations` from the team DB (read-only role) and evaluates alert rules |
+| **`person-count-ws`** | `combined-person-count-ws` | `PERSON_COUNT_WS_PORT` (8091) | WebSocket broadcasting live per-camera counts to the Media Wall |
+| **`luna-ws`** | `safecity-luna-ws` | `LUNA_WS_PORT` (8092) | WebSocket relay for Luna events |
+
+### Pipeline connections (all server-side; the browser never receives a token or upstream address)
+
+| Upstream | `.env` keys | Auth |
+| :--- | :--- | :--- |
+| Stage 2 detection API (frame images, camera list) | `DETECTION_API_BASE_URL`, `DETECTION_API_TOKEN` | `Authorization: Bearer` |
+| Streaming server stream-status API (camera list, camera online state) | `STREAMS_API_URL` (`/api/v1/stream-status`), `STREAMS_API_TOKEN` | `Authorization: Bearer` |
+| Streaming server WHEP (live video, via `/api/camera-feed/<camera>/whep`) | `CAMERA_FEED_BASE_URL`, `CAMERA_FEED_TOKEN` | `Authorization: Bearer` |
+| Team DB `yolo_events` | `TEAM_DATABASE_URL` (read-only role) | Postgres |
+
+The stream-status key and the WHEP token are bound to this server's IP on the streaming server: re-issue
+them there if the dashboard moves to another host.
 
 ---
 
 ## 🛠️ Management & Monitoring Commands
 
-All commands are run from `D:\newdashboard`:
+All commands are run from the project root:
 
-- **Check status of all running containers**:
-  ```powershell
-  docker compose --env-file .env -f docker/docker-compose.yml ps
-  ```
+```bash
+docker compose ps                      # status
+docker compose logs -f app             # web app
+docker compose logs -f sync            # team DB -> local DB mirror
+docker compose logs -f person-count-ws
+docker compose logs -f luna-ws        # Luna WebSocket proxy
+docker compose restart app             # after editing .env (non-NEXT_PUBLIC keys)
+docker compose down                    # stop (keeps the database volume)
+node --test 'tests/*.test.mjs'         # unit tests (Node 22.18+)
+```
 
-- **View live logs of a specific service**:
-  ```powershell
-  # Next.js web application
-  docker compose --env-file .env -f docker/docker-compose.yml logs -f app
+`docker compose down -v` deletes this dashboard's database volume (all local alerts and history). Only
+use it on purpose. Postgres keeps the password the volume was first created with, so changing
+`LOCAL_DB_PASSWORD` later needs `repair-db-password.sh` (targets `combined-db` only).
 
-  # Luna WebSocket proxy
-  docker compose --env-file .env -f docker/docker-compose.yml logs -f luna-ws
-
-  # Sync worker (Team DB -> Local DB)
-  docker compose --env-file .env -f docker/docker-compose.yml logs -f sync
-  ```
-
-- **Restart a single service (e.g. after editing frontend code)**:
-  ```powershell
-  docker compose --env-file .env -f docker/docker-compose.yml restart app
-  ```
-
-- **Stop the entire project**:
-  ```powershell
-  docker compose --env-file .env -f docker/docker-compose.yml down
-  ```
-
-- **Reset local database and rebuild from scratch**:
-  ```powershell
-  docker compose --env-file .env -f docker/docker-compose.yml down -v
-  docker compose --env-file .env -f docker/docker-compose.yml up -d --build
-  ```
 ---
 
 ## 👤 VisionLabs Luna Platform 5 Integration
@@ -156,7 +154,11 @@ The map system operates 100% offline without external internet or third-party ti
   - `detection_events` (YOLO detection logs)
   - Baseline `camera_locations`
 - **Sync Mechanism**:
-  - The `sync` service pulls new detection events incrementally using `id` cursors stored in `sync_cursors`.
+  - The `sync` service pulls new detection events incrementally using `id` cursors stored in `sync_cursors`,
+    polling every `SYNC_POLL_MS` (real time).
+  - **New deployment only** (no cursor saved yet): with `SYNC_BACKFILL_HOURS=1` it copies just the last hour of
+    source history instead of all of it, then saves the cursor. Every later start resumes from that cursor.
+  - The team DB connection uses a read-only role (`dashboard_sync`); the dashboard never writes to it.
   - Uses PostgreSQL advisory locks and `UNIQUE(alert_id, event_id)` constraints to ensure idempotent processing without duplicate alert triggers.
 
 ---
@@ -166,20 +168,28 @@ The map system operates 100% offline without external internet or third-party ti
 Configure your `.env` file in the project root:
 
 ```env
-# ── Local Database ───────────────────────────────────────────────────────────
+# ── Local Database (this dashboard's own; new random password) ───────────────
 LOCAL_DB_USER=dashboard
-LOCAL_DB_PASSWORD=admin
+LOCAL_DB_PASSWORD=<openssl rand -hex 24>
 LOCAL_DB_NAME=dashboard
 LOCAL_DB_PORT=5370
-DATABASE_URL=postgres://dashboard:admin@localhost:5370/dashboard
+DATABASE_URL=postgres://dashboard:<same password>@127.0.0.1:5370/dashboard
 
 # ── Team Database (Read-Only YOLO Events) ────────────────────────────────────
-TEAM_DATABASE_URL=postgres://user:password@team-db-host:5432/yolo_events
+TEAM_DATABASE_URL=postgres://<read-only role>:<password>@<team-db-host>:15432/yolo_events
+
+# ── Pipeline (server-side only) ──────────────────────────────────────────────
+DETECTION_API_BASE_URL=http://<pipeline-host>:18088
+DETECTION_API_TOKEN=<token>
+STREAMS_API_URL=http://<pipeline-host>:8000/api/v1/stream-status
+STREAMS_API_TOKEN=<stream-status developer API key>
+CAMERA_FEED_BASE_URL=http://<pipeline-host>:8889
+CAMERA_FEED_TOKEN=<WHEP bearer token>
 
 # ── Web App & Ports ──────────────────────────────────────────────────────────
 APP_PORT=3002
 PERSON_COUNT_WS_PORT=8091
-PERSON_COUNT_WS_URL=ws://localhost:8091
+PERSON_COUNT_WS_URL=ws://<VM_IP>:8091
 
 # ── VisionLabs Luna Platform 5 Config ────────────────────────────────────────
 LUNA_HOST=<your-luna-server-ip>
@@ -191,8 +201,9 @@ LUNA_WS_PORT=8092
 NEXT_PUBLIC_LUNA_WS_URL=ws://localhost:8092
 
 # ── Background Sync Worker ───────────────────────────────────────────────────
+SYNC_BACKFILL_HOURS=1
 SYNC_POLL_MS=1000
-SYNC_BATCH_SIZE=2000
+SYNC_BATCH_LIMIT=2000
 SYNC_RECONCILE_MS=60000
 ```
 
@@ -202,7 +213,7 @@ SYNC_RECONCILE_MS=60000
 
 | Issue | Cause | Solution |
 | :--- | :--- | :--- |
-| `connect ECONNREFUSED 127.0.0.1:5370` | Local PostgreSQL container is stopped or still initializing. | Run `docker compose --env-file .env -f docker/docker-compose.yml up -d db` and wait 5 seconds. |
+| `connect ECONNREFUSED 127.0.0.1:5370` | Local PostgreSQL container is stopped or still initializing. | Run `docker compose up -d db` and wait 5 seconds. |
 | `Alert API offline` in UI | Web app cannot communicate with local DB. | Verify `DATABASE_URL` matches `LOCAL_DB_USER`, `LOCAL_DB_PASSWORD`, and `LOCAL_DB_PORT`. |
 | No events in Luna History | Luna server unreachable or network route down. | Check connection: `docker compose ... logs luna-ws` and verify `LUNA_HOST` in `.env`. |
 | Port already in use (`3000` or `5370`) | A local Node process or another Docker container is using the port. | Change `APP_PORT=3002` in `.env` or stop conflicting services. |

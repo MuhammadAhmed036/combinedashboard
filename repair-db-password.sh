@@ -40,9 +40,9 @@ fi
 ESCAPED_PASSWORD=$(printf '%s' "$DB_PASSWORD" | sed "s/'/''/g")
 SQL="ALTER ROLE \"$DB_USER\" WITH LOGIN PASSWORD '$ESCAPED_PASSWORD';"
 
-printf '%s\n' "$SQL" | $DOCKER exec -i -u postgres safecity-db psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d postgres >/dev/null
+printf '%s\n' "$SQL" | $DOCKER exec -i -u postgres combined-db psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d postgres >/dev/null
 
 # Fail early with the same credentials used by the application.
-$DOCKER exec -i safecity-db sh -c 'PGPASSWORD="$1" psql -h 127.0.0.1 -U "$2" -d "$3" -tAc "SELECT 1"' sh "$DB_PASSWORD" "$DB_USER" "$DB_NAME" >/dev/null
+$DOCKER exec -i combined-db sh -c 'PGPASSWORD="$1" psql -h 127.0.0.1 -U "$2" -d "$3" -tAc "SELECT 1"' sh "$DB_PASSWORD" "$DB_USER" "$DB_NAME" >/dev/null
 
 echo "Database credentials are ready."

@@ -16,14 +16,14 @@ else
   exit 1
 fi
 
-if [ ! -d ./docker/init-db ]; then
-  echo "Missing docker/init-db schema files" >&2
+if [ ! -d ./database/init-db ]; then
+  echo "Missing database/init-db schema files" >&2
   exit 1
 fi
 
-for schema in ./docker/init-db/*.sql; do
+for schema in ./database/init-db/*.sql; do
   echo "==> Applying $(basename "$schema")"
-  $DOCKER exec -i safecity-db sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$schema"
+  $DOCKER exec -i combined-db sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < "$schema"
 done
 
 echo "Database schema is ready."

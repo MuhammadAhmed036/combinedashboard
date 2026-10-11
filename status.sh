@@ -15,7 +15,7 @@ if [ -f ".env" ]; then
     export $(grep -v '^#' .env | grep -v '^$' | tr -d '\r' | xargs -d '\n') 2>/dev/null || true
 fi
 
-TARGET_PORT="${APP_PORT:-3000}"
+TARGET_PORT="${APP_PORT:?APP_PORT must be set in .env}"
 
 echo -e "${CYAN}${BOLD}=== SafeCity Dashboard Status ===${NC}"
 

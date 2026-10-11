@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getCameraFfmpegStatus,
+  getCameraStreamStatus,
   checkWebRtcHealth,
   extractDetections,
 } from "@/lib/server/absenceEngine";
@@ -16,8 +16,8 @@ export async function GET(
     const { cameraId } = await params;
     const decodedCamera = decodeURIComponent(cameraId);
 
-    // 1. Camera ffmpeg status from Streams API
-    const camStatus = await getCameraFfmpegStatus(decodedCamera);
+    // 1. Camera status from the stream-status API (`online` field)
+    const camStatus = await getCameraStreamStatus(decodedCamera);
 
     // 2. WebRTC health check
     const webrtc = await checkWebRtcHealth(decodedCamera);

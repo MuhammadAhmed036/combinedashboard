@@ -10,6 +10,7 @@ RUN npm config set fetch-retries 5 \
     && npm install --omit=dev
 
 COPY index.js ./
+COPY lib ./lib
 
 RUN groupadd -g 1001 nodejs && useradd -u 1001 -g nodejs -m -s /bin/sh nodeuser
 USER nodeuser

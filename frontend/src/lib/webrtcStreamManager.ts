@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { loadRuntimeConfig } from './runtimeConfig';
 
 interface StreamEntry {
   sourceName: string;
@@ -17,56 +16,20 @@ interface StreamEntry {
 // Global registry of active WebRTC streams (deduplicated by sourceName)
 const activeStreams = new Map<string, StreamEntry>();
 
-function getAuthHeader(user?: string, pass?: string): Record<string, string> {
-  if (!user && !pass) return {};
-  const creds = btoa(`${user || ''}:${pass || ''}`);
-  return { Authorization: `Basic ${creds}` };
-}
-
 async function startWebRTCStream(entry: StreamEntry) {
   if (entry.status === 'connecting' || entry.status === 'connected') return;
   entry.status = 'connecting';
   notifyListeners(entry);
 
   try {
-    const config = await loadRuntimeConfig();
-    const baseUrl = config.cameraFeedBaseUrl;
-    if (!baseUrl) {
-      console.warn('[WebRTC] Camera feed base URL is not configured in environment');
-      entry.status = 'error';
-      notifyListeners(entry);
-      return;
-    }
-    const whepUrl = `${baseUrl.replace(/\/$/, '')}/${encodeURIComponent(entry.sourceName)}/whep`;
-    const authHeaders = getAuthHeader(config.cameraFeedUser, config.cameraFeedPass);
+    // Same-origin WHEP proxy: this app's server adds the streaming server's
+    // token, so the browser never sees the upstream address or credentials.
+    const whepUrl = `/api/camera-feed/${encodeURIComponent(entry.sourceName)}/whep`;
 
-    // 1. Get ICE servers from MediaMTX OPTIONS if available
-    let iceServers: RTCIceServer[] = [];
-    try {
-      const optionsRes = await fetch(whepUrl, {
-        method: 'OPTIONS',
-        headers: { ...authHeaders },
-      });
-      const link = optionsRes.headers.get('Link');
-      if (link) {
-        const matches = link.matchAll(/<([^>]+)>;\s*rel="([^"]+)"/g);
-        for (const match of matches) {
-          if (match[2] === 'ice-server') {
-            iceServers.push({ urls: match[1] });
-          }
-        }
-      }
-    } catch {
-      // OPTIONS optional fallback
-    }
-
-    if (iceServers.length === 0) {
-      iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
-    }
-
-    // 2. Create RTCPeerConnection
+    // 1. Create RTCPeerConnection. No ICE servers: the streaming server is on
+    // the LAN (host candidates), and an offline site has no public STUN.
     const pc = new RTCPeerConnection({
-      iceServers,
+      iceServers: [],
       // @ts-ignore - unified-plan
       sdpSemantics: 'unified-plan',
     });
@@ -93,15 +56,14 @@ async function startWebRTCStream(entry: StreamEntry) {
       }
     };
 
-    // 3. Create Offer
+    // 2. Create Offer
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    // 4. Send SDP Offer to MediaMTX WHEP
+    // 3. Send SDP Offer to the WHEP proxy
     const whepRes = await fetch(whepUrl, {
       method: 'POST',
       headers: {
-        ...authHeaders,
         'Content-Type': 'application/sdp',
       },
       body: offer.sdp,
@@ -113,7 +75,7 @@ async function startWebRTCStream(entry: StreamEntry) {
 
     const location = whepRes.headers.get('location');
     if (location) {
-      entry.sessionUrl = new URL(location, whepUrl).toString();
+      entry.sessionUrl = new URL(location, window.location.origin).toString();
     }
 
     const answerSdp = await whepRes.text();

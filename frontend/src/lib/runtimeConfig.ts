@@ -8,6 +8,8 @@ export interface RuntimeConfig {
   pollIntervalMs: number;
   /** Base URL of the standalone person-count WebSocket service (Media Wall live occupancy). */
   personCountWsBase: string | null;
+  /** Port of the person-count WebSocket, used with the page host when personCountWsBase is empty. */
+  personCountWsPort: number | null;
   /** Base URL of the standalone Luna events WebSocket service. */
   lunaWsUrl: string | null;
   /** Port of the standalone Luna events WebSocket service. */
@@ -19,9 +21,6 @@ export interface RuntimeConfig {
   lunaAccountId: string;
   lunaAuthUser: string;
   lunaAuthPass: string;
-  cameraFeedBaseUrl: string;
-  cameraFeedUser: string;
-  cameraFeedPass: string;
 }
 
 const FALLBACK: RuntimeConfig = {
@@ -29,6 +28,7 @@ const FALLBACK: RuntimeConfig = {
   wsBase: null,
   pollIntervalMs: DEFAULT_POLL_INTERVAL_MS,
   personCountWsBase: null,
+  personCountWsPort: null,
   lunaWsUrl: null,
   lunaWsPort: null,
   lunaApiUrl: "",
@@ -37,9 +37,6 @@ const FALLBACK: RuntimeConfig = {
   lunaAccountId: "",
   lunaAuthUser: "",
   lunaAuthPass: "",
-  cameraFeedBaseUrl: "",
-  cameraFeedUser: "",
-  cameraFeedPass: "",
 };
 
 let resolved: RuntimeConfig | null = null;
@@ -64,6 +61,7 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
         apiBase?: unknown;
         pollIntervalMs?: unknown;
         personCountWsBase?: unknown;
+        personCountWsPort?: unknown;
         lunaWsUrl?: unknown;
         lunaWsPort?: unknown;
         lunaApiUrl?: unknown;
@@ -72,9 +70,6 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
         lunaAccountId?: unknown;
         lunaAuthUser?: unknown;
         lunaAuthPass?: unknown;
-        cameraFeedBaseUrl?: unknown;
-        cameraFeedUser?: unknown;
-        cameraFeedPass?: unknown;
       };
       const apiBase = typeof payload.apiBase === "string" ? payload.apiBase : null;
       const pollIntervalMs =
@@ -83,6 +78,10 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
           : DEFAULT_POLL_INTERVAL_MS;
       const personCountWsBase =
         typeof payload.personCountWsBase === "string" ? payload.personCountWsBase : null;
+      const personCountWsPort =
+        typeof payload.personCountWsPort === "number" && payload.personCountWsPort > 0
+          ? payload.personCountWsPort
+          : null;
       const lunaWsUrl = typeof payload.lunaWsUrl === "string" ? payload.lunaWsUrl : null;
       const lunaWsPort = typeof payload.lunaWsPort === "string" ? payload.lunaWsPort : null;
       const lunaApiUrl = typeof payload.lunaApiUrl === "string" ? payload.lunaApiUrl : "";
@@ -91,18 +90,13 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
       const lunaAccountId = typeof payload.lunaAccountId === "string" ? payload.lunaAccountId : "";
       const lunaAuthUser = typeof payload.lunaAuthUser === "string" ? payload.lunaAuthUser : "";
       const lunaAuthPass = typeof payload.lunaAuthPass === "string" ? payload.lunaAuthPass : "";
-      const cameraFeedBaseUrl =
-        typeof payload.cameraFeedBaseUrl === "string" ? payload.cameraFeedBaseUrl : "";
-      const cameraFeedUser =
-        typeof payload.cameraFeedUser === "string" ? payload.cameraFeedUser : "";
-      const cameraFeedPass =
-        typeof payload.cameraFeedPass === "string" ? payload.cameraFeedPass : "";
 
       return {
         apiBase,
         wsBase: toWsBaseUrl(apiBase),
         pollIntervalMs,
         personCountWsBase,
+        personCountWsPort,
         lunaWsUrl,
         lunaWsPort,
         lunaApiUrl,
@@ -111,9 +105,6 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
         lunaAccountId,
         lunaAuthUser,
         lunaAuthPass,
-        cameraFeedBaseUrl,
-        cameraFeedUser,
-        cameraFeedPass,
       };
     })
     .catch(() => FALLBACK)

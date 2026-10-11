@@ -1,6 +1,7 @@
 "use client";
 
 import { loadRuntimeConfig } from "@/lib/runtimeConfig";
+import { personCountWsUrl } from "@/lib/wsBaseUrl";
 
 type FeedListener = (message: Record<string, unknown>) => void;
 
@@ -26,12 +27,13 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 async function connect() {
-  const { personCountWsBase } = await loadRuntimeConfig();
+  const { personCountWsBase, personCountWsPort } = await loadRuntimeConfig();
+  const wsUrl = personCountWsUrl(personCountWsBase, personCountWsPort);
   // A subscriber can unsubscribe (or another connect() can already have run)
   // while this fetch was in flight — re-check before opening a socket.
-  if (manuallyClosed || listeners.size === 0 || !personCountWsBase) return;
+  if (manuallyClosed || listeners.size === 0 || !wsUrl) return;
 
-  socket = new WebSocket(personCountWsBase);
+  socket = new WebSocket(wsUrl);
 
   socket.onopen = () => {
     notifyConnection(true);

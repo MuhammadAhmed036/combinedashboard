@@ -50,7 +50,7 @@ if grep -Eq '<[A-Z_]+>|change_me' .env; then
 fi
 
 CONFIGURED_PORT=$(grep -E '^APP_PORT=' .env | tail -1 | cut -d= -f2-)
-CONFIGURED_PORT="${CONFIGURED_PORT:-3000}"
+CONFIGURED_PORT="${CONFIGURED_PORT:?APP_PORT must be set in .env}"
 
 # The port is already bound by the running container, so a straightforward
 # check-port.sh call would report it as "in use" against itself. Stop first,
@@ -74,7 +74,7 @@ $COMPOSE restart app person-count-ws sync >/dev/null
 echo "==> Waiting for the container to become healthy"
 i=0
 while [ $i -lt 60 ]; do
-  STATUS=$($DOCKER inspect --format '{{.State.Health.Status}}' safecity-dashboard 2>/dev/null || echo "starting")
+  STATUS=$($DOCKER inspect --format '{{.State.Health.Status}}' combined-dashboard 2>/dev/null || echo "starting")
   if [ "$STATUS" = "healthy" ]; then
     break
   fi

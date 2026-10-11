@@ -18,9 +18,14 @@ export async function GET() {
 
   return Response.json(
     {
-      apiBase: process.env.DETECTION_API_BASE_URL ?? null,
+      // The detection API needs a server-side token: the browser loads frame
+      // images through /api/ai, never from the upstream directly.
+      apiBase: null,
       pollIntervalMs: Number(process.env.POLL_INTERVAL_MS) || 5000,
-      personCountWsBase: process.env.PERSON_COUNT_WS_URL ?? null,
+      // Empty PERSON_COUNT_WS_URL: the browser uses its page host on this port,
+      // so the port is configured in one place (PERSON_COUNT_WS_PORT).
+      personCountWsBase: process.env.PERSON_COUNT_WS_URL || null,
+      personCountWsPort: Number(process.env.PERSON_COUNT_WS_PORT) || null,
       lunaWsUrl: process.env.NEXT_PUBLIC_LUNA_WS_URL ?? null,
       lunaWsPort: process.env.LUNA_WS_PORT || process.env.NEXT_PUBLIC_LUNA_WS_PORT || null,
       lunaApiUrl: lunaApiUrl ?? null,
@@ -29,9 +34,6 @@ export async function GET() {
       lunaAccountId: process.env.LUNA_ACCOUNT_ID || process.env.NEXT_PUBLIC_LUNA_ACCOUNT_ID || null,
       lunaAuthUser: process.env.LUNA_AUTH_USER || process.env.NEXT_PUBLIC_LUNA_AUTH_USER || null,
       lunaAuthPass: process.env.LUNA_AUTH_PASS || process.env.NEXT_PUBLIC_LUNA_AUTH_PASS || null,
-      cameraFeedBaseUrl: process.env.CAMERA_FEED_BASE_URL ?? null,
-      cameraFeedUser: process.env.CAMERA_FEED_USERNAME ?? null,
-      cameraFeedPass: process.env.CAMERA_FEED_PASSWORD ?? null,
     },
     { headers: { "Cache-Control": "no-store" } }
   );

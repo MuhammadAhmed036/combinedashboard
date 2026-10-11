@@ -90,10 +90,10 @@ echo -e "${GREEN}[OK] Docker Engine and Compose are active.${NC}\n"
 # ------------------------------------------------------------------------------
 # 3. Port Configuration & Availability Check
 # ------------------------------------------------------------------------------
-TARGET_PORT="${APP_PORT:-3000}"
-WS_PORT="${PERSON_COUNT_WS_PORT:-8090}"
+TARGET_PORT="${APP_PORT:?APP_PORT must be set in .env}"
+WS_PORT="${PERSON_COUNT_WS_PORT:?PERSON_COUNT_WS_PORT must be set in .env}"
 LUNA_PORT="${LUNA_WS_PORT:-8092}"
-DB_PORT="${LOCAL_DB_PORT:-5470}"
+DB_PORT="${LOCAL_DB_PORT:?LOCAL_DB_PORT must be set in .env}"
 
 echo -e "${CYAN}[*] Configured Ports from .env:${NC}"
 echo -e "    - Web Dashboard (APP_PORT)     : ${BOLD}${TARGET_PORT}${NC}"

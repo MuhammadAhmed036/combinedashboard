@@ -107,21 +107,6 @@ export function CameraThumbnail({
         />
       )}
 
-      {/* ── Fallback IFrame Player (only if direct WebRTC didn't establish and hasPlayer is true) ── */}
-      {shouldRenderStream && !webrtcStream && hasPlayer && (
-        <iframe
-          src={playerUrl}
-          title={`${seed} live camera`}
-          className={cn(
-            "absolute inset-0 size-full border-0 bg-black",
-            interactive ? "pointer-events-auto" : "pointer-events-none"
-          )}
-          allow="autoplay; fullscreen; picture-in-picture"
-          loading="eager"
-          referrerPolicy="no-referrer"
-        />
-      )}
-
       {shouldRenderStream && !hasPlayer && !videoFailed && (
         <video
           src={feedUrl}

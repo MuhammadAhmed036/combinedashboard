@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { getPool } from "@/lib/server/db";
 import { getCameraSnapshot } from "@/lib/server/cameraSnapshot";
+import { bearer, isSafePathSegment } from "@/lib/server/pipelineUpstream";
 
 export const dynamic = "force-dynamic";
 
@@ -9,20 +10,37 @@ export const dynamic = "force-dynamic";
 // only remains for detection frame images: `detection_events` stores just a
 // file path, and the actual JPEG bytes live on whatever host the detection
 // backend serves them from, so that one endpoint still goes through
-// DETECTION_API_BASE_URL.
-const GET_ALLOWED_PREFIXES = ["v2/events"];
+// DETECTION_API_BASE_URL, with DETECTION_API_TOKEN added here, server-side.
+//
+// Exactly one shape is forwarded: v2/events/<event id>/image[?kind=raw|annotated].
+// (A prefix check would let "v2/events/../../x" reach any viewer path with the token.)
+const IMAGE_KINDS = new Set(["raw", "annotated"]);
 
-function isAllowed(endpoint: string, prefixes: string[]): boolean {
-  return prefixes.some((prefix) => endpoint === prefix || endpoint.startsWith(`${prefix}/`));
+function safeDecode(value: string): string | null {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return null;
+  }
 }
 
-function resolveUpstreamUrl(request: NextRequest, endpoint: string): URL {
+function isImagePath(path: string[]): boolean {
+  return (
+    path.length === 4 &&
+    path[0] === "v2" &&
+    path[1] === "events" &&
+    path[3] === "image" &&
+    isSafePathSegment(safeDecode(path[2]))
+  );
+}
+
+function resolveUpstreamUrl(endpoint: string, kind: string): URL {
   const baseValue = process.env.DETECTION_API_BASE_URL;
   if (!baseValue) throw new Error("DETECTION_API_BASE_URL is not configured");
 
   const base = new URL(baseValue.endsWith("/") ? baseValue : `${baseValue}/`);
   const upstreamUrl = new URL(`api/${endpoint}`, base);
-  upstreamUrl.search = request.nextUrl.search;
+  upstreamUrl.searchParams.set("kind", kind);
   return upstreamUrl;
 }
 
@@ -48,16 +66,18 @@ async function findCameraIdForEvent(eventId: string): Promise<string | null> {
   return null;
 }
 
-function extractEventIdFromPath(rawPath: string | null): string | null {
+// The detection event behind a stored frame path. The mirror keeps
+// raw_image_path verbatim, so an exact lookup is authoritative (file names
+// changed with the Stage 2 pipeline and can no longer be split reliably).
+async function eventIdForRawImagePath(rawPath: string | null): Promise<string | null> {
   if (!rawPath) return null;
-  const match = rawPath.match(/(docker-ovcpp-[^.]+)/);
-  if (match) return match[1];
-  const filename = rawPath.split("/").pop() || "";
-  const parts = filename.split("_");
-  if (parts.length >= 3) {
-    return parts.slice(2).join("_").replace(/\.[^.]+$/, "");
-  }
-  return null;
+  const { rows } = await getPool().query(
+    "SELECT event_id FROM detection_events WHERE raw_image_path = $1 ORDER BY id DESC LIMIT 1",
+    [rawPath]
+  );
+  if (rows.length > 0 && rows[0].event_id) return String(rows[0].event_id);
+  const legacy = rawPath.match(/(docker-ovcpp-[^.]+)/);
+  return legacy ? legacy[1] : null;
 }
 
 export async function GET(
@@ -65,13 +85,14 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
-  const endpoint = path.join("/");
-  if (!isAllowed(endpoint, GET_ALLOWED_PREFIXES)) {
+  if (!isImagePath(path)) {
     return Response.json({ error: "Unknown AI API endpoint" }, { status: 404 });
   }
-
-  const imageMatch = endpoint.match(/^v2\/events\/([^/]+)\/image/);
-  const eventId = imageMatch ? decodeURIComponent(imageMatch[1]) : null;
+  const kind = request.nextUrl.searchParams.get("kind") ?? "raw";
+  if (!IMAGE_KINDS.has(kind)) {
+    return Response.json({ error: "kind must be raw or annotated" }, { status: 400 });
+  }
+  const eventId = safeDecode(path[2]) as string;
 
   try {
     const acceptHeader = request.headers.get("accept") || "image/jpeg,image/*,*/*";
@@ -94,7 +115,7 @@ export async function GET(
           savedImagePath = rows[0].saved_image_path ? String(rows[0].saved_image_path) : null;
           cameraId = rows[0].camera_id ? String(rows[0].camera_id) : null;
           if (rows[0].source_raw_image_path) {
-            underlyingEventId = extractEventIdFromPath(String(rows[0].source_raw_image_path));
+            underlyingEventId = await eventIdForRawImagePath(String(rows[0].source_raw_image_path));
           }
         }
 
@@ -134,15 +155,17 @@ export async function GET(
     }
 
     // 3. If an underlying YOLO detection frame is available from the time of the alert, fetch that exact frame!
-    const targetEndpoint = underlyingEventId ? `v2/events/${encodeURIComponent(underlyingEventId)}/image` : endpoint;
-    const upstreamUrl = resolveUpstreamUrl(request, targetEndpoint);
+    const targetEventId = underlyingEventId ?? eventId;
+    const upstreamUrl = resolveUpstreamUrl(`v2/events/${encodeURIComponent(targetEventId)}/image`, kind);
 
     const upstream = await fetch(upstreamUrl, {
       method: "GET",
       headers: {
         Accept: acceptHeader,
+        ...bearer(process.env.DETECTION_API_TOKEN),
       },
       signal: request.signal,
+      cache: "no-store",
     });
 
     if (upstream.ok) {

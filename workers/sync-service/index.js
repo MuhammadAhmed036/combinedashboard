@@ -14,6 +14,9 @@
 const fs = require("fs");
 const path = require("path");
 const { Pool } = require("pg");
+const { chooseStartCursor } = require("./lib/sync-cursor.cjs");
+const { findFirstIdSince } = require("./lib/backfill-search.cjs");
+const { streamStatusMap } = require("./lib/stream-status.cjs");
 
 // Same fallback pattern as person-count-ws/index.js: this service has no
 // framework auto-loading .env, so fall back to the project's root .env for
@@ -57,6 +60,9 @@ const SYNC_RECONCILE_MS = Number(process.env.SYNC_RECONCILE_MS) || 60000;
 const SYNC_BATCH_LIMIT = Number(process.env.SYNC_BATCH_LIMIT) || 2000;
 const SYNC_MAX_BATCHES_PER_POLL = Number(process.env.SYNC_MAX_BATCHES_PER_POLL) || 20;
 const SYNC_RECONCILE_LIMIT = Number(process.env.SYNC_RECONCILE_LIMIT) || 5000;
+// New deployment only (no detection_events cursor yet): copy just the last N
+// hours of source history instead of all of it. Empty = full history.
+const SYNC_BACKFILL_HOURS = Number(process.env.SYNC_BACKFILL_HOURS) > 0 ? Number(process.env.SYNC_BACKFILL_HOURS) : null;
 const OPEN_RAW_IMAGE_STATUSES = ["available", "deleting"];
 
 const team = new Pool({ connectionString: TEAM_DATABASE_URL });
@@ -166,6 +172,39 @@ async function saveTeamCursor(table, value) {
   );
 }
 
+// Start cursor for a mirror that has no saved cursor yet: with
+// SYNC_BACKFILL_HOURS, the first source row of that window, found by binary
+// search on the primary key (the source has no created_at index).
+async function initialCursor() {
+  const { rows: maxRows } = await local.query("SELECT COALESCE(MAX(id), 0) AS max_id FROM detection_events");
+  const localMaxId = Number(maxRows[0].max_id) || 0;
+  let firstIdInWindow = null;
+  let sourceMaxId = 0;
+  if (SYNC_BACKFILL_HOURS) {
+    const { rows } = await team.query(
+      "SELECT COALESCE(MIN(id), 0) AS min_id, COALESCE(MAX(id), 0) AS max_id FROM detection_events"
+    );
+    sourceMaxId = Number(rows[0].max_id) || 0;
+    if (sourceMaxId > 0) {
+      const { firstId, probes } = await findFirstIdSince({
+        minId: Number(rows[0].min_id) || 0,
+        maxId: sourceMaxId,
+        sinceMs: Date.now() - SYNC_BACKFILL_HOURS * 3600_000,
+        probe: async (id) => {
+          const r = await team.query(
+            "SELECT id, created_at FROM detection_events WHERE id >= $1 ORDER BY id ASC LIMIT 1",
+            [id]
+          );
+          return r.rows[0] ? { id: Number(r.rows[0].id), createdAtMs: new Date(r.rows[0].created_at).getTime() } : null;
+        },
+      });
+      firstIdInWindow = firstId;
+      console.log(`[sync] backfill window ${SYNC_BACKFILL_HOURS} h: first source id ${firstId ?? "(none)"} found with ${probes} index lookups`);
+    }
+  }
+  return chooseStartCursor({ savedCursor: null, localMaxId, backfillHours: SYNC_BACKFILL_HOURS, firstIdInWindow, sourceMaxId });
+}
+
 async function loadCursor() {
   const { rows: cursorRows } = await local.query(
     "SELECT last_team_id FROM sync_cursors WHERE table_name = 'detection_events'"
@@ -173,8 +212,12 @@ async function loadCursor() {
   if (cursorRows.length > 0) {
     lastSyncedId = Number(cursorRows[0].last_team_id) || 0;
   } else {
-    const { rows: maxRows } = await local.query("SELECT COALESCE(MAX(id), 0) AS max_id FROM detection_events");
-    lastSyncedId = Number(maxRows[0].max_id) || 0;
+    // New deployment: choose the start once and save it, so every later start
+    // resumes from the saved cursor (real-time sync, never a new backfill).
+    const start = await initialCursor();
+    lastSyncedId = start.cursor;
+    await saveTeamCursor("detection_events", lastSyncedId);
+    console.log(`[sync] start cursor ${lastSyncedId} (${start.reason})`);
   }
 
   try {
@@ -541,35 +584,29 @@ async function insertAlertEventIfNew({
 
 let streamStatusCache = { expiresAt: 0, data: new Map() };
 
-async function getCameraFfmpegStatus(cameraName) {
+// "running" (stream-status online: true), "stopped" (online: false), or
+// "unknown" (not listed / API unavailable).
+async function getCameraStreamStatus(cameraName) {
   const url = process.env.STREAMS_API_URL;
   if (!url) return "unknown";
   const now = Date.now();
   if (streamStatusCache.expiresAt < now) {
     try {
-      const username = process.env.STREAMS_API_USERNAME || "";
-      const password = process.env.STREAMS_API_PASSWORD || "";
       const headers = { Accept: "application/json" };
-      if (username || password) {
-        headers.Authorization = "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
-      }
+      if (process.env.STREAMS_API_TOKEN) headers.Authorization = `Bearer ${process.env.STREAMS_API_TOKEN}`;
       const res = await fetch(url, {
         headers,
         signal: AbortSignal.timeout(4000),
       });
       if (res.ok) {
-        const payload = await res.json();
-        const rows = Array.isArray(payload) ? payload : Array.isArray(payload.rows) ? payload.rows : [];
-        const map = new Map();
-        for (const row of rows) {
-          if (row.name) {
-            map.set(String(row.name).toLowerCase(), String(row.ffmpeg || "").toLowerCase());
-          }
-        }
-        streamStatusCache = { expiresAt: now + 5000, data: map };
+        // Stream-status API: { streams: [{ name, online }] } -> "running" / "stopped".
+        streamStatusCache = { expiresAt: now + 5000, data: streamStatusMap(await res.json()) };
+      } else {
+        await res.body?.cancel();
+        console.warn(`[sync] stream-status API returned ${res.status}`);
       }
     } catch (e) {
-      console.warn("[sync] getCameraFfmpegStatus fetch note:", e.message);
+      console.warn("[sync] getCameraStreamStatus fetch note:", e.message);
     }
   }
   return streamStatusCache.data.get(String(cameraName).toLowerCase()) || "unknown";
@@ -595,19 +632,17 @@ async function checkWebRtcHealth(cameraName) {
   if (!base) return false;
   try {
     const whepUrl = `${base.replace(/\/+$/, "")}/${encodeURIComponent(cameraName)}/whep`;
-    const username = process.env.CAMERA_FEED_USERNAME || "";
-    const password = process.env.CAMERA_FEED_PASSWORD || "";
     const headers = { "Content-Type": "application/sdp" };
-    if (username || password) {
-      headers.Authorization = "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
-    }
+    if (process.env.CAMERA_FEED_TOKEN) headers.Authorization = `Bearer ${process.env.CAMERA_FEED_TOKEN}`;
     const res = await fetch(whepUrl, {
       method: "POST",
       headers,
       body: WHEP_PROBE_SDP,
       signal: AbortSignal.timeout(4000),
     });
-    return res.status !== 404;
+    await res.body?.cancel();
+    // 401/403: the WHEP token was refused, so the stream cannot be confirmed live.
+    return ![401, 403, 404].includes(res.status);
   } catch {
     return false;
   }
@@ -665,9 +700,9 @@ async function evaluateAbsenceRules() {
   if (absenceRules.length === 0) return;
 
   for (const rule of absenceRules) {
-    // Step 1: Camera Status Rule - check Streaming Server API ffmpeg status
-    const ffmpegStatus = await getCameraFfmpegStatus(rule.camera_id);
-    const isCameraRunning = String(ffmpegStatus).toLowerCase() === "running";
+    // Step 1: Camera Status Rule - Streaming Server stream-status `online` field
+    const streamStatus = await getCameraStreamStatus(rule.camera_id);
+    const isCameraRunning = streamStatus === "running";
 
     if (!isCameraRunning) {
       // Camera is stopped on the Streaming Server side.
@@ -676,7 +711,7 @@ async function evaluateAbsenceRules() {
         streaming_status: "stopped",
         webrtc_status: "unknown",
         diagnostic_code: "CAMERA_STOPPED",
-        diagnostic_message: `Camera is stopped on Streaming Server (ffmpeg ${ffmpegStatus})`,
+        diagnostic_message: `Camera is offline on Streaming Server (stream-status: ${streamStatus})`,
       });
       // Do NOT declare person absent or fire false alert when camera is stopped!
       continue;

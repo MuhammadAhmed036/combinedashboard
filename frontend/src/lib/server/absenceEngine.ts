@@ -4,6 +4,8 @@
  * YOLO detection verification, and Person ROI tracking with grace periods.
  */
 
+import { bearer, streamStatusMap } from "@/lib/server/pipelineUpstream";
+
 export interface Detection {
   class_name: string;
   bbox_xyxy: [number, number, number, number];
@@ -98,33 +100,21 @@ export async function fetchCameraStatuses(): Promise<Map<string, string>> {
   if (!url) return map;
 
   try {
-    const user = process.env.STREAMS_API_USERNAME || "";
-    const pass = process.env.STREAMS_API_PASSWORD || "";
-    const headers: Record<string, string> = { Accept: "application/json" };
-    if (user || pass) {
-      headers.Authorization = "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
-    }
-
     const res = await fetch(url, {
-      headers,
+      headers: { Accept: "application/json", ...bearer(process.env.STREAMS_API_TOKEN) },
       signal: AbortSignal.timeout(3000),
     });
-    if (res.ok) {
-      const data = await res.json();
-      const rows = Array.isArray(data) ? data : Array.isArray(data.rows) ? data.rows : [];
-      for (const row of rows) {
-        if (row.name) {
-          map.set(String(row.name).toLowerCase(), String(row.ffmpeg || "").toLowerCase());
-        }
-      }
-    }
+    // Stream-status API: { streams: [{ name, online }] } -> "running" / "stopped".
+    if (res.ok) return streamStatusMap(await res.json());
+    await res.body?.cancel();
   } catch {
     // best-effort
   }
   return map;
 }
 
-export async function getCameraFfmpegStatus(cameraName: string): Promise<string> {
+/** "running" / "stopped" from the stream-status API's `online` field ("running" when the camera is not listed, as before). */
+export async function getCameraStreamStatus(cameraName: string): Promise<string> {
   const map = await fetchCameraStatuses();
   return map.get(cameraName.toLowerCase()) || "running";
 }
@@ -150,14 +140,10 @@ export async function checkWebRtcHealth(cameraName: string): Promise<boolean> {
 
   try {
     const whepUrl = `${base.replace(/\/+$/, "")}/${encodeURIComponent(cameraName)}/whep`;
-    const user = process.env.CAMERA_FEED_USERNAME || "";
-    const pass = process.env.CAMERA_FEED_PASSWORD || "";
     const headers: Record<string, string> = {
       "Content-Type": "application/sdp",
+      ...bearer(process.env.CAMERA_FEED_TOKEN),
     };
-    if (user || pass) {
-      headers.Authorization = "Basic " + Buffer.from(`${user}:${pass}`).toString("base64");
-    }
 
     const postRes = await fetch(whepUrl, {
       method: "POST",
@@ -165,8 +151,9 @@ export async function checkWebRtcHealth(cameraName: string): Promise<boolean> {
       body: WHEP_PROBE_SDP,
       signal: AbortSignal.timeout(3000),
     });
-    // MediaMTX returns 201/200/400 when stream is publishing, and 404/502/504 when stopped/unreachable
-    return postRes.status !== 404 && postRes.status !== 502 && postRes.status !== 504;
+    // MediaMTX returns 201/200/400 when stream is publishing, and 404/502/504 when stopped/unreachable.
+    // 401/403: the WHEP token was refused, so the stream cannot be confirmed live.
+    return ![401, 403, 404, 502, 504].includes(postRes.status);
   } catch {
     return false;
   }
@@ -209,11 +196,11 @@ export async function evaluateAbsenceLogic(
 ): Promise<AbsenceEvalResult> {
   const threshold = opts.thresholdSeconds ?? 60;
 
-  // 1. Camera Status Rule
+  // 1. Camera Status Rule (stream-status API `online` field)
   const camStatus =
     opts.mockCameraStatus !== undefined
       ? opts.mockCameraStatus
-      : await getCameraFfmpegStatus(opts.cameraName);
+      : await getCameraStreamStatus(opts.cameraName);
 
   if (camStatus.toLowerCase() !== "running") {
     timers.delete(opts.personId);

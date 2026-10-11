@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { Camera, CameraStatus } from "@/lib/types";
-import { authenticatedFetch } from "@/lib/server/authenticatedFetch";
+import { bearer } from "@/lib/server/pipelineUpstream";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -104,20 +104,16 @@ async function checkStreamHealth(sourceName: string): Promise<boolean | null> {
   try {
     const base = new URL(baseValue.endsWith("/") ? baseValue : `${baseValue}/`);
     const probeUrl = new URL(`${encodeURIComponent(sourceName)}/whep`, base);
-    const response = await authenticatedFetch(
-      probeUrl.toString(),
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/sdp" },
-        body: WHEP_PROBE_SDP,
-        signal: AbortSignal.timeout(STREAM_HEALTH_TIMEOUT_MS),
-      },
-      {
-        username: process.env.CAMERA_FEED_USERNAME,
-        password: process.env.CAMERA_FEED_PASSWORD,
-      }
-    );
-    return response.status !== 404;
+    const response = await fetch(probeUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/sdp", ...bearer(process.env.CAMERA_FEED_TOKEN) },
+      body: WHEP_PROBE_SDP,
+      signal: AbortSignal.timeout(STREAM_HEALTH_TIMEOUT_MS),
+      cache: "no-store",
+    });
+    await response.body?.cancel();
+    // 401/403: the WHEP token was refused, so the stream cannot be confirmed live.
+    return ![401, 403, 404].includes(response.status);
   } catch {
     // Media server unreachable or the probe timed out — can't confirm the
     // stream is live, so don't claim that it is.
@@ -176,16 +172,11 @@ function safeId(value: string): string {
   return value || "camera";
 }
 
+// Same-origin WHEP proxy (see api/camera-feed/[cameraName]/whep): the
+// streaming server only serves WHEP, with a token the browser never sees.
 function buildPlayerUrl(sourceName: string): string | undefined {
-  const baseValue = process.env.CAMERA_FEED_BASE_URL;
-  if (!baseValue) return undefined;
-
-  try {
-    const base = new URL(baseValue.endsWith("/") ? baseValue : `${baseValue}/`);
-    return new URL(`${encodeURIComponent(sourceName)}/`, base).toString();
-  } catch {
-    return undefined;
-  }
+  if (!process.env.CAMERA_FEED_BASE_URL || !process.env.CAMERA_FEED_TOKEN) return undefined;
+  return `/api/camera-feed/${encodeURIComponent(sourceName)}/whep`;
 }
 
 function toCamera(stream: NormalizedStream, aiCameraNames: Set<string>): Camera {
@@ -222,16 +213,13 @@ export async function fetchStreams(): Promise<NormalizedStream[]> {
   const url = process.env.STREAMS_API_URL;
   if (!url) throw new Error("STREAMS_API_URL is not configured");
 
-  const response = await authenticatedFetch(
-    url,
-    { headers: { Accept: "application/json" } },
-    {
-      username: process.env.STREAMS_API_USERNAME,
-      password: process.env.STREAMS_API_PASSWORD,
-    }
-  );
+  const response = await fetch(url, {
+    headers: { Accept: "application/json", ...bearer(process.env.STREAMS_API_TOKEN) },
+    cache: "no-store",
+  });
 
   if (!response.ok) {
+    await response.body?.cancel();
     throw new Error(`Streams API returned ${response.status}`);
   }
 
@@ -272,7 +260,7 @@ async function fetchAiCameraNames(): Promise<Set<string>> {
   try {
     const base = new URL(baseValue.endsWith("/") ? baseValue : `${baseValue}/`);
     const response = await fetch(new URL("api/cameras", base), {
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", ...bearer(process.env.DETECTION_API_TOKEN) },
       cache: "no-store",
     });
     if (!response.ok) return new Set();

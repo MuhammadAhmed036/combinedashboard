@@ -1,4 +1,4 @@
-name: safecity-newdashboard
+name: combined
 
 services:
   db:
@@ -9,9 +9,9 @@ services:
       POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD}
       POSTGRES_DB: ${LOCAL_DB_NAME:-dashboard}
     ports:
-      - "127.0.0.1:${LOCAL_DB_PORT}:5432"
+      - "127.0.0.1:${LOCAL_DB_PORT:?LOCAL_DB_PORT must be set in .env}:5432"
     volumes:
-      - safecity-db-data:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql/data
       - ./docker/init-db:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${LOCAL_DB_USER:-dashboard} -d ${LOCAL_DB_NAME:-dashboard}"]
@@ -32,9 +32,9 @@ services:
       HOSTNAME: "0.0.0.0"
       DATABASE_URL: postgres://${LOCAL_DB_USER:-dashboard}:${LOCAL_DB_PASSWORD}@db:5432/${LOCAL_DB_NAME:-dashboard}
     ports:
-      - "${APP_PORT}:3000"
+      - "${APP_PORT:?APP_PORT must be set in .env}:3000"
     volumes:
-      - safecity-data:/app/data
+      - app-data:/app/data
     depends_on:
       db:
         condition: service_healthy
@@ -47,10 +47,10 @@ services:
     env_file:
       - ../.env
     environment:
-      WS_PORT: ${PERSON_COUNT_WS_PORT}
+      WS_PORT: ${PERSON_COUNT_WS_PORT:?PERSON_COUNT_WS_PORT must be set in .env}
       DATABASE_URL: postgres://${LOCAL_DB_USER:-dashboard}:${LOCAL_DB_PASSWORD}@db:5432/${LOCAL_DB_NAME:-dashboard}
     ports:
-      - "${PERSON_COUNT_WS_PORT}:${PERSON_COUNT_WS_PORT}"
+      - "${PERSON_COUNT_WS_PORT:?PERSON_COUNT_WS_PORT must be set in .env}:${PERSON_COUNT_WS_PORT:?PERSON_COUNT_WS_PORT must be set in .env}"
     depends_on:
       db:
         condition: service_healthy
@@ -86,6 +86,6 @@ services:
       - "${LUNA_WS_PORT}:${LUNA_WS_PORT}"
 
 volumes:
-  safecity-data:
-  safecity-db-data:
+  app-data:
+  db-data:
 
