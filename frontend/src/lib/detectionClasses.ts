@@ -4,6 +4,28 @@ export function formatClassNames(classNames: string[]): string {
   return classNames.map((name) => name.charAt(0).toUpperCase() + name.slice(1)).join(", ");
 }
 
+/**
+ * The classes an alert event actually detected, most frequent first, from its
+ * per-class counts (inside + outside). Events recorded without a breakdown fall
+ * back to every class the rule watches — never just the first one.
+ */
+export function eventDetectedClasses(event: {
+  classCountsInside?: Record<string, number> | null;
+  classCountsOutside?: Record<string, number> | null;
+  classNames?: string[] | null;
+}): string[] {
+  const totals = new Map<string, number>();
+  for (const counts of [event.classCountsInside, event.classCountsOutside]) {
+    for (const [name, count] of Object.entries(counts ?? {})) {
+      if (count > 0) totals.set(name, (totals.get(name) ?? 0) + count);
+    }
+  }
+  if (totals.size > 0) {
+    return [...totals.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
+  }
+  return (event.classNames ?? []).filter(Boolean);
+}
+
 /** Per-class counts for one side of a region match, e.g. `{person: 2, car: 5}` -> "2 person, 5 car". */
 export function formatClassCounts(counts: Record<string, number> | null | undefined): string {
   if (!counts) return "";

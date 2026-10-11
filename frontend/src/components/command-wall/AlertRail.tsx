@@ -43,6 +43,7 @@ import { useAlertSeenBaselineStore } from "@/lib/store/useAlertSeenBaselineStore
 import { effectiveUnseenCount } from "@/lib/alertUnseen";
 import type { AlertMatchEvent, AlertRuleV2, AlertCategory, Camera as CameraType } from "@/lib/types";
 import { CATEGORY_ACCENT, CATEGORY_LABEL, classAccent, classLabel } from "./alertVisuals";
+import { eventDetectedClasses, formatClassCounts, formatClassNames } from "@/lib/detectionClasses";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,7 +78,9 @@ function AlertEventItem({
   event: AlertMatchEvent;
   onInspect: (event: AlertMatchEvent) => void;
 }) {
-  const primaryClass = event.classNames?.[0] ?? "person";
+  // Classes this event actually detected (most frequent first), not just the rule's first class.
+  const detectedClasses = eventDetectedClasses(event);
+  const primaryClass = detectedClasses[0] ?? "person";
   const categoryColor = CATEGORY_ACCENT[event.category || "medium"];
   const classColor = classAccent(primaryClass);
   const ts = event.detectionTs ?? event.createdAt;
@@ -119,8 +122,10 @@ function AlertEventItem({
           <div
             className="absolute bottom-1 left-1 rounded-[3px] px-1 py-0.2 text-[8px] font-bold text-black leading-none"
             style={{ backgroundColor: classColor }}
+            title={formatClassNames(detectedClasses)}
           >
             {classLabel(primaryClass)}
+            {detectedClasses.length > 1 ? ` +${detectedClasses.length - 1}` : ""}
           </div>
         </div>
 
@@ -245,7 +250,10 @@ function ForensicEvidenceModal({
   if (!event) return null;
 
   const categoryColor = CATEGORY_ACCENT[event.category || "medium"];
-  const primaryClass = event.classNames?.[0] ?? "person";
+  const detectedClasses = eventDetectedClasses(event);
+  const targetLabel = formatClassNames(detectedClasses);
+  const insideBreakdown = formatClassCounts(event.classCountsInside);
+  const outsideBreakdown = formatClassCounts(event.classCountsOutside);
   const ts = event.detectionTs ?? event.createdAt;
   const imageUrl = event.eventId ? liveEventImageUrl(event.eventId) : null;
 
@@ -271,9 +279,9 @@ function ForensicEvidenceModal({
       `Alert Rule: ${displayRuleName}`,
       `Camera: ${event.cameraId}`,
       `Severity: ${CATEGORY_LABEL[event.category || "medium"]}`,
-      `Detected Target: ${primaryClass.toUpperCase()}`,
-      `Subjects Inside Zone: ${event.personCountInside ?? 0}`,
-      `Subjects Outside Zone: ${event.personCountOutside ?? 0}`,
+      `Detected Target: ${targetLabel.toUpperCase()}`,
+      `Subjects Inside Zone: ${event.personCountInside ?? 0}${insideBreakdown ? ` (${insideBreakdown})` : ""}`,
+      `Subjects Outside Zone: ${event.personCountOutside ?? 0}${outsideBreakdown ? ` (${outsideBreakdown})` : ""}`,
       `Recorded At: ${ts ? formatDateTime(ts) : "—"}`,
     ].join("\n");
 
@@ -481,7 +489,7 @@ function ForensicEvidenceModal({
             <div className="absolute bottom-4 inset-x-auto z-10 flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-[#161922]/90 backdrop-blur-md border border-slate-700/80 shadow-md text-xs text-slate-300">
               <span className="flex items-center gap-1.5 text-slate-200 font-semibold">
                 <User className="size-3.5 text-slate-400" />
-                Target: <span className="text-white capitalize">{primaryClass}</span>
+                Target: <span className="text-white">{targetLabel}</span>
               </span>
               <span className="text-slate-600">•</span>
               <span className="text-amber-400 font-bold font-mono">
@@ -517,8 +525,8 @@ function ForensicEvidenceModal({
                     <div className="size-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">
                       <User className="size-4" />
                     </div>
-                    <span className="text-lg font-black text-white capitalize">
-                      {primaryClass}
+                    <span className="text-lg font-black text-white" title={targetLabel}>
+                      {targetLabel}
                     </span>
                   </div>
                   <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold flex items-center gap-1">
@@ -537,8 +545,8 @@ function ForensicEvidenceModal({
                   <span className="text-3xl font-black text-amber-300 font-mono my-1">
                     {event.personCountInside ?? 0}
                   </span>
-                  <span className="text-[10px] text-amber-400/80">
-                    Subjects in zone
+                  <span className="text-[10px] text-amber-400/80" title={insideBreakdown || undefined}>
+                    {insideBreakdown || "Subjects in zone"}
                   </span>
                 </div>
 
@@ -549,8 +557,8 @@ function ForensicEvidenceModal({
                   <span className="text-3xl font-black text-slate-200 font-mono my-1">
                     {event.personCountOutside ?? 0}
                   </span>
-                  <span className="text-[10px] text-slate-500">
-                    Perimeter subjects
+                  <span className="text-[10px] text-slate-500" title={outsideBreakdown || undefined}>
+                    {outsideBreakdown || "Perimeter subjects"}
                   </span>
                 </div>
               </div>

@@ -440,3 +440,75 @@ Not part of any build (`docker/Dockerfile` copies only `frontend/`; compose buil
 6. `streams.ts` / `stream-cameras` registry fallback still use a hardcoded map coordinate (`[73.0479, 33.7295]`) for
    cameras without a location (Nats_New removed this). Not an IP/secret; not changed.
 7. Local mirror has no retention; it grows with the source (real-time) from the 1 h start point.
+
+---
+
+## 13. LUNA panel field map (Luna task, Phase A — 2026-10-11)
+
+Evidence: `docs/luna-samples/` (real responses captured 2026-10-11, account id / credentials masked). Live LUNA at the
+configured `LUNA_HOST` was reachable. Read-only GETs only.
+
+### 13.1 Transport actually used by a remote browser (today, unchanged by this task)
+
+| Tab | Code | What the browser does |
+|---|---|---|
+| History | `LunaEventsRail.tsx:978` → `directFetchLunaEvents` (`lib/lunaDirectClient.ts:195`) | `GET http://<LUNA_HOST>:<LUNA_WEB_PORT>/api/lp5/6/events?page=…&page_size=…&order=desc` **directly to the LUNA gateway, with `Authorization: Basic` built from `lunaAuthUser/lunaAuthPass` in `/api/runtime-config`**. The gateway answers CORS preflight with `Access-Control-Allow-Origin: *`, so this works cross-origin. `/api/luna/events` (server proxy) is not used by History. |
+| Live | `LunaEventsRail.tsx:1007-1150` | WebSocket to `NEXT_PUBLIC_LUNA_WS_URL` (= `ws://localhost:8092`, baked into the bundle) → fails on a remote PC → falls back to `ws://<page host>:LUNA_WS_PORT` = the `luna-ws` relay, which connects to `ws://<LUNA_HOST>:<LUNA_API_PORT>/6/ws` with server-side credentials. Live is seeded with `directFetchLunaEvents(page_size=30)` (same direct call as History), and each WS event is enriched with `directFetchLunaEvent(id)` / `directFetchLunaFace(face_id)` (direct, credentials). |
+
+Live payload: a 90 s capture through the relay received **0 messages** — all three LUNA streams are `status: failure`
+(`streams.sample.json`) and the newest event is 2026-10-09 16:43 (+05:00). The rail accepts `raw.event` or a bare event
+(`LunaEventsRail.tsx:1062`) and then merges the full `GET /events/<id>` record into the card, so Live cards render the same
+event shape as History. **Live payload therefore not captured; the mapping is verified on History samples only.**
+
+Pre-existing (not changed, reported): the browser receives LUNA Basic credentials and calls LUNA directly (above). This task
+adds **no** new credential exposure: new lookups are server-side and return names only.
+
+### 13.2 Field paths (from `history-events.sample.json`; 4 692 events scanned, 2026-09-22 … 2026-10-09)
+
+| Need | Path(s) | Notes from real data |
+|---|---|---|
+| Match candidates | `match_result[i].candidates[j]` | 0–3 `match_result` entries per event (histogram 0:2446, 1:352, 2:1888, 3:6), up to 3 candidates each |
+| Similarity | `match_result[i].candidates[j].similarity` (0–1) | best candidate is **not** in `match_result[0]` in 907 events → must sort across all entries |
+| LUNA's own pick | `top_match {face_id, external_id, label, similarity}` | equal to the max-similarity candidate in all 4 692 events; on a similarity **tie** (event `1ab83e72`: 1.0 vs 1.0) LUNA picked the candidate whose `face_id` = `top_match.face_id` → used as tie-break |
+| Person name | `candidate.face.external_id` → `candidate.face.user_data` (trimmed) → `top_match.external_id` | 3 825 candidates have only `external_id`, 5 702 only `user_data`, 1 427 both. Event-level `external_id`/`user_data` describe the *detected* face (e.g. `demo_cam|…|bs7`), **not** the match → not used as name |
+| Reference face id | `candidate.face.face_id` | `GET /6/faces/<id>` → `{external_id, user_data, avatar, lists[]}` (`face.sample.json`) |
+| List matched from | `match_result[i].label` → handler `policies.match_policy[label == …].candidates.list_id` → `GET /6/lists` `user_data` | e.g. `officeList` → `bffbb4be…` → **`new_office`**; `office_staff` → `ade0af4f…` → `office`. Labels from older handler policies (e.g. `office`) no longer exist → fallback: the label itself (the event carries no list id) |
+| Camera | `stream_id` → LUNA Streams `GET <gateway>/api/luna-streams/1/streams` `name` → `source` → `stream_id` | 1 501 events have `stream_id`, 1 820 `source`. `source` can be stale (`testing` on stream `entrance`, 332 events) → stream name preferred. **Recent `office_handler` events have neither** (459 matched events): handler → stream is ambiguous (3 streams share `office_handler`) → camera shown as unknown, never guessed |
+| Handler | `handler_id` → `GET /6/handlers` `description` | e.g. `office_handler`, `new_handler` |
+| Gender / age | face: `gender` (0 F, 1 M), `age`; body: `body_basic_attributes.apparent_gender`, `apparent_age` | every unmatched event in this LUNA is body-only (no face gender) |
+| Emotion, mask, liveness, ethnicity, deepfake | `emotion`, `mask`, `liveness`, `ethnic_group`, `deepfake` (ints, `null` when not estimated) | labels as in the panel's filter options (`LunaEventsRail.tsx:735-800`) |
+| Glasses | — | not present in any payload → not shown |
+| Body / clothing | `upper_body.headwear.{state,apparent_color}`, `upper_body.sleeve.length`, `upper_body.upper_clothing.colors[]`, `lower_body.lower_garment.{type,colors[]}`, `lower_body.shoes.apparent_color`, `accessories.backpack.state` | the string `"undefined"` means "not estimated" → hidden |
+| IDs | `event_id`, `face_id` (detected face), `track_id`, `external_id` | |
+| Times | `create_time`, `end_time`; `face_detections[].detect_time` | track start/end = `create_time`/`end_time` when they differ |
+| Location | `location.{city,area,district,street,house_number,geo_position}` | |
+| Images | detected crop `face_detections[0].sample_id` (`/6/samples/faces/<id>`), body crop `body_detections[0].sample_id`, frame `…image_origin` (`/6/images/<id>`), reference face `GET /6/faces/<face_id>`.`avatar` | unchanged (existing resolvers) |
+
+### 13.3 Server-side lookups (new)
+
+One route, `GET /api/luna/lookups`, returns only display names, built server-side with the existing LUNA credentials and
+cached in memory (TTL): `handlers {handler_id: {name, labels {label: list_id}}}`, `lists {list_id: name}`,
+`streams {stream_id: name}`. Three LUNA requests per TTL for all cards — no per-card lookups. Stream objects contain RTSP
+URLs with camera credentials: only id → name leaves the server. Cards render immediately with ids/labels and switch to
+names when the lookup arrives.
+
+### 13.4 Verification (2026-10-11) and Luna follow-ups
+
+Twelve older real events (gateway `GET /api/lp5/6/events?create_time__lt=2026-10-08T11:30:00+05:00`, i.e. the History
+tab's own request) mapped by the deployed `lunaCardModel.ts` with the live `/api/luna/lookups`:
+
+| event | card line 1 | raw source of line 1 | line 2 (raw) | line 3 (raw) |
+|---|---|---|---|---|
+| `c7853b4a` | adeel (55%) | max candidate adeel 0.55 = `top_match` | Gelecek_back_door (`stream_id` df8d1d85 → Streams) | new_office (`officeList` → bffbb4be) |
+| `1ab83e72` | hassan (100%) | tie 1.0 'hassan asif' [office_staff] vs 'hassan' [list] → `top_match` face | Unknown camera (no source/stream) | new_office (`list` → bffbb4be) |
+| `16898680` | Asad (17%) | max candidate Asad 0.169 | Gelecek_back_door | new_office |
+| `aa07f56a` | Unknown | no candidates | Unknown camera | Male, ~34y • black top |
+
+Follow-ups (not changed by this task):
+1. The browser calls LUNA directly with Basic credentials from `/api/runtime-config` (History, Live seeding,
+   event/face enrichment, images). Moving these to the existing `/api/luna/*` server routes would remove the
+   credential exposure; it needs a decision because it changes how History is loaded.
+2. The configured LUNA password is a 4-character dictionary word.
+3. History filter "Headwear" labels state 2 as "Helmet"; real data shows 2 = unknown (never has a colour).
+4. Recent `office_handler` events carry no `source`/`stream_id`; three LUNA streams share that handler and all are
+   in `failure`. The camera can only be shown once LUNA sends a source/stream id (LUNA Streams configuration).

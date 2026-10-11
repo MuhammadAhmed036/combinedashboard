@@ -1,4 +1,5 @@
 import type { AlertCategory, AlertMatchEvent, AlertRuleV2 } from "@/lib/types";
+import { normalizeClassCounts } from "@/lib/services/alertRulesService";
 
 export interface AllAlertEventsFilters {
   cameraId?: string;
@@ -45,6 +46,7 @@ export async function fetchAllAlertEvents(
   const rows = Array.isArray(payload.events) ? payload.events : [];
   return rows.map((raw) => {
     const record = asRecord(raw);
+    const detectionsJson = asRecord(record.detections_json);
     return {
       id: Number(record.id) || 0,
       alertId: String(record.alert_id ?? ""),
@@ -53,8 +55,9 @@ export async function fetchAllAlertEvents(
       detectionTs: asString(record.detection_ts),
       personCountInside: asNumber(record.person_count_inside) ?? 0,
       personCountOutside: asNumber(record.person_count_outside) ?? 0,
-      classCountsInside: {},
-      classCountsOutside: {},
+      // Per-class breakdown, e.g. {car: 3, person: 1}; empty for events recorded without one.
+      classCountsInside: normalizeClassCounts(detectionsJson.inside),
+      classCountsOutside: normalizeClassCounts(detectionsJson.outside),
       boundingBox: (record.bounding_box as any) ?? null,
       note: asString(record.note),
       seen: Boolean(record.seen),

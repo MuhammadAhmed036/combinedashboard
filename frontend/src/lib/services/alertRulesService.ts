@@ -119,7 +119,7 @@ function normalizeAlertRule(raw: unknown): AlertRuleV2 {
   };
 }
 
-function normalizeClassCounts(value: unknown): Record<string, number> {
+export function normalizeClassCounts(value: unknown): Record<string, number> {
   const record = asRecord(value);
   const counts: Record<string, number> = {};
   for (const [key, count] of Object.entries(record)) {

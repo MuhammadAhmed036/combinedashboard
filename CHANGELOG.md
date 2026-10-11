@@ -1,5 +1,107 @@
 # Changelog
 
+## 2026-10-11 — Multi-class region alerts: show every detected class
+
+### What changed
+
+- Server alert engine (`workers/sync-service`) records a per-class breakdown for each match:
+  `detections_json = {inside: {car: 9, truck: 3, person: 1}, outside: {car: 14, truck: 1}}` (was bare totals),
+  the shape the dashboard already reads. Totals stay in `person_count_inside/outside` (legacy column names).
+- Live Alerts feed (`alertEventsService.ts`) parses that breakdown (it was hard-coded empty).
+- Live Alerts card and detail dialog (`AlertRail.tsx`) show the classes the event actually detected, most frequent
+  first ("Car +2"; dialog "Car, Truck, Person", inside/outside per class) instead of the rule's first class only.
+  Events recorded before this change show all classes of their rule.
+
+### Why
+
+- A rule for person + truck + car on `parking` fired on vehicles, but every alert was labelled "person": the card
+  took `classNames[0]` of the rule and the engine stored no per-class counts.
+
+### Tested
+
+- `node --test 'tests/*.test.mjs'`: 34 pass (5 new: engine per-class counts, detected-class order, vehicle-only event
+  not shown as person, fallback to all rule classes, stored shape matches the parser).
+- `next build` incl. TypeScript; ESLint on the changed files: same 4 pre-existing errors before and after.
+- On the VM: rebuilt and recreated only `combined-dashboard` and `combined-sync` (sync resumed from its cursor).
+  First real event after the change for the parking rule: `{"inside": {"car": 9, "truck": 3, "person": 1}, "outside":
+  {"car": 14, "truck": 1}}`; the feed renders "Car +2" / "Car, Truck, Person". `scripts/verify-pipeline.sh` 10/10.
+
+### Not tested / not done
+
+- The rendered card/dialog in a browser (no browser on the VM).
+- Existing alert events keep their totals-only records (no backfill of the breakdown).
+
+### Rollback
+
+- Revert the four frontend files and `workers/sync-service/index.js` + `lib/class-counts.cjs`, rebuild, and
+  `docker compose up -d --no-deps app sync`. Events written meanwhile keep the object shape, which older code shows as
+  plain totals.
+
+## 2026-10-11 — LUNA panel cards: person name, camera, list; expandable details
+
+Field map and evidence: `AUDIT_PIPELINE_INTEGRATION.md` §13, real payloads in `docs/luna-samples/`.
+
+### What changed
+
+- **Collapsed card** (Live and History share `LunaEventCard`): Line 1 = name of the **highest-similarity candidate
+  across all `match_result` entries** (`face.external_id`, else `face.user_data`; ties go to LUNA's own `top_match`
+  face); the % badge is that same score. Line 2 = camera: LUNA Streams name for `stream_id`, else `source`, else the
+  stream id; "Unknown camera" when the event has neither (never guessed from the handler). Line 3 = the list that
+  candidate matched from (match label → handler match policy → list id → list name; fallback list id, then the
+  label). Unmatched: "Unknown" + the attribute summary (gender, ~age, clothing). Layout, crops, reference
+  thumbnail, timestamp, score colours/thresholds and Trace are unchanged; long text truncates with the full value on hover.
+- **Expanded view** (click, Enter/Space; Esc or click again collapses; one at a time; Trace and image clicks do not
+  toggle): larger detected + reference images, person, similarity, list, external id, face id, camera, handler, event
+  time / track start-end, track id, location, the present attributes, up to 5 other candidates (one row per person,
+  best first) and the event id with a copy button (works on plain-HTTP pages). Empty fields are not shown. While a
+  Live card is open the list is frozen ("N new events" note) so new events neither collapse it nor push it down,
+  and the open event is never trimmed out of the 50-event window.
+- **New `GET /api/luna/lookups`** (server-side, existing LUNA credentials): handler names + match label → list id,
+  list names, LUNA Streams camera names — names and ids only (stream objects carry RTSP credentials). Cached in
+  memory (60 s; 15 s after a partial failure), one in-flight request shared, paged. The panel fetches it once per
+  minute for all cards; cards render immediately and update when names arrive.
+- The card no longer shows the handler as the camera and no longer calls LUNA directly for handler names.
+- The trace modal receives the corrected person and list name, and the camera name only when it is known.
+- Unknown values are hidden instead of mislabelled: body `apparent_gender` 2 (was shown as "Female"), headwear /
+  backpack state 2.
+
+### Why
+
+- Cards showed the list label ("officeList") as the title, the handler ("office_handler") as the camera and the
+  label again as the list; the matched person was never shown. The real payloads put the name in the candidate's
+  `face.external_id`/`user_data`, the camera in `stream_id`/`source`, and the list behind the handler's match policy.
+
+### Tested
+
+- `node --test 'tests/*.test.mjs'`: 29 pass (18 existing + 11 new on the captured samples: top similarity across
+  several match lists and candidate orders, tie → `top_match`, name fallbacks incl. missing name, camera from stream
+  name / source / id / none, list name → list id → label, unmatched summary with unknown gender hidden, other-candidate
+  de-duplication, details, and the lookup route with a stubbed LUNA: names only, no RTSP/credentials, one LUNA round per TTL).
+- `next build` incl. TypeScript; ESLint on the changed files: no problems in new/changed code (remaining ones are
+  pre-existing in unchanged lines; 36 → 22 problems in these files).
+- Rebuilt and recreated only `combined-dashboard`; every other container kept its start time.
+- Live on the VM: `/api/luna/lookups` 200, complete, 12 handlers / 10 lists / 3 cameras, no secrets, ~10 ms cached;
+  12 older real History events (the panel's own gateway query, `create_time__lt` 2026-10-08) mapped with the
+  deployed code: names = highest-similarity candidates, cameras from `stream_id`, lists resolved (`officeList` → `new_office`).
+  The served client bundle contains the new card code. `scripts/verify-pipeline.sh` 10/10.
+
+### Not tested / not done
+
+- **Live tab with live events**: LUNA produced none (all three LUNA streams in `failure`, newest event 2026-10-09);
+  the Live payload could not be captured — Live cards use the same event shape (the panel merges `GET /events/<id>`).
+- **The rendered cards in a browser** (no browser on the VM): see the browser checklist in the report.
+- Recent `office_handler` events carry no `source`/`stream_id`, so their camera stays "Unknown camera" — the LUNA
+  stream/handler setup has to send it.
+- Not changed (reported): the browser still calls LUNA directly with credentials from `/api/runtime-config` for
+  History/Live seeding/images; the History filter labels headwear state 2 as "Helmet" although the data shows it means unknown.
+
+### Rollback
+
+- `git checkout -- <files>` for the unstaged LUNA changes (the staged pipeline changes are separate in the index), delete
+  `frontend/src/components/luna/lunaCardModel.ts`, `useLunaLookups.ts`, `frontend/src/app/api/luna/lookups/`,
+  `tests/luna-card-model.test.mjs`, `docs/luna-samples/`; rebuild and `docker compose up -d --no-deps app`. No env, DB or
+  LUNA changes.
+
 ## 2026-10-11 — Pipeline v2 integration (SafeCity pipeline on 192.168.18.213)
 
 Full audit, evidence and the env mapping: `AUDIT_PIPELINE_INTEGRATION.md`.

@@ -17,6 +17,7 @@ const { Pool } = require("pg");
 const { chooseStartCursor } = require("./lib/sync-cursor.cjs");
 const { findFirstIdSince } = require("./lib/backfill-search.cjs");
 const { streamStatusMap } = require("./lib/stream-status.cjs");
+const { countByClass } = require("./lib/class-counts.cjs");
 
 // Same fallback pattern as person-count-ws/index.js: this service has no
 // framework auto-loading .env, so fall back to the project's root .env for
@@ -360,6 +361,7 @@ async function evaluateDetectionEventsForAlerts(events) {
               y1: d.bbox_norm_xyxy[1],
               x2: d.bbox_norm_xyxy[2],
               y2: d.bbox_norm_xyxy[3],
+              className: cName,
             });
           } else if (Array.isArray(d.bbox_xyxy) && d.bbox_xyxy.length === 4) {
             boxes.push({
@@ -367,6 +369,7 @@ async function evaluateDetectionEventsForAlerts(events) {
               y1: d.bbox_xyxy[1] / imgH,
               x2: d.bbox_xyxy[2] / imgW,
               y2: d.bbox_xyxy[3] / imgH,
+              className: cName,
             });
           }
         }
@@ -392,7 +395,9 @@ async function evaluateDetectionEventsForAlerts(events) {
           personCountInside: insideBoxes.length,
           personCountOutside: outsideBoxes.length,
           boundingBox: JSON.stringify(bbox),
-          detectionsJson: JSON.stringify({ inside: insideBoxes.length, outside: outsideBoxes.length }),
+          // Per-class breakdown, e.g. {inside: {car: 3, person: 1}, outside: {truck: 2}} —
+          // the shape the dashboard reads (alertRulesService normalizeClassCounts).
+          detectionsJson: JSON.stringify({ inside: countByClass(insideBoxes), outside: countByClass(outsideBoxes) }),
           note: triggerOutside
             ? `Server engine auto-detected (${classNames.join(", ")} outside zone)`
             : `Server engine auto-detected (${classNames.join(", ")})`,
