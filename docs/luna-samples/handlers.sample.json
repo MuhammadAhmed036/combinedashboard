@@ -1,0 +1,136 @@
+{
+ "_note": "GET /6/handlers (trimmed to the fields the panel uses: description + match_policy label -> list_id).",
+ "handlers": [
+  {
+   "handler_id": "ebf4b99a-5acc-479d-9309-c1e69b20dd83",
+   "description": "new_handler",
+   "match_policy": [
+    {
+     "label": "list",
+     "candidates": {
+      "origin": "faces",
+      "list_id": "bffbb4be-bdc4-4dc8-8055-13d1bf1a6a0e"
+     }
+    },
+    {
+     "label": "office_staff",
+     "candidates": {
+      "origin": "faces",
+      "list_id": "ade0af4f-5d6e-4030-991d-afce7efc59f8"
+     }
+    }
+   ]
+  },
+  {
+   "handler_id": "5b4dfa8e-2a55-4c4a-949d-bc32d1b1298d",
+   "description": "HASSAN",
+   "match_policy": [
+    {
+     "label": "HASSSAN SUSPECTS",
+     "candidates": {
+      "origin": "faces",
+      "list_id": "912a9705-acca-4607-a895-5e849cc4d9b7"
+     }
+    }
+   ]
+  },
+  {
+   "handler_id": "7a5d6126-9144-4e53-b8bc-80ff66e70055",
+   "description": "luna",
+   "match_policy": [
+    {
+     "label": "hamza",
+     "candidates": {
+      "origin": "faces",
+      "list_id": "8f17285d-08b5-446b-a92e-387cfc69766c"
+     }
+    }
+   ]
+  },
+  {
+   "handler_id": "1d74dcfa-1312-4314-8cb5-66a257b50ca4",
+   "description": "ahmed_test_docker",
+   "match_policy": []
+  },
+  {
+   "handler_id": "cce154ff-48aa-42a3-a09a-818fd844a5f4",
+   "description": "hassantest",
+   "match_policy": [
+    {
+     "label": "ghq list ",
+     "candidates": {
+      "origin": "faces",
+      "list_id": "9e138cb8-38df-4202-b754-accf55647566"
+     }
+    }
+   ]
+  },
+  {
+   "handler_id": "bf21e099-277d-4e12-947f-270c8d123ae6",
+   "description": "optimal_policy",
+   "match_policy": [
+    {
+     "label": "usman_SEASON",
+     "candidates": {
+      "origin": "faces",
+      "list_id": "ccfdf1a6-ca2b-4724-a189-ae3509b2697c"
+     }
+    }
+   ]
+  },
+  {
+   "handler_id": "ca488ebf-250a-4513-81d6-9eaaf13c97c7",
+   "description": "ahmed_test",
+   "match_policy": []
+  },
+  {
+   "handler_id": "29544bad-1f57-4e37-832d-532253946a46",
+   "description": "recorded videos",
+   "match_policy": [
+    {
+     "label": "list",
+     "candidates": {
+      "origin": "faces",
+      "list_id": "ade0af4f-5d6e-4030-991d-afce7efc59f8"
+     }
+    }
+   ]
+  },
+  {
+   "handler_id": "7b370ed7-fc82-49ea-94c8-227465295cc9",
+   "description": "office_handler",
+   "match_policy": [
+    {
+     "label": "officeList",
+     "candidates": {
+      "origin": "faces",
+      "list_id": "bffbb4be-bdc4-4dc8-8055-13d1bf1a6a0e"
+     }
+    }
+   ]
+  },
+  {
+   "handler_id": "b2871790-039c-4e2d-bb1b-7bebe1ebb7d9",
+   "description": "test-1",
+   "match_policy": [
+    {
+     "label": "list",
+     "candidates": {
+      "origin": "faces",
+      "list_id": "912a9705-acca-4607-a895-5e849cc4d9b7"
+     }
+    }
+   ]
+  },
+  {
+   "handler_id": "5d07c396-2100-4d78-8708-9b5e06218e89",
+   "description": "clementine",
+   "match_policy": []
+  },
+  {
+   "handler_id": "ffc96a89-2072-4596-a928-33a536a61c65",
+   "description": "clementine",
+   "match_policy": []
+  }
+ ]
+}

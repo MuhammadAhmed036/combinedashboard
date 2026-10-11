@@ -270,3 +270,111 @@ export async function fetchLunaEventById(eventId: string) {
 // Added this explicit alias in case VSCode is caching the old module signature
 export const getLunaMedia = fetchLunaMedia;
 
+
+// ─── Display-name lookups for the LUNA panel cards ─────────────────────────────
+// handler_id -> {description, match label -> list_id}, list_id -> name,
+// stream_id -> camera name. Built here with the server's credentials; only names
+// and ids leave the server (LUNA stream objects contain RTSP URLs with camera
+// credentials). One cached result serves every card and browser.
+export interface LunaLookupsPayload {
+  handlers: Record<string, { name: string | null; labels: Record<string, string> }>;
+  lists: Record<string, string>;
+  streams: Record<string, string>;
+  complete: boolean;
+}
+
+const LOOKUP_TTL_MS = 60_000;
+const LOOKUP_RETRY_MS = 15_000;
+const LOOKUP_TIMEOUT_MS = 5_000;
+const LOOKUP_PAGE_SIZE = 100;
+const LOOKUP_MAX_PAGES = 10;
+let lookupCache: { expiresAt: number; data: LunaLookupsPayload } | null = null;
+let lookupInFlight: Promise<LunaLookupsPayload> | null = null;
+
+/** All pages of a LUNA collection (`{<key>: [...]}` or a bare array); null when unavailable. */
+async function fetchLunaCollection(url: string, key: string): Promise<Record<string, unknown>[] | null> {
+  const items: Record<string, unknown>[] = [];
+  for (let page = 1; page <= LOOKUP_MAX_PAGES; page++) {
+    const pageUrl = new URL(url);
+    pageUrl.searchParams.set('page', String(page));
+    pageUrl.searchParams.set('page_size', String(LOOKUP_PAGE_SIZE));
+    try {
+      const response = await fetch(pageUrl, {
+        headers: getLunaHeaders(),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        await response.body?.cancel();
+        return page === 1 ? null : items;
+      }
+      const body = await response.json();
+      const batch = Array.isArray(body) ? body : Array.isArray(body?.[key]) ? body[key] : [];
+      items.push(...batch);
+      if (batch.length < LOOKUP_PAGE_SIZE) break;
+    } catch {
+      return page === 1 ? null : items;
+    }
+  }
+  return items;
+}
+
+function nameOf(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+async function loadLunaLookups(): Promise<LunaLookupsPayload> {
+  const baseUrl = getLunaBaseUrl();
+  const { host, gatewayPort } = getLunaConfig();
+  // LUNA Streams is served by the LUNA gateway (same host as the panel's LUNA API URL).
+  const streamsUrl = host && gatewayPort ? `http://${host}:${gatewayPort}/api/luna-streams/1/streams` : null;
+  const [handlers, lists, streams] = await Promise.all([
+    baseUrl ? fetchLunaCollection(`${baseUrl}/handlers`, 'handlers') : Promise.resolve(null),
+    baseUrl ? fetchLunaCollection(`${baseUrl}/lists`, 'lists') : Promise.resolve(null),
+    streamsUrl ? fetchLunaCollection(streamsUrl, 'streams') : Promise.resolve(null),
+  ]);
+
+  const payload: LunaLookupsPayload = {
+    handlers: {},
+    lists: {},
+    streams: {},
+    complete: handlers !== null && lists !== null && streams !== null,
+  };
+  for (const handler of handlers ?? []) {
+    const id = nameOf(handler.handler_id);
+    if (!id) continue;
+    const labels: Record<string, string> = {};
+    const policies = (handler.policies ?? {}) as { match_policy?: unknown };
+    for (const policy of Array.isArray(policies.match_policy) ? policies.match_policy : []) {
+      const label = nameOf(policy?.label);
+      const listId = nameOf(policy?.candidates?.list_id);
+      if (label && listId) labels[label] = listId;
+    }
+    payload.handlers[id] = { name: nameOf(handler.description), labels };
+  }
+  for (const list of lists ?? []) {
+    const id = nameOf(list.list_id);
+    const name = nameOf(list.user_data);
+    if (id && name) payload.lists[id] = name;
+  }
+  for (const stream of streams ?? []) {
+    const id = nameOf(stream.stream_id);
+    const name = nameOf(stream.name);
+    if (id && name) payload.streams[id] = name;
+  }
+  return payload;
+}
+
+export async function fetchLunaLookups(): Promise<LunaLookupsPayload> {
+  if (lookupCache && lookupCache.expiresAt > Date.now()) return lookupCache.data;
+  if (lookupInFlight) return lookupInFlight;
+  lookupInFlight = loadLunaLookups()
+    .then((data) => {
+      lookupCache = { data, expiresAt: Date.now() + (data.complete ? LOOKUP_TTL_MS : LOOKUP_RETRY_MS) };
+      return data;
+    })
+    .finally(() => {
+      lookupInFlight = null;
+    });
+  return lookupInFlight;
+}

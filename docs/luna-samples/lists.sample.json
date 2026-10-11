@@ -1,0 +1,88 @@
+{
+ "lists": [
+  {
+   "list_id": "bffbb4be-bdc4-4dc8-8055-13d1bf1a6a0e",
+   "account_id": "<masked-account-id>",
+   "user_data": "new_office",
+   "create_time": "2026-09-28T13:47:00.724284+05:00",
+   "last_update_time": "2026-10-07T12:45:13.995163+05:00"
+  },
+  {
+   "list_id": "62785007-5851-4832-b25f-c9a00eb72171",
+   "account_id": "<masked-account-id>",
+   "user_data": "",
+   "create_time": "2026-06-01T15:34:45.293336+05:00",
+   "last_update_time": "2026-06-01T15:34:45.293336+05:00"
+  },
+  {
+   "list_id": "e01e1959-78bd-4540-a6ad-be7fc82d5a99",
+   "account_id": "<masked-account-id>",
+   "user_data": "",
+   "create_time": "2026-06-01T15:34:28.987550+05:00",
+   "last_update_time": "2026-06-01T15:34:28.987550+05:00"
+  },
+  {
+   "list_id": "ccfdf1a6-ca2b-4724-a189-ae3509b2697c",
+   "account_id": "<masked-account-id>",
+   "user_data": "usman_season",
+   "create_time": "2026-03-10T10:34:46.128337+05:00",
+   "last_update_time": "2026-09-28T09:35:19.432286+05:00"
+  },
+  {
+   "list_id": "9e138cb8-38df-4202-b754-accf55647566",
+   "account_id": "<masked-account-id>",
+   "user_data": "ghq",
+   "create_time": "2026-01-07T16:10:48.098598+05:00",
+   "last_update_time": "2026-09-28T09:35:18.433250+05:00"
+  },
+  {
+   "list_id": "8f17285d-08b5-446b-a92e-387cfc69766c",
+   "account_id": "<masked-account-id>",
+   "user_data": "bodies",
+   "create_time": "2026-01-06T14:48:09.896618+05:00",
+   "last_update_time": "2026-09-28T09:33:56.429098+05:00"
+  },
+  {
+   "list_id": "2ee9c9de-c1e7-49e0-b8c5-28ab40357dea",
+   "account_id": "<masked-account-id>",
+   "user_data": "Detected",
+   "create_time": "2026-01-06T12:58:05.129390+05:00",
+   "last_update_time": "2026-09-28T09:35:15.420470+05:00"
+  },
+  {
+   "list_id": "ade0af4f-5d6e-4030-991d-afce7efc59f8",
+   "account_id": "<masked-account-id>",
+   "user_data": "office",
+   "create_time": "2025-03-14T14:10:29.503260+05:00",
+   "last_update_time": "2026-09-28T10:12:46.418417+05:00"
+  },
+  {
+   "list_id": "912a9705-acca-4607-a895-5e849cc4d9b7",
+   "account_id": "<masked-account-id>",
+   "user_data": "Suspects",
+   "create_time": "2025-03-07T14:39:45.450294+05:00",
+   "last_update_time": "2026-09-28T09:34:03.506177+05:00"
+  },
+  {
+   "list_id": "90836600-d44b-4717-9b33-d685faf06616",
+   "account_id": "<masked-account-id>",
+   "user_data": "demo_2",
+   "create_time": "2025-03-07T14:15:51.940719+05:00",
+   "last_update_time": "2026-09-28T09:35:26.437434+05:00"
+  },
+  {
+   "list_id": "0315664f-2da8-4456-b903-7d2d4cf75f35",
+   "account_id": "<masked-account-id>",
+   "user_data": "demo_1",
+   "create_time": "2025-03-07T11:59:30.835640+05:00",
+   "last_update_time": "2026-09-28T09:33:56.425277+05:00"
+  },
+  {
+   "list_id": "2f39f4b8-fc58-48b7-8f4e-3a3d4504be8c",
+   "account_id": "<masked-account-id>",
+   "user_data": "test-1",
+   "create_time": "2025-03-05T17:43:12.401262+05:00",
+   "last_update_time": "2026-09-28T09:33:19.424313+05:00"
+  }
+ ]
+}

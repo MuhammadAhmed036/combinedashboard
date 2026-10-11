@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { LunaEvent, LunaList, LunaHandler, ParsedLunaPersonInfo } from './types';
 import { parseLunaEvent } from './lunaHelpers';
 import { LunaEventCard } from './LunaEventCard';
+import { buildLunaCardModel } from './lunaCardModel';
+import { useLunaLookups } from './useLunaLookups';
 import { FaceMovementTraceModal } from './FaceMovementTraceModal';
 import { loadRuntimeConfig } from '@/lib/runtimeConfig';
 import {
@@ -930,6 +932,17 @@ export const LunaEventsRail: React.FC = () => {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Card display names (handlers, lists, cameras), resolved server-side once for all cards.
+  const lunaLookups = useLunaLookups();
+  // One expanded card at a time. While a Live card is expanded the list is
+  // frozen to the events visible at that moment (new arrivals are counted, not
+  // inserted above it), so it neither collapses nor jumps.
+  // Tied to the tab it was opened in, so switching tabs needs no reset.
+  const [expansion, setExpansion] = useState<{ mode: 'live' | 'history'; id: string; frozen: Set<string> | null } | null>(null);
+  const expandedIdRef = useRef<string | null>(null);
+  const expandedId = expansion?.mode === mode ? expansion.id : null;
+  const frozenIds = expansion?.mode === mode ? expansion.frozen : null;
+
   const setFilter = useCallback(<K extends keyof FilterState>(key: K, value: FilterState[K]) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }, []);
@@ -1081,7 +1094,10 @@ export const LunaEventsRail: React.FC = () => {
             if (eventKey && prev.some((e) => (e.event_id || e.id) === eventKey)) {
               return prev;
             }
-            return [newEvent, ...prev.slice(0, 49)]; // Keep last 50 live events
+            // Keep last 50 live events (and the expanded one, if it would drop out)
+            return [newEvent, ...prev].filter(
+              (e, i) => i < 50 || (expandedIdRef.current !== null && (e.event_id || e.id) === expandedIdRef.current)
+            );
           });
 
           // Fetch full event details from Luna API to retrieve detected face sample crop & camera frame
@@ -1219,19 +1235,46 @@ export const LunaEventsRail: React.FC = () => {
   }, [fetchHistoryEvents, mode, pageSize]);
 
   const currentEvents = mode === 'live' ? liveEvents : historyEvents;
+  const visibleEvents = useMemo(
+    () => (frozenIds ? currentEvents.filter((ev) => frozenIds.has(ev.event_id || ev.id || '')) : currentEvents),
+    [currentEvents, frozenIds]
+  );
+  const pendingLiveCount = currentEvents.length - visibleEvents.length;
   const displayedEvents = useMemo(() => {
-    if (!searchQuery.trim()) return currentEvents;
+    if (!searchQuery.trim()) return visibleEvents;
     const q = searchQuery.toLowerCase();
-    return currentEvents.filter((ev) => {
+    return visibleEvents.filter((ev) => {
       const info = parseLunaEvent(ev);
-      return (
-        info.name.toLowerCase().includes(q) ||
-        info.cameraName.toLowerCase().includes(q) ||
-        info.listName.toLowerCase().includes(q) ||
-        (info.attributesSummary || '').toLowerCase().includes(q)
-      );
+      const model = buildLunaCardModel(ev, lunaLookups);
+      return [
+        model.top?.name,
+        model.top?.list,
+        model.camera,
+        model.attributesSummary,
+        info.name,
+        info.cameraName,
+        info.listName,
+        info.attributesSummary,
+      ].some((v) => (v || '').toLowerCase().includes(q));
     });
-  }, [currentEvents, searchQuery]);
+  }, [visibleEvents, searchQuery, lunaLookups]);
+
+  const toggleExpanded = useCallback(
+    (id: string) => {
+      const next = expandedId === id ? null : id;
+      expandedIdRef.current = next && mode === 'live' ? next : null;
+      setExpansion(
+        next
+          ? {
+              mode,
+              id: next,
+              frozen: mode === 'live' ? new Set(liveEvents.map((ev) => ev.event_id || ev.id || '').filter(Boolean)) : null,
+            }
+          : null
+      );
+    },
+    [mode, liveEvents, expandedId]
+  );
 
   const activeFilterCount = countActiveFilters(filters);
 
@@ -1410,6 +1453,12 @@ export const LunaEventsRail: React.FC = () => {
           </div>
         )}
 
+        {pendingLiveCount > 0 && (
+          <div className="text-center text-[10px] text-sky-300/90 font-mono" role="status">
+            {pendingLiveCount} new event{pendingLiveCount === 1 ? '' : 's'} — collapse the open card to show
+          </div>
+        )}
+
         <AnimatePresence initial={false}>
           {displayedEvents.map((ev, index) => (
             <motion.div
@@ -1419,7 +1468,14 @@ export const LunaEventsRail: React.FC = () => {
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.18, delay: index < 5 ? index * 0.04 : 0 }}
             >
-              <LunaEventCard event={ev} handlerMap={handlerMap} onTraceClick={handleTraceClick} />
+              <LunaEventCard
+                event={ev}
+                handlerMap={handlerMap}
+                onTraceClick={handleTraceClick}
+                lookups={lunaLookups}
+                expanded={Boolean(ev.event_id) && expandedId === ev.event_id}
+                onToggleExpand={ev.event_id ? () => toggleExpanded(ev.event_id) : undefined}
+              />
             </motion.div>
           ))}
         </AnimatePresence>

@@ -1,0 +1,959 @@
+{
+ "_note": "Real GET /6/events responses from the LUNA Core API (captured 2026-10-11, events from 2026-09-22..2026-10-09). The browser's History tab calls the same /events through the LUNA gateway (/api/lp5/6/events). account_id and credentials masked; _case added for documentation.",
+ "events": [
+  {
+   "_case": "matched, best candidate in 2nd match_result entry, source+stream_id",
+   "source": null,
+   "location": {
+    "city": null,
+    "area": null,
+    "district": null,
+    "street": null,
+    "house_number": null,
+    "geo_position": null
+   },
+   "stream_id": null,
+   "attach_result": [],
+   "body_detections": [
+    {
+     "sample_id": "d94aa66e-53f7-4818-abd3-5986d9142175",
+     "detect_time": "2026-10-08T11:25:41.796098+05:00",
+     "detect_ts": null,
+     "image_origin": "/6/images/e27e46f4-c364-45ff-8953-8aeef7cdc383",
+     "detection": {
+      "rect": {
+       "x": 0,
+       "y": 421,
+       "width": 1543,
+       "height": 1421
+      }
+     }
+    }
+   ],
+   "meta": null,
+   "face_id": "18c31f37-8870-452c-8ac1-211efb8f7dbf",
+   "gender": 1,
+   "tags": null,
+   "age": 25,
+   "emotion": 5,
+   "mask": 1,
+   "ethnic_group": 4,
+   "liveness": 1,
+   "face_detections": [
+    {
+     "sample_id": "d7af8050-c7e7-44ad-bafd-ab33e12e93a8",
+     "detect_time": "2026-10-08T11:25:41.796098+05:00",
+     "detect_ts": null,
+     "image_origin": "/6/images/e27e46f4-c364-45ff-8953-8aeef7cdc383",
+     "detection": {
+      "rect": {
+       "x": 430,
+       "y": 391,
+       "width": 513,
+       "height": 694
+      }
+     }
+    }
+   ],
+   "deepfake": null,
+   "account_id": "<masked-account-id>",
+   "user_data": "",
+   "create_time": "2026-10-08T11:25:41.795844+05:00",
+   "track_id": null,
+   "end_time": "2026-10-08T11:25:41.795844+05:00",
+   "event_id": "1ab83e72-2020-4f04-a297-ef806d94e814",
+   "external_id": "",
+   "handler_id": "ebf4b99a-5acc-479d-9309-c1e69b20dd83",
+   "match_result": [
+    {
+     "label": "office_staff",
+     "candidates": [
+      {
+       "similarity": 0.9999127388000488,
+       "face": {
+        "face_id": "13756b67-d80f-4425-bb2f-27b19941bbb2",
+        "external_id": "",
+        "user_data": "hassan asif",
+        "create_time": "2025-04-22T11:29:28.062086+05:00"
+       }
+      },
+      {
+       "similarity": 0.19169506430625916,
+       "face": {
+        "face_id": "878054c1-c850-49c9-a5a5-cad3ea9e038f",
+        "external_id": "",
+        "user_data": "Anas",
+        "create_time": "2025-03-17T14:57:20.229281+05:00"
+       }
+      },
+      {
+       "similarity": 0.1724003255367279,
+       "face": {
+        "face_id": "4adcab0c-c291-491f-8384-75d2a76b9dce",
+        "external_id": "",
+        "user_data": "Muqarrab",
+        "create_time": "2025-03-14T14:24:00.064101+05:00"
+       }
+      }
+     ]
+    },
+    {
+     "label": "list",
+     "candidates": [
+      {
+       "similarity": 0.9999998807907104,
+       "face": {
+        "face_id": "6d7f09b2-90b3-4980-b0ba-a89e463aa87a",
+        "external_id": "",
+        "user_data": "hassan",
+        "create_time": "2026-09-28T13:47:28.624007+05:00"
+       }
+      },
+      {
+       "similarity": 0.939678966999054,
+       "face": {
+        "face_id": "30ddca1b-e857-4e0c-9b09-30d8f2911c1f",
+        "external_id": "Ahad",
+        "user_data": "Ahad",
+        "create_time": "2026-10-01T11:13:58.106501+05:00"
+       }
+      },
+      {
+       "similarity": 0.13229325413703918,
+       "face": {
+        "face_id": "94852fa8-356c-40b5-ae56-ab8b45a1db30",
+        "external_id": "Usman",
+        "user_data": "Usman",
+        "create_time": "2026-10-01T11:13:26.151558+05:00"
+       }
+      }
+     ]
+    }
+   ],
+   "top_match": {
+    "face_id": "6d7f09b2-90b3-4980-b0ba-a89e463aa87a",
+    "external_id": "",
+    "label": "list",
+    "similarity": 0.9999998807907104
+   },
+   "body_basic_attributes": {
+    "apparent_age": 54,
+    "apparent_gender": 1
+   },
+   "upper_body": {
+    "headwear": {
+     "state": 0,
+     "apparent_color": "undefined"
+    },
+    "sleeve": {
+     "length": "long"
+    },
+    "upper_clothing": {
+     "colors": [
+      "purple"
+     ]
+    }
+   },
+   "lower_body": {
+    "lower_garment": {
+     "type": "undefined",
+     "colors": [
+      "undefined"
+     ]
+    },
+    "shoes": {
+     "apparent_color": "undefined"
+    }
+   },
+   "accessories": {
+    "backpack": {
+     "state": 0
+    }
+   }
+  },
+  {
+   "_case": "matched, source differs from Luna Streams name (testing vs entrance)",
+   "liveness": null,
+   "deepfake": null,
+   "location": {
+    "city": "Rawalpindi",
+    "area": "H-8/1",
+    "district": "Peshawar Division",
+    "street": "Street 4",
+    "house_number": "123",
+    "geo_position": {
+     "longitude": 72.72341192057493,
+     "latitude": 33.78759468490448
+    }
+   },
+   "account_id": "<masked-account-id>",
+   "user_data": "",
+   "face_detections": [
+    {
+     "sample_id": "40839334-402e-4518-b487-b9633265d13c",
+     "detect_time": "2026-10-01T13:49:50.197061+05:00",
+     "detect_ts": null,
+     "image_origin": "/6/images/74d7e28e-bf4a-404a-8bf0-4b2d2a52f147",
+     "detection": {
+      "rect": {
+       "x": 789,
+       "y": 213,
+       "width": 57,
+       "height": 66
+      }
+     }
+    }
+   ],
+   "create_time": "2026-10-01T13:49:50.197061+05:00",
+   "track_id": "93e7a15f-092a-4fd9-b731-2183000001d5",
+   "end_time": "2026-10-01T13:49:51.334894+05:00",
+   "event_id": "ce3d2066-5c46-4c1a-8919-d248680128af",
+   "external_id": "",
+   "handler_id": "7b370ed7-fc82-49ea-94c8-227465295cc9",
+   "source": "testing",
+   "stream_id": "fdee9841-77c2-47b2-b42b-bd325ee9da4f",
+   "attach_result": [],
+   "meta": null,
+   "body_detections": null,
+   "face_id": "bcd86c65-5f68-4464-b479-23e1acdb8bc4",
+   "gender": 0,
+   "tags": null,
+   "age": 37,
+   "emotion": 2,
+   "mask": 1,
+   "ethnic_group": 2,
+   "match_result": [
+    {
+     "label": "officeList",
+     "candidates": [
+      {
+       "similarity": 0.15604057908058167,
+       "face": {
+        "face_id": "750348c1-60e2-4dd9-917d-bb260d0ba76a",
+        "external_id": "shaban",
+        "user_data": "",
+        "create_time": "2026-10-01T12:20:49.649959+05:00"
+       }
+      },
+      {
+       "similarity": 0.13495974242687225,
+       "face": {
+        "face_id": "6de30df4-d0ec-477b-a009-8ecdf2ea4bc3",
+        "external_id": "CFO",
+        "user_data": "",
+        "create_time": "2026-10-01T12:03:37.929080+05:00"
+       }
+      },
+      {
+       "similarity": 0.11384371668100357,
+       "face": {
+        "face_id": "3fb553b9-abc6-486e-afd6-ae16435c95ac",
+        "external_id": "",
+        "user_data": "zeeshan",
+        "create_time": "2026-09-28T15:47:20.776267+05:00"
+       }
+      }
+     ]
+    },
+    {
+     "label": "office",
+     "candidates": [
+      {
+       "similarity": 0.11706846207380295,
+       "face": {
+        "face_id": "a537eeec-d36d-4505-891b-cedfc983c44d",
+        "external_id": "",
+        "user_data": "usman khan",
+        "create_time": "2025-03-17T18:07:13.518049+05:00"
+       }
+      },
+      {
+       "similarity": 0.1149662584066391,
+       "face": {
+        "face_id": "40533159-a7dd-46f2-9787-3f4aade607c0",
+        "external_id": "",
+        "user_data": "qadeer ahmed",
+        "create_time": "2025-04-17T13:13:11.602032+05:00"
+       }
+      }
+     ]
+    }
+   ],
+   "top_match": {
+    "face_id": "750348c1-60e2-4dd9-917d-bb260d0ba76a",
+    "external_id": "shaban",
+    "label": "officeList",
+    "similarity": 0.15604057908058167
+   },
+   "body_basic_attributes": null,
+   "upper_body": null,
+   "lower_body": null,
+   "accessories": null
+  },
+  {
+   "_case": "matched, track_id + location",
+   "source": "Gelecek_back_door",
+   "location": {
+    "city": "Wah Cantt",
+    "area": "Rawalpindi",
+    "district": "Rawalpindi",
+    "street": "M Qasim Rd",
+    "house_number": "123",
+    "geo_position": null
+   },
+   "stream_id": "df8d1d85-eca3-41f9-bb13-4daca4187828",
+   "attach_result": [],
+   "body_detections": null,
+   "meta": null,
+   "face_id": "953c2c9c-e639-448e-802b-bcbe2ce19c29",
+   "gender": 1,
+   "tags": null,
+   "age": 31,
+   "emotion": 5,
+   "mask": 1,
+   "ethnic_group": 2,
+   "liveness": null,
+   "face_detections": [
+    {
+     "sample_id": "62f02a21-b0c5-48ef-b05b-5fb6dc3aea4c",
+     "detect_time": "2026-10-08T09:29:32.486601+05:00",
+     "detect_ts": null,
+     "image_origin": "/6/images/ad8e6e7a-1322-43f1-85d1-20a4d5de8256",
+     "detection": {
+      "rect": {
+       "x": 781,
+       "y": 304,
+       "width": 61,
+       "height": 77
+      }
+     }
+    }
+   ],
+   "deepfake": null,
+   "account_id": "<masked-account-id>",
+   "user_data": "",
+   "create_time": "2026-10-08T09:29:32.301983+05:00",
+   "track_id": "fecfea67-ea1b-4486-ab26-8bec00000017",
+   "end_time": "2026-10-08T09:29:33.611302+05:00",
+   "event_id": "c7853b4a-e4c0-4a03-ad5f-10348e86d39f",
+   "external_id": "",
+   "handler_id": "7b370ed7-fc82-49ea-94c8-227465295cc9",
+   "match_result": [
+    {
+     "label": "officeList",
+     "candidates": [
+      {
+       "similarity": 0.5501264333724976,
+       "face": {
+        "face_id": "d63f38e6-ce99-4550-a045-97e7002a8d73",
+        "external_id": "adeel",
+        "user_data": "",
+        "create_time": "2026-10-01T12:05:01.349643+05:00"
+       }
+      },
+      {
+       "similarity": 0.5099350214004517,
+       "face": {
+        "face_id": "750348c1-60e2-4dd9-917d-bb260d0ba76a",
+        "external_id": "shaban",
+        "user_data": "",
+        "create_time": "2026-10-01T12:20:49.649959+05:00"
+       }
+      },
+      {
+       "similarity": 0.2686741352081299,
+       "face": {
+        "face_id": "a61947f6-5b13-45e1-9e9e-12dd32bae5c7",
+        "external_id": "fahad_axi",
+        "user_data": "",
+        "create_time": "2026-10-02T14:24:29.991214+05:00"
+       }
+      }
+     ]
+    }
+   ],
+   "top_match": {
+    "face_id": "d63f38e6-ce99-4550-a045-97e7002a8d73",
+    "external_id": "adeel",
+    "label": "officeList",
+    "similarity": 0.5501264333724976
+   },
+   "body_basic_attributes": null,
+   "upper_body": null,
+   "lower_body": null,
+   "accessories": null
+  },
+  {
+   "_case": "matched, source only (no stream_id), event-level external_id/user_data",
+   "source": "demo_cam",
+   "location": {
+    "city": null,
+    "area": null,
+    "district": null,
+    "street": null,
+    "house_number": null,
+    "geo_position": null
+   },
+   "stream_id": null,
+   "attach_result": [],
+   "body_detections": [
+    {
+     "sample_id": "d37ca21f-defb-478d-a9f0-89106350b49c",
+     "detect_time": "2026-10-02T15:50:44.017453+05:00",
+     "detect_ts": null,
+     "image_origin": "/6/images/512c13bd-486d-45e2-b5be-42796c3cbe35",
+     "detection": {
+      "rect": {
+       "x": 0,
+       "y": 49,
+       "width": 141,
+       "height": 234
+      }
+     }
+    }
+   ],
+   "meta": null,
+   "face_id": "42304352-2b2b-4e40-997b-240a016f0084",
+   "gender": 1,
+   "tags": null,
+   "age": 41,
+   "emotion": 7,
+   "mask": 1,
+   "ethnic_group": 2,
+   "liveness": null,
+   "face_detections": [
+    {
+     "sample_id": "a7a49899-6d91-436a-bbb7-80f1c2f64970",
+     "detect_time": "2026-10-02T15:50:44.017453+05:00",
+     "detect_ts": null,
+     "image_origin": "/6/images/512c13bd-486d-45e2-b5be-42796c3cbe35",
+     "detection": {
+      "rect": {
+       "x": 51,
+       "y": 97,
+       "width": 63,
+       "height": 91
+      }
+     }
+    }
+   ],
+   "deepfake": null,
+   "account_id": "<masked-account-id>",
+   "user_data": "demo_cam|demo_cam_1790937950|track1000064|bs7",
+   "create_time": "2026-10-02T15:50:40.000000+05:00",
+   "track_id": "demo_cam_1000064",
+   "end_time": "2026-10-02T15:50:44.017152+05:00",
+   "event_id": "e7724bc5-d264-4034-99d3-a6962203c0eb",
+   "external_id": "bs7",
+   "handler_id": "7b370ed7-fc82-49ea-94c8-227465295cc9",
+   "match_result": [
+    {
+     "label": "officeList",
+     "candidates": [
+      {
+       "similarity": 0.7895102500915527,
+       "face": {
+        "face_id": "f908cb25-689f-4143-83ac-86ec9d7fa1c6",
+        "external_id": "toqeer",
+        "user_data": "",
+        "create_time": "2026-10-01T12:24:04.079345+05:00"
+       }
+      },
+      {
+       "similarity": 0.7895102500915527,
+       "face": {
+        "face_id": "2a4324f3-f9af-4e99-aa75-8f5ec40f0180",
+        "external_id": "toqeer",
+        "user_data": "",
+        "create_time": "2026-10-01T12:24:03.947027+05:00"
+       }
+      },
+      {
+       "similarity": 0.4685802459716797,
+       "face": {
+        "face_id": "d63f38e6-ce99-4550-a045-97e7002a8d73",
+        "external_id": "adeel",
+        "user_data": "",
+        "create_time": "2026-10-01T12:05:01.349643+05:00"
+       }
+      }
+     ]
+    },
+    {
+     "label": "office",
+     "candidates": [
+      {
+       "similarity": 0.2216302454471588,
+       "face": {
+        "face_id": "143370f1-6dac-4a10-91e5-0fa6f84ea577",
+        "external_id": "",
+        "user_data": "hammad",
+        "create_time": "2025-04-22T12:28:36.964940+05:00"
+       }
+      },
+      {
+       "similarity": 0.16208036243915558,
+       "face": {
+        "face_id": "40533159-a7dd-46f2-9787-3f4aade607c0",
+        "external_id": "",
+        "user_data": "qadeer ahmed",
+        "create_time": "2025-04-17T13:13:11.602032+05:00"
+       }
+      },
+      {
+       "similarity": 0.14421311020851135,
+       "face": {
+        "face_id": "13756b67-d80f-4425-bb2f-27b19941bbb2",
+        "external_id": "",
+        "user_data": "hassan asif",
+        "create_time": "2025-04-22T11:29:28.062086+05:00"
+       }
+      }
+     ]
+    }
+   ],
+   "top_match": {
+    "face_id": "f908cb25-689f-4143-83ac-86ec9d7fa1c6",
+    "external_id": "toqeer",
+    "label": "officeList",
+    "similarity": 0.7895102500915527
+   },
+   "body_basic_attributes": {
+    "apparent_age": 37,
+    "apparent_gender": 1
+   },
+   "upper_body": {
+    "headwear": {
+     "state": 1,
+     "apparent_color": "black"
+    },
+    "sleeve": {
+     "length": "undefined"
+    },
+    "upper_clothing": {
+     "colors": [
+      "black"
+     ]
+    }
+   },
+   "lower_body": {
+    "lower_garment": {
+     "type": "undefined",
+     "colors": [
+      "undefined"
+     ]
+    },
+    "shoes": {
+     "apparent_color": "undefined"
+    }
+   },
+   "accessories": {
+    "backpack": {
+     "state": 0
+    }
+   }
+  },
+  {
+   "_case": "matched, no camera at all (no source, no stream_id) - recent office_handler events",
+   "source": null,
+   "location": {
+    "city": null,
+    "area": null,
+    "district": null,
+    "street": null,
+    "house_number": null,
+    "geo_position": null
+   },
+   "stream_id": null,
+   "attach_result": [],
+   "body_detections": [
+    {
+     "sample_id": "6bb91fe9-b605-479c-bc9c-443829014df7",
+     "detect_time": "2026-10-09T16:43:46.696354+05:00",
+     "detect_ts": null,
+     "image_origin": "/6/images/029d2efa-ed5c-4d39-ae68-98bdf577a268",
+     "detection": {
+      "rect": {
+       "x": 9,
+       "y": 21,
+       "width": 221,
+       "height": 277
+      }
+     }
+    }
+   ],
+   "meta": null,
+   "face_id": "a0e091af-f41f-400f-916a-b7a5259e3094",
+   "gender": 1,
+   "tags": null,
+   "age": 26,
+   "emotion": 2,
+   "mask": 1,
+   "ethnic_group": 2,
+   "liveness": null,
+   "face_detections": [
+    {
+     "sample_id": "6d96e61e-3cd7-4fbf-8a4d-dc10f7f4afc7",
+     "detect_time": "2026-10-09T16:43:46.696354+05:00",
+     "detect_ts": null,
+     "image_origin": "/6/images/029d2efa-ed5c-4d39-ae68-98bdf577a268",
+     "detection": {
+      "rect": {
+       "x": 74,
+       "y": 98,
+       "width": 86,
+       "height": 104
+      }
+     }
+    }
+   ],
+   "deepfake": null,
+   "account_id": "<masked-account-id>",
+   "user_data": "",
+   "create_time": "2026-10-09T16:43:46.695979+05:00",
+   "track_id": null,
+   "end_time": "2026-10-09T16:43:46.695979+05:00",
+   "event_id": "fc3c3895-d648-49ba-ae81-9efe53885b44",
+   "external_id": "",
+   "handler_id": "7b370ed7-fc82-49ea-94c8-227465295cc9",
+   "match_result": [
+    {
+     "label": "officeList",
+     "candidates": [
+      {
+       "similarity": 0.4880308508872986,
+       "face": {
+        "face_id": "750348c1-60e2-4dd9-917d-bb260d0ba76a",
+        "external_id": "shaban",
+        "user_data": "",
+        "create_time": "2026-10-01T12:20:49.649959+05:00"
+       }
+      },
+      {
+       "similarity": 0.29770398139953613,
+       "face": {
+        "face_id": "f908cb25-689f-4143-83ac-86ec9d7fa1c6",
+        "external_id": "toqeer",
+        "user_data": "",
+        "create_time": "2026-10-01T12:24:04.079345+05:00"
+       }
+      },
+      {
+       "similarity": 0.29770398139953613,
+       "face": {
+        "face_id": "2a4324f3-f9af-4e99-aa75-8f5ec40f0180",
+        "external_id": "toqeer",
+        "user_data": "",
+        "create_time": "2026-10-01T12:24:03.947027+05:00"
+       }
+      }
+     ]
+    }
+   ],
+   "top_match": {
+    "face_id": "750348c1-60e2-4dd9-917d-bb260d0ba76a",
+    "external_id": "shaban",
+    "label": "officeList",
+    "similarity": 0.4880308508872986
+   },
+   "body_basic_attributes": {
+    "apparent_age": 39,
+    "apparent_gender": 1
+   },
+   "upper_body": {
+    "headwear": {
+     "state": 1,
+     "apparent_color": "black"
+    },
+    "sleeve": {
+     "length": "long"
+    },
+    "upper_clothing": {
+     "colors": [
+      "gray"
+     ]
+    }
+   },
+   "lower_body": {
+    "lower_garment": {
+     "type": "undefined",
+     "colors": [
+      "undefined"
+     ]
+    },
+    "shoes": {
+     "apparent_color": "undefined"
+    }
+   },
+   "accessories": {
+    "backpack": {
+     "state": 0
+    }
+   }
+  },
+  {
+   "_case": "matched, best candidate has empty external_id",
+   "source": null,
+   "location": {
+    "city": null,
+    "area": null,
+    "district": null,
+    "street": null,
+    "house_number": null,
+    "geo_position": null
+   },
+   "stream_id": null,
+   "attach_result": [],
+   "body_detections": null,
+   "meta": null,
+   "face_id": "59697b40-6efa-43ba-9206-0ec3d697383a",
+   "gender": 1,
+   "tags": null,
+   "age": 33,
+   "emotion": 5,
+   "mask": 1,
+   "ethnic_group": 2,
+   "liveness": null,
+   "face_detections": [
+    {
+     "sample_id": "462bd058-dc5c-4bf2-bef2-83305edf2aee",
+     "detect_time": "2026-10-09T16:37:55.067773+05:00",
+     "detect_ts": null,
+     "image_origin": "/6/images/7529cb55-092b-4400-8f47-ec296cee06ec",
+     "detection": {
+      "rect": {
+       "x": 36,
+       "y": 39,
+       "width": 47,
+       "height": 55
+      }
+     }
+    }
+   ],
+   "deepfake": null,
+   "account_id": "<masked-account-id>",
+   "user_data": "",
+   "create_time": "2026-10-09T16:37:55.067374+05:00",
+   "track_id": null,
+   "end_time": "2026-10-09T16:37:55.067374+05:00",
+   "event_id": "f7f8c77d-f320-4846-a439-cf720b514ccb",
+   "external_id": "",
+   "handler_id": "7b370ed7-fc82-49ea-94c8-227465295cc9",
+   "match_result": [
+    {
+     "label": "officeList",
+     "candidates": [
+      {
+       "similarity": 0.13144126534461975,
+       "face": {
+        "face_id": "6d7f09b2-90b3-4980-b0ba-a89e463aa87a",
+        "external_id": "",
+        "user_data": "hassan",
+        "create_time": "2026-09-28T13:47:28.624007+05:00"
+       }
+      },
+      {
+       "similarity": 0.12766686081886292,
+       "face": {
+        "face_id": "209140ff-b6eb-42c7-8fec-93e6d1fbd510",
+        "external_id": "kitchen_person",
+        "user_data": "",
+        "create_time": "2026-10-01T12:57:56.729384+05:00"
+       }
+      },
+      {
+       "similarity": 0.11156237870454788,
+       "face": {
+        "face_id": "073456ad-ee34-4a49-954a-38eca2b0d2bb",
+        "external_id": "hussnain ",
+        "user_data": "hussnain ",
+        "create_time": "2026-10-01T11:10:54.799074+05:00"
+       }
+      }
+     ]
+    }
+   ],
+   "top_match": {
+    "face_id": "6d7f09b2-90b3-4980-b0ba-a89e463aa87a",
+    "external_id": "",
+    "label": "officeList",
+    "similarity": 0.13144126534461975
+   },
+   "body_basic_attributes": null,
+   "upper_body": null,
+   "lower_body": null,
+   "accessories": null
+  },
+  {
+   "_case": "unmatched, body only with clothing colours",
+   "source": null,
+   "location": {
+    "city": null,
+    "area": null,
+    "district": null,
+    "street": null,
+    "house_number": null,
+    "geo_position": null
+   },
+   "stream_id": null,
+   "attach_result": [],
+   "body_detections": [
+    {
+     "sample_id": "38e63018-1bef-4d47-90b0-716eaf239de8",
+     "detect_time": "2026-10-09T16:43:51.316462+05:00",
+     "detect_ts": null,
+     "image_origin": "/6/images/fca6afba-000b-460c-a946-da916bed2e68",
+     "detection": {
+      "rect": {
+       "x": 0,
+       "y": 39,
+       "width": 236,
+       "height": 407
+      }
+     }
+    }
+   ],
+   "meta": null,
+   "face_id": null,
+   "gender": null,
+   "tags": null,
+   "age": null,
+   "emotion": null,
+   "mask": null,
+   "ethnic_group": null,
+   "liveness": null,
+   "face_detections": null,
+   "deepfake": null,
+   "account_id": "<masked-account-id>",
+   "user_data": "",
+   "create_time": "2026-10-09T16:43:51.316177+05:00",
+   "track_id": null,
+   "end_time": "2026-10-09T16:43:51.316177+05:00",
+   "event_id": "23b5dcdf-4eef-4b61-a78d-3cf65a45194e",
+   "external_id": "",
+   "handler_id": "7b370ed7-fc82-49ea-94c8-227465295cc9",
+   "match_result": null,
+   "top_match": null,
+   "body_basic_attributes": {
+    "apparent_age": 35,
+    "apparent_gender": 2
+   },
+   "upper_body": {
+    "headwear": {
+     "state": 2,
+     "apparent_color": "undefined"
+    },
+    "sleeve": {
+     "length": "undefined"
+    },
+    "upper_clothing": {
+     "colors": [
+      "black",
+      "gray"
+     ]
+    }
+   },
+   "lower_body": {
+    "lower_garment": {
+     "type": "undefined",
+     "colors": [
+      "undefined"
+     ]
+    },
+    "shoes": {
+     "apparent_color": "undefined"
+    }
+   },
+   "accessories": {
+    "backpack": {
+     "state": 2
+    }
+   }
+  },
+  {
+   "_case": "unmatched, body only, no clothing colours",
+   "source": null,
+   "location": {
+    "city": null,
+    "area": null,
+    "district": null,
+    "street": null,
+    "house_number": null,
+    "geo_position": null
+   },
+   "stream_id": null,
+   "attach_result": [],
+   "body_detections": [
+    {
+     "sample_id": "d4c6acc8-5f99-4aee-804e-51486a4e92f4",
+     "detect_time": "2026-10-09T15:41:36.841940+05:00",
+     "detect_ts": null,
+     "image_origin": "/6/images/2ff9508b-b324-41e1-aafd-4a15c3f15a71",
+     "detection": {
+      "rect": {
+       "x": 21,
+       "y": 32,
+       "width": 153,
+       "height": 262
+      }
+     }
+    }
+   ],
+   "meta": null,
+   "face_id": null,
+   "gender": null,
+   "tags": null,
+   "age": null,
+   "emotion": null,
+   "mask": null,
+   "ethnic_group": null,
+   "liveness": null,
+   "face_detections": null,
+   "deepfake": null,
+   "account_id": "<masked-account-id>",
+   "user_data": "",
+   "create_time": "2026-10-09T15:41:36.834576+05:00",
+   "track_id": null,
+   "end_time": "2026-10-09T15:41:36.834576+05:00",
+   "event_id": "14d0b5cb-cc08-4708-9c81-9ee9b85bbc69",
+   "external_id": "",
+   "handler_id": "7b370ed7-fc82-49ea-94c8-227465295cc9",
+   "match_result": null,
+   "top_match": null,
+   "body_basic_attributes": {
+    "apparent_age": 37,
+    "apparent_gender": 2
+   },
+   "upper_body": {
+    "headwear": {
+     "state": 2,
+     "apparent_color": "undefined"
+    },
+    "sleeve": {
+     "length": "undefined"
+    },
+    "upper_clothing": {
+     "colors": [
+      "undefined"
+     ]
+    }
+   },
+   "lower_body": {
+    "lower_garment": {
+     "type": "undefined",
+     "colors": [
+      "undefined"
+     ]
+    },
+    "shoes": {
+     "apparent_color": "undefined"
+    }
+   },
+   "accessories": {
+    "backpack": {
+     "state": 2
+    }
+   }
+  }
+ ]
+}

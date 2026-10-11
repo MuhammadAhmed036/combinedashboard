@@ -1,0 +1,47 @@
+{
+ "_note": "GET <gateway>/api/luna-streams/1/streams (trimmed). The full payload contains RTSP URLs with camera credentials: only stream_id -> name may leave the server.",
+ "streams": [
+  {
+   "stream_id": "df8d1d85-eca3-41f9-bb13-4daca4187828",
+   "name": "Gelecek_back_door",
+   "description": "Gelecek",
+   "status": "failure",
+   "event_handler": {
+    "bestshot_handler": {
+     "handler_id": "7b370ed7-fc82-49ea-94c8-227465295cc9"
+    }
+   },
+   "data": {
+    "reference": "rtsp://<masked>:<masked>@192.168.10.241"
+   }
+  },
+  {
+   "stream_id": "282f8bcb-32bb-4781-82e1-a363cc96f2b3",
+   "name": "kitchen",
+   "description": "Kitchen Ccoridor",
+   "status": "failure",
+   "event_handler": {
+    "bestshot_handler": {
+     "handler_id": "7b370ed7-fc82-49ea-94c8-227465295cc9"
+    }
+   },
+   "data": {
+    "reference": "rtsp://<masked>:<masked>@192.168.18.213:8554/kitchen"
+   }
+  },
+  {
+   "stream_id": "fdee9841-77c2-47b2-b42b-bd325ee9da4f",
+   "name": "entrance",
+   "description": "entrance",
+   "status": "failure",
+   "event_handler": {
+    "bestshot_handler": {
+     "handler_id": "7b370ed7-fc82-49ea-94c8-227465295cc9"
+    }
+   },
+   "data": {
+    "reference": "rtsp://<masked>:<masked>@192.168.18.213:8554/entrance"
+   }
+  }
+ ]
+}

@@ -6,12 +6,8 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LunaEvent, ParsedLunaPersonInfo } from './types';
 import { parseLunaEvent, resolveLunaSampleUrl, resolveLunaSampleProxyUrl } from './lunaHelpers';
-import {
-  directFetchLunaFace,
-  directFetchLunaEvent,
-  directFetchLunaHandlerName,
-  lunaHandlerNameCache,
-} from '@/lib/lunaDirectClient';
+import { buildLunaCardModel, EMPTY_LUNA_LOOKUPS, type LunaCardModel, type LunaLookups } from './lunaCardModel';
+import { directFetchLunaFace, directFetchLunaEvent } from '@/lib/lunaDirectClient';
 import {
   Navigation,
   User,
@@ -21,6 +17,9 @@ import {
   X,
   Maximize2,
   ZoomIn,
+  ChevronDown,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 interface LunaEventCardProps {
@@ -28,6 +27,10 @@ interface LunaEventCardProps {
   onTraceClick: (event: LunaEvent, info: ParsedLunaPersonInfo) => void;
   onSelect?: (event: LunaEvent) => void;
   handlerMap?: Record<string, string>;
+  /** Display names from /api/luna/lookups (handlers, lists, cameras) */
+  lookups?: LunaLookups;
+  expanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
 const clientAvatarCache = new Map<string, string>();
@@ -39,56 +42,41 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   onTraceClick,
   onSelect,
   handlerMap,
+  lookups = EMPTY_LUNA_LOOKUPS,
+  expanded = false,
+  onToggleExpand,
 }) => {
   const info = parseLunaEvent(event);
   const [sampleError, setSampleError] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const [sampleUsingFallback, setSampleUsingFallback] = useState(false);
   const [avatarUsingFallback, setAvatarUsingFallback] = useState(false);
-  const [asyncHandlerName, setAsyncHandlerName] = useState<string | null>(null);
 
-  const targetHandlerId = event.handler_id || (event as any).handlerId;
+  // Collapsed lines: highest-similarity candidate's name, camera, and the list
+  // that candidate matched from (lunaCardModel.ts; AUDIT §13).
+  const model = React.useMemo(() => buildLunaCardModel(event, lookups), [event, lookups]);
+  const top = model.top;
+  const personName = top?.name ?? 'Unknown';
+  const listLine = top ? top.list ?? info.listName : model.attributesSummary || 'No attributes reported';
+  const handlerName = model.handler ?? (model.handlerId ? handlerMap?.[model.handlerId] ?? null : null);
+  // The trace modal gets the corrected name/list; the camera only when it is
+  // actually known (its map resolves cameras by name).
+  const traceInfo: ParsedLunaPersonInfo = {
+    ...info,
+    name: top?.name ?? info.name,
+    listName: top?.list ?? info.listName,
+    cameraName: model.camera ?? info.cameraName,
+  };
 
+  // Esc collapses the expanded card.
   useEffect(() => {
-    if (!targetHandlerId) return;
-    const hLower = targetHandlerId.toLowerCase();
-    const hPrefix = targetHandlerId.slice(0, 8).toLowerCase();
-
-    if (handlerMap?.[targetHandlerId] || handlerMap?.[hLower] || handlerMap?.[hPrefix]) return;
-    if (lunaHandlerNameCache.has(hLower) || lunaHandlerNameCache.has(hPrefix)) return;
-
-    let isMounted = true;
-    directFetchLunaHandlerName(targetHandlerId).then((name) => {
-      if (isMounted && name) setAsyncHandlerName(name);
-    });
-
-    return () => {
-      isMounted = false;
+    if (!expanded || !onToggleExpand) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onToggleExpand();
     };
-  }, [targetHandlerId, handlerMap]);
-
-  const displayCameraName = React.useMemo(() => {
-    if (event.source && event.source.trim()) return event.source.trim();
-    if ((event as any).handler_name && String((event as any).handler_name).trim()) {
-      return String((event as any).handler_name).trim();
-    }
-    if ((event as any).handler_description && String((event as any).handler_description).trim()) {
-      return String((event as any).handler_description).trim();
-    }
-    if (asyncHandlerName) return asyncHandlerName;
-
-    if (targetHandlerId) {
-      const hLower = targetHandlerId.toLowerCase();
-      const hPrefix = targetHandlerId.slice(0, 8).toLowerCase();
-      if (handlerMap?.[targetHandlerId]) return handlerMap[targetHandlerId];
-      if (handlerMap?.[hLower]) return handlerMap[hLower];
-      if (handlerMap?.[hPrefix]) return handlerMap[hPrefix];
-      if (lunaHandlerNameCache.get(hLower)) return lunaHandlerNameCache.get(hLower)!;
-      if (lunaHandlerNameCache.get(hPrefix)) return lunaHandlerNameCache.get(hPrefix)!;
-    }
-
-    return info.cameraName;
-  }, [event.source, (event as any).handler_name, (event as any).handler_description, asyncHandlerName, targetHandlerId, handlerMap, info.cameraName]);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [expanded, onToggleExpand]);
 
   // Matched / enrolled original face avatar state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
@@ -241,7 +229,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
 
   // Dynamic color palette per wireframe (Green >= 80%, Yellow 60-79%, Red < 60%)
   // Rule indicator colors strictly preserved (Red, Green, Yellow) with solid enterprise CCTV styling
-  const sim = info.similarity;
+  const sim = top ? top.percent : info.similarity;
   let cardBorder = 'border border-rose-600/80';
   let cardBg = 'bg-[#181b23] hover:bg-[#1f242e]';
   let badgeStyle = 'bg-rose-600 text-white font-semibold';
@@ -277,9 +265,24 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
   return (
     <>
       <div
-        onClick={() => onSelect?.(event)}
-        className={`group relative flex items-stretch rounded-xl p-2 shadow-lg transition-all duration-200 hover:brightness-105 cursor-pointer text-xs select-none mt-2.5 overflow-visible ${cardBorder} ${cardBg}`}
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        aria-label={`${personName}${model.camera ? `, ${model.camera}` : ''}. ${expanded ? 'Collapse' : 'Expand'} details`}
+        onClick={() => {
+          onSelect?.(event);
+          onToggleExpand?.();
+        }}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggleExpand?.();
+          }
+        }}
+        className={`group relative flex flex-col rounded-xl p-2 shadow-lg transition-all duration-200 hover:brightness-105 cursor-pointer text-xs select-none mt-2.5 overflow-visible focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/70 ${cardBorder} ${cardBg}`}
       >
+       <div className="flex items-stretch">
         {/* ── Left Area: Large Camera Detected Image (Blue in wireframe) ── */}
         <div className="relative shrink-0 w-22 h-28 flex items-center justify-center">
           <div
@@ -288,8 +291,8 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
               if (fullFrameImageUrl) {
                 setLightbox({
                   url: fullFrameImageUrl,
-                  title: `${fullFrameUrl || info.frameUrl ? 'Full Frame' : 'Detected Person'}: ${info.name}`,
-                  subtitle: `${info.cameraName} • ${dateTimeLabel}`,
+                  title: `${fullFrameUrl || info.frameUrl ? 'Full Frame' : 'Detected Person'}: ${personName}`,
+                  subtitle: `${model.camera ?? 'Unknown camera'} • ${dateTimeLabel}`,
                 });
               }
             }}
@@ -330,8 +333,8 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
               if (avatarUrl && !avatarError) {
                 setLightbox({
                   url: avatarUrl,
-                  title: `Matched Reference (Original): ${info.name}`,
-                  subtitle: `${info.listName} • Similarity: ${sim}%`,
+                  title: `Matched Reference (Original): ${personName}`,
+                  subtitle: `${top?.list ?? info.listName} • Similarity: ${sim}%`,
                 });
               }
             }}
@@ -368,8 +371,9 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
         <div className="flex-1 min-w-0 pl-2.5 flex flex-col justify-between py-0.5">
           {/* Top Row: Category tag on left & Similarity Score on Top-Right */}
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[8px] uppercase tracking-wider text-slate-400 font-mono pl-3">
+            <span className="flex items-center gap-0.5 text-[8px] uppercase tracking-wider text-slate-400 font-mono pl-3">
               {isMatch ? 'MATCH' : 'ALERT'}
+              <ChevronDown className={`w-2.5 h-2.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
             </span>
             <div
               className={`shrink-0 px-1.5 py-0.5 rounded font-black text-[10px] border shadow-sm ${badgeStyle}`}
@@ -379,31 +383,33 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
             </div>
           </div>
 
-          {/* Row 1: Name block */}
+          {/* Row 1: Person name (highest-similarity candidate) */}
           <div
             className={`px-1.5 py-0.5 rounded border text-[11px] font-bold truncate flex items-center gap-1.5 ${nameBlock}`}
-            title={info.name}
+            title={personName}
           >
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
-            <span className="truncate">{info.name}</span>
+            <span className="truncate">{personName}</span>
           </div>
 
-          {/* Row 2: Cam Name / Handler block */}
+          {/* Row 2: Camera name */}
           <div
             className={`px-1.5 py-0.5 rounded border text-[10px] truncate flex items-center gap-1.5 ${camBlock}`}
-            title={`Camera / Handler: ${displayCameraName}`}
+            title={model.camera ? `Camera: ${model.camera}` : 'Camera not reported by LUNA (event has no source or stream id)'}
           >
             <Camera className="w-3 h-3 text-slate-400 shrink-0" />
-            <span className="truncate font-medium">{displayCameraName}</span>
+            <span className={`truncate font-medium ${model.camera ? '' : 'italic text-slate-500'}`}>
+              {model.camera ?? 'Unknown camera'}
+            </span>
           </div>
 
-          {/* Row 3: List block */}
+          {/* Row 3: List the top candidate matched from; attributes when unmatched */}
           <div
             className={`px-1.5 py-0.5 rounded border text-[10px] truncate flex items-center gap-1.5 ${listBlock}`}
-            title={`Watchlist: ${info.listName}`}
+            title={top ? `List: ${listLine}` : listLine}
           >
-            <Tag className="w-2.5 h-2.5 text-slate-400 shrink-0" />
-            <span className="truncate font-medium">{info.listName}</span>
+            {top ? <Tag className="w-2.5 h-2.5 text-slate-400 shrink-0" /> : <User className="w-2.5 h-2.5 text-slate-400 shrink-0" />}
+            <span className="truncate font-medium">{listLine}</span>
           </div>
 
           {/* Row 4: ListTD / Timestamp (Time & Date) + Trace Button */}
@@ -429,7 +435,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onTraceClick(event, info);
+                onTraceClick(event, traceInfo);
               }}
               title="Trace Person Movement"
               className={`flex items-center gap-1 px-2.5 py-1 rounded border text-[9.5px] font-bold transition-all shadow-sm shrink-0 cursor-pointer ${traceBtn}`}
@@ -439,6 +445,16 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
             </button>
           </div>
         </div>
+       </div>
+
+        {expanded && (
+          <LunaEventDetails
+            model={model}
+            handlerName={handlerName}
+            detectedImageUrl={detectedImageUrl && !sampleError ? detectedImageUrl : null}
+            avatarUrl={avatarUrl && !avatarError ? avatarUrl : null}
+          />
+        )}
       </div>
 
       {/* ── Full-View Image Lightbox Modal ── */}
@@ -482,7 +498,7 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
 
               {/* Lightbox Footer */}
               <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-800 bg-slate-950/70 text-xs text-slate-400">
-                <span className="font-mono text-[11px]">{info.cameraName}</span>
+                <span className="font-mono text-[11px]">{model.camera ?? 'Unknown camera'}</span>
                 <button
                   type="button"
                   onClick={() => setLightbox(null)}
@@ -498,3 +514,141 @@ export const LunaEventCard: React.FC<LunaEventCardProps> = ({
     </>
   );
 };
+
+function formatDateTime(value: string | null): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? value : d.toLocaleString();
+}
+
+async function copyText(value: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    // fall through to the legacy path (plain-HTTP pages have no clipboard API)
+  }
+  const area = document.createElement('textarea');
+  area.value = value;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  let ok = false;
+  try {
+    ok = document.execCommand('copy');
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(area);
+  return ok;
+}
+
+function DetailRow({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
+  if (!value) return null;
+  return (
+    <>
+      <dt className="text-slate-500 whitespace-nowrap">{label}</dt>
+      <dd className={`text-slate-200 min-w-0 truncate ${mono ? 'font-mono text-[9px]' : ''}`} title={value}>
+        {value}
+      </dd>
+    </>
+  );
+}
+
+/** Inline expanded view: only fields present in the event are shown. */
+function LunaEventDetails({
+  model,
+  handlerName,
+  detectedImageUrl,
+  avatarUrl,
+}: {
+  model: LunaCardModel;
+  handlerName: string | null;
+  detectedImageUrl: string | null;
+  avatarUrl: string | null;
+}) {
+  const [copied, setCopied] = useState<'ok' | 'failed' | null>(null);
+  const top = model.top;
+  const created = formatDateTime(model.createTime);
+  const ended = model.endTime && model.endTime !== model.createTime ? formatDateTime(model.endTime) : null;
+
+  return (
+    <div
+      className="mt-2 pt-2 border-t border-slate-700/70 space-y-2 cursor-default select-text"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {(detectedImageUrl || avatarUrl) && (
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { url: detectedImageUrl, caption: 'Detected' },
+            { url: avatarUrl, caption: 'Matched reference' },
+          ].map(({ url, caption }) =>
+            url ? (
+              <figure key={caption} className="rounded-lg overflow-hidden border border-slate-800 bg-slate-950">
+                <img src={url} alt={caption} className="w-full h-32 object-cover" />
+                <figcaption className="text-[8px] text-slate-400 font-mono text-center py-0.5 uppercase">{caption}</figcaption>
+              </figure>
+            ) : (
+              <div key={caption} />
+            )
+          )}
+        </div>
+      )}
+
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 text-[10px]">
+        <DetailRow label="Person" value={top?.name} />
+        <DetailRow label="Similarity" value={top ? `${top.percent}%` : null} />
+        <DetailRow label="List" value={top?.list} />
+        <DetailRow label="External ID" value={top?.externalId} mono />
+        <DetailRow label="Face ID" value={top?.faceId} mono />
+        <DetailRow label="Camera" value={model.camera} />
+        <DetailRow label="Handler" value={handlerName ?? model.handlerId} />
+        <DetailRow label={ended ? 'Track start' : 'Event time'} value={created} />
+        <DetailRow label="Track end" value={ended} />
+        <DetailRow label="Track ID" value={model.trackId} mono />
+        <DetailRow label="Location" value={model.location} />
+        {model.attributes.map((a) => (
+          <DetailRow key={a.label} label={a.label} value={a.value} />
+        ))}
+      </dl>
+
+      {model.others.length > 0 && (
+        <div>
+          <div className="text-[9px] uppercase tracking-wider text-slate-500 font-mono mb-0.5">Other candidates</div>
+          <ul className="space-y-0.5">
+            {model.others.map((c) => (
+              <li key={`${c.faceId ?? c.name}-${c.label ?? ''}`} className="flex items-center gap-2 text-[10px]">
+                <span className="truncate text-slate-200 flex-1 min-w-0" title={c.name}>{c.name}</span>
+                {c.list && <span className="truncate text-slate-400 max-w-[40%]" title={c.list}>{c.list}</span>}
+                <span className="shrink-0 font-mono text-slate-300">{c.percent}%</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {model.eventId && (
+        <div className="flex items-center gap-1.5 text-[9px]">
+          <span className="text-slate-500">Event ID</span>
+          <span className="font-mono text-slate-300 truncate flex-1 min-w-0" title={model.eventId}>{model.eventId}</span>
+          <button
+            type="button"
+            onClick={async () => {
+              setCopied((await copyText(model.eventId!)) ? 'ok' : 'failed');
+              setTimeout(() => setCopied(null), 1500);
+            }}
+            className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+            title="Copy event ID"
+          >
+            {copied === 'ok' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+            <span>{copied === 'ok' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy'}</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
