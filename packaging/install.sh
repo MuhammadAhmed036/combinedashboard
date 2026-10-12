@@ -448,7 +448,7 @@ wait_for "dashboard HTTP 200 on port ${FINAL[APP_PORT]}" 180 health_is "$PROJECT
 wait_for "sync running" 120 logs_have "$PROJECT-sync" "\[sync\] running" || ok=0
 wait_for "person-count WebSocket listening on ${FINAL[PERSON_COUNT_WS_PORT]}" 60 logs_have "$PROJECT-person-count-ws" "listening on" || ok=0
 wait_for "LUNA relay listening on ${FINAL[LUNA_WS_PORT]}" 60 logs_have "$PROJECT-luna-ws" "listening" || ok=0
-$DOCKER logs "$PROJECT-sync" 2>&1 | grep -E "start cursor|resuming detection_events cursor|mirrored" | tail -3 | sed 's/^/        /'
+{ $DOCKER logs "$PROJECT-sync" 2>&1 | grep -E "start cursor|resuming detection_events cursor|mirrored" || true; } | tail -3 | sed 's/^/        /'
 
 say ""
 say "Restart policy: $($DOCKER inspect --format '{{.Name}}={{.HostConfig.RestartPolicy.Name}}' "$PROJECT-db" "$PROJECT-dashboard" "$PROJECT-sync" "$PROJECT-person-count-ws" "$PROJECT-luna-ws" | tr '\n' ' ')"

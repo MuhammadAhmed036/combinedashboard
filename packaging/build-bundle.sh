@@ -40,7 +40,7 @@ CHANGED="$(git status --porcelain --untracked-files=all | cut -c4- | sed 's/.* -
 BAD="$(printf '%s\n' "$CHANGED" | grep -v '^$' | grep -Ev "$PACKAGING_RE" || true)"
 [ -z "$BAD" ] || die "uncommitted changes outside packaging files (commit them first):
 $BAD"
-PACKAGING_CHANGES="$(printf '%s\n' "$CHANGED" | grep -v '^$' | tr '\n' ' ' | sed 's/ $//')"
+PACKAGING_CHANGES="$(printf '%s\n' "$CHANGED" | { grep -v '^$' || true; } | tr '\n' ' ' | sed 's/ $//')"
 echo "application source: HEAD $COMMIT_FULL"
 echo "uncommitted packaging files: ${PACKAGING_CHANGES:-none}"
 
