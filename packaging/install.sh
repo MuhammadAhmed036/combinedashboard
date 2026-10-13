@@ -334,7 +334,9 @@ for img in $IMAGES; do $DOCKER image inspect "$img" >/dev/null 2>&1 && pass "$im
 
 # ── connectivity checks ──────────────────────────────────────────────────────
 APP_IMG="safecity-ai-dashboard:${IMAGE_TAG}"
-run_node() { $DOCKER run --rm --network host --env-file "$INSTALL_DIR/.env" --entrypoint node "$APP_IMG" -e "$1" 2>/dev/null; }
+# Checks run on Docker's bridge network, like the dashboard's own containers (a
+# localhost URL that only works from the host must fail here too).
+run_node() { $DOCKER run --rm --network bridge --env-file "$INSTALL_DIR/.env" --entrypoint node "$APP_IMG" -e "$1" 2>/dev/null; }
 
 CHECK_JS='
 const t=(ms)=>AbortSignal.timeout(ms), e=process.env, out=[];
@@ -355,6 +357,20 @@ const code=async(url,init={})=>{try{const r=await fetch(url,{...init,signal:t(60
  [s]=await code("http://"+e.LUNA_HOST+":"+e.LUNA_API_PORT+"/6/lists?page=1&page_size=1",{headers:lh}); out.push(["luna",s]);
  for(const r of out) console.log(r.join("|"));
 })();'
+
+# Columns the sync mirrors / must have (workers/sync-service: DETECTION_EVENTS_COLUMNS,
+# lib/source-columns.cjs REQUIRED_SOURCE_COLUMNS).
+TEAM_DB_JS='
+const {Pool}=require("pg");
+const wanted="id event_id camera_id camera_ip zone scene detection_ts model_name backend device image_width image_height detection_count decode_ms preprocess_ms inference_ms postprocess_ms total_ms detections_json raw_image_path raw_image_status worker_id created_at".split(" ");
+const required="id event_id camera_id detection_ts detections_json created_at".split(" ");
+const p=new Pool({connectionString:process.env.TEAM_DATABASE_URL,connectionTimeoutMillis:6000,options:"-c default_transaction_read_only=on"});
+(async()=>{
+ await p.query("SELECT 1");
+ const {fields}=await p.query("SELECT * FROM detection_events LIMIT 0");
+ const have=new Set(fields.map(f=>f.name));
+ console.log(["ok",required.filter(c=>!have.has(c)).join(","),wanted.filter(c=>!have.has(c)&&!required.includes(c)).join(",")].join("|"));
+})().catch(e=>console.log("err|"+(e.code||"")+" "+String(e.message).split("\n")[0])).finally(()=>p.end().catch(()=>{}));'
 
 run_checks() { # sets CHECK_FAILED / AUTH_FAILED_KEYS
   CHECK_FAILED=0; AUTH_FAILED_KEYS=""
@@ -385,13 +401,22 @@ run_checks() { # sets CHECK_FAILED / AUTH_FAILED_KEYS
         esac ;;
     esac
   done <<< "$lines"
-  # Team DB: read-only transaction, SELECT 1 only.
-  if $DOCKER run --rm --network host --env-file "$INSTALL_DIR/.env" -e PGOPTIONS='-c default_transaction_read_only=on' -e PGCONNECT_TIMEOUT=6 \
-       --entrypoint sh "${FINAL[POSTGRES_IMAGE]}" -c 'psql "$TEAM_DATABASE_URL" -tAc "SELECT 1"' 2>/dev/null | grep -qx 1; then
-    pass "Team DB reachable (read-only SELECT 1)"
-  else
-    fail "Team DB: cannot connect with TEAM_DATABASE_URL"; CHECK_FAILED=1
-  fi
+  # Team DB: read-only transaction; SELECT 1 and the detection_events columns the
+  # sync reads (same `SELECT * ... LIMIT 0` it uses). No writes.
+  local db; db="$(run_node "$TEAM_DB_JS" || true)"
+  case "$db" in
+    ok\|*)
+      pass "Team DB reachable (read-only SELECT 1)"
+      local missing_req missing_opt; IFS='|' read -r _ missing_req missing_opt <<< "$db"
+      if [ -n "$missing_req" ]; then
+        fail "Team DB detection_events lacks required column(s): $missing_req — sync cannot mirror this source"; CHECK_FAILED=1
+      elif [ -n "$missing_opt" ]; then
+        warn "Team DB detection_events has no $missing_opt — mirrored as empty (no dashboard feature depends on it)"
+      else
+        pass "Team DB detection_events has every column the sync reads"
+      fi ;;
+    *) fail "Team DB: cannot connect with TEAM_DATABASE_URL (${db#err|})"; CHECK_FAILED=1 ;;
+  esac
 }
 
 rewrite_env_key() { # rewrite_env_key key value

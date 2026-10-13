@@ -34,8 +34,11 @@ Defaults: `--env-file` > existing `<dir>/.env` (upgrade) > `defaults.env` in thi
 - **`PROJECT_NAME`** (default `combined`): compose project and container prefix (`<name>-db`, `-dashboard`,
   `-sync`, `-person-count-ws`, `-luna-ws`). The installer refuses a name used by another compose project.
 - A summary (secrets masked) is shown before anything is written. `.env` is written with mode 600.
-- **Connectivity checks** (tokens used, never shown): Detection API `/api/health` + an authenticated call, Streams
-  API (token, stream list), WHEP (token), Team DB (read-only `SELECT 1`), LUNA (warning only). A 401/403 from the
+- **Connectivity checks** (tokens used, never shown; run on Docker's bridge network like the dashboard itself, so a
+  `localhost` URL fails here too): Detection API `/api/health` + an authenticated call, Streams API (token, stream
+  list), WHEP (token), Team DB (read-only `SELECT 1` + the `detection_events` columns the sync reads: a missing
+  required column fails, a missing optional one such as `worker_id` is a warning and is mirrored empty), LUNA
+  (warning only). A 401/403 from the
   pipeline means the token is refused — tokens may be IP-bound; issue new ones for this VM's IP and re-enter them
   (the installer offers this). Other pipeline failures ask "Continue anyway?" (default no).
 - Start: `docker compose up -d --no-build --pull never` for this project only; waits for DB, dashboard HTTP 200,

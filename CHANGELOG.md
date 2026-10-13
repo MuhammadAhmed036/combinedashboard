@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-10-13 — Sync works with the plain YOLO Stage 2 table (no worker_id)
+
+### What changed
+
+- `workers/sync-service`: the source `detection_events` columns are read once (`SELECT * … LIMIT 0`) and the mirror
+  selects only what exists (`lib/source-columns.cjs`). Missing optional columns are mirrored empty
+  (`raw_image_status` as `'available'`, the local default); a missing required column (`id`, `event_id`,
+  `camera_id`, `detection_ts`, `detections_json`, `created_at`) stops sync with a clear message. The 60 s
+  reconcile is skipped when the source has no `raw_image_status`.
+- `packaging/install.sh`: connectivity checks run on Docker's bridge network (like the containers; a
+  `localhost` URL no longer passes), and the team-DB check reads the `detection_events` columns the sync
+  needs — FAIL for a missing required column, WARN for a missing optional one.
+
+### Why
+
+- On VM .105 sync crash-looped: `column "worker_id" does not exist`. The YOLO Stage 2 tar (`f812553`) creates
+  `detection_events` without `worker_id`; on .213 it only exists through a hand-added view
+  (`public.detection_events_v1` / `compat.detection_events`, role `dashboard_sync` with
+  `search_path=compat, public`), which .105 does not have.
+- `worker_id` is only read by `getLiveClassCounts` / `getLiveClassCountsByCamera` (`DISTINCT ON (camera_id,
+  worker_id)`); with one worker per camera (all cameras on .213) an empty value gives the same result, and no
+  screen calls these endpoints since the analytics page was removed.
+
+### Tested
+
+- `node --test 'tests/*.test.mjs'`: 38 pass (4 new: plain YOLO columns, compat view, missing
+  `raw_image_status`, missing required column).
+- Throwaway Postgres built from the YOLO tar's own init SQL (30 columns, no `worker_id`) with 300 real rows copied
+  read-only from .213: the current sync (2c30235) reproduced the crash; the new sync mirrored all rows
+  (`worker_id` empty), mirrored new rows in real time, the alert engine fired on a person+truck+car rule with
+  per-class counts, `/api/stats/classes` and `/by-camera` returned per-class data, `verify-pipeline.sh` passed
+  except two checks explained by the test data (synthetic event ids have no image; no person in recent parking
+  frames).
+- Installer team-DB check: fake plain table → WARN `worker_id`; .213 compat view → PASS; `localhost` URL → FAIL.
+
+### Rollback
+
+- Revert the commit; the previous sync works only where `detection_events` has `worker_id` (compat view).
+
 ## 2026-10-11 — Offline install bundle (packaging only)
 
 ### What changed

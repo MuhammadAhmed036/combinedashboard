@@ -18,6 +18,7 @@ const { chooseStartCursor } = require("./lib/sync-cursor.cjs");
 const { findFirstIdSince } = require("./lib/backfill-search.cjs");
 const { streamStatusMap } = require("./lib/stream-status.cjs");
 const { countByClass } = require("./lib/class-counts.cjs");
+const { buildSourceSelect } = require("./lib/source-columns.cjs");
 
 // Same fallback pattern as person-count-ws/index.js: this service has no
 // framework auto-loading .env, so fall back to the project's root .env for
@@ -235,11 +236,30 @@ async function loadCursor() {
   console.log(`[sync] resuming detection_events cursor at id=${lastSyncedId}`);
 }
 
+// Source columns differ between YOLO Stage 2 installs (the plain table has no
+// worker_id): select what the source has, mirror missing optional columns as
+// defaults. Discovered once per process.
+let sourceSelect = null;
+async function sourceSelectList() {
+  if (sourceSelect) return sourceSelect;
+  const { fields } = await team.query("SELECT * FROM detection_events LIMIT 0");
+  const built = buildSourceSelect(DETECTION_EVENTS_COLUMNS, fields.map((f) => f.name));
+  if (built.missingRequired.length) {
+    throw new Error(`source detection_events lacks required column(s): ${built.missingRequired.join(", ")}`);
+  }
+  if (built.missing.length) {
+    console.warn(`[sync] source detection_events has no column(s) ${built.missing.join(", ")} — mirrored as defaults`);
+  }
+  sourceSelect = built;
+  return sourceSelect;
+}
+
 async function syncNewDetectionEvents() {
   let totalRows = 0;
+  const { list } = await sourceSelectList();
   for (let batchNo = 0; batchNo < SYNC_MAX_BATCHES_PER_POLL; batchNo++) {
     const { rows } = await team.query(
-      `SELECT ${DETECTION_EVENTS_COLUMNS.join(",")} FROM detection_events
+      `SELECT ${list} FROM detection_events
        WHERE id > $1 ORDER BY id ASC LIMIT $2`,
       [lastSyncedId, SYNC_BATCH_LIMIT]
     );
@@ -914,6 +934,8 @@ async function pollLoop() {
 }
 
 async function reconcileOpenDetectionEvents() {
+  // Nothing to reconcile when the source does not track image retention.
+  if ((await sourceSelectList()).missing.includes("raw_image_status")) return;
   const { rows: openRows } = await local.query(
     `SELECT id, raw_image_status FROM detection_events
      WHERE raw_image_status = ANY($1)
